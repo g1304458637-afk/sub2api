@@ -203,6 +203,17 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'dashboard.welcomeMessage'
     }
   },
+  // MUC Harness: 桌面客户端下载与一键连接
+  {
+    path: '/muc',
+    name: 'Muc',
+    component: () => import('@/views/user/MucView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'MUC AI Harness'
+    }
+  },
   {
     path: '/keys',
     name: 'Keys',
