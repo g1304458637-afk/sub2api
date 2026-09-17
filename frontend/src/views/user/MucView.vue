@@ -91,7 +91,7 @@
 
 <script setup lang="ts">
 // MUC Harness: 下载与一键连接页（网站端）
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { createMucConnectCode } from '@/api/muc'
 import campusImg from '@/assets/muc/campus.png'
@@ -99,6 +99,7 @@ import campusImg from '@/assets/muc/campus.png'
 type PlatformKey = 'mac-arm' | 'mac-intel' | 'win' | 'other'
 
 const platform = ref<{ key: PlatformKey; label: string }>({ key: 'mac-arm', label: 'macOS Apple Silicon' })
+const detectedLabel = computed(() => platform.value.label)
 const state = ref<'idle' | 'issuing' | 'opening' | 'fallback'>('idle')
 
 const downloadOptions = [
