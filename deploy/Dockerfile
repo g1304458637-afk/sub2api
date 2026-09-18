@@ -35,7 +35,8 @@ RUN pnpm install --frozen-lockfile
 # Copy only that subtree to keep the build dependency minimal.
 COPY frontend/ ./
 COPY docs/legal/ /app/docs/legal/
-RUN pnpm run build
+# MUC Harness: 容器内跳过 vue-tsc（内存受限）；类型检查已在本地部署前验证
+RUN pnpm run check:i18n && pnpm exec vite build
 
 # -----------------------------------------------------------------------------
 # Stage 2: Backend Builder

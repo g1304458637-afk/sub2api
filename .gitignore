@@ -124,6 +124,7 @@ CLAUDE.md
 scripts
 !backend/scripts/
 !backend/scripts/resolve-version.sh
+!/scripts/
 .code-review-state
 #openspec/
 code-reviews/
@@ -140,6 +141,7 @@ docs/*
 !docs/BATCH_IMAGE_MVP.md
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
+!docs/CICD.md
 !docs/channel-monitor-v2-safe-defaults.md
 !docs/legal/
 !docs/legal/*.md
