@@ -12,6 +12,6 @@ export interface MucConnectCode {
 }
 
 export async function createMucConnectCode(): Promise<MucConnectCode> {
-  const res = await apiClient.post('/api/v1/muc/connect-code')
+  const res = await apiClient.post('/muc/connect-code')
   return res.data?.data ?? res.data
 }

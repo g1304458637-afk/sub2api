@@ -14,6 +14,6 @@ export interface CampusConnectCode {
 }
 
 export async function createCampusConnectCode(brand: Pick<BrandConfig, 'pathSegment'>): Promise<CampusConnectCode> {
-  const res = await apiClient.post(`/api/v1/${brand.pathSegment}/connect-code`)
+  const res = await apiClient.post(`/${brand.pathSegment}/connect-code`)
   return res.data?.data ?? res.data
 }

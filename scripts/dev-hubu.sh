@@ -26,8 +26,9 @@ die()  { printf '\033[31;1m[HUBU]\033[0m %s\n' "$*" >&2; exit 1; }
 [[ -f "$HUBU_DIR/.env" ]] || die "缺少 $HUBU_DIR/.env（含本地随机口令，不入 git）"
 
 stop_procs() {
-  pkill -f "$HUBU_DIR/hubu-server" 2>/dev/null || true
-  pkill -f "hubu-mock-upstream\|deploy-hubu/mock-upstream.mjs" 2>/dev/null || true
+  # 匹配任意启动形式（绝对路径或 ./hubu-server），以 hubu-server 为特征串
+  pkill -f "hubu-server" 2>/dev/null || true
+  pkill -f "deploy-hubu/mock-upstream.mjs" 2>/dev/null || true
   sleep 1
 }
 
