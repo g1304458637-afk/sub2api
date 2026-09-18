@@ -139,7 +139,28 @@ on:
     branches: [main]
 ```
 
-启用前核对清单：CI 绿、镜像推送成功、生产拉取成功、容器更新、DB/Redis/volumes 未动、站点可用、API key 可用、余额未变、MUC 端点正常、真实推理成功、回滚演练成功。
+### 12.1 首次 rollout 前的强制重审计
+
+> 2026-09-18 起生产状态可能被并行的手工部署/故障恢复任务改变。**任何 rollout 开始前必须重新执行只读审计**，不得假设服务器仍是本文档记录的状态：
+
+```bash
+bash scripts/production-audit.sh admin@112.125.88.123 \
+  -i ~/.ssh/sub2api-deploy/id_ed25519   # 只读，不改任何东西
+```
+
+核对项（任何一项不符，先修正再 rollout）：
+
+1. 架构仍为 `x86_64`（workflow 固定构建 linux/amd64）
+2. `/srv/sub2api/docker-compose.yml` 的 sub2api 服务 image 行仍为 `${SUB2API_IMAGE:?...}`
+3. `.env.deploy` 存在且 `SUB2API_IMAGE` 等于**当前实际运行镜像**（若另一任务手工切换过镜像，需先同步该文件）
+4. `.env` 键名与 `.env.original` 无意外增删（防配置被覆盖）
+5. 部署公钥仍在 `authorized_keys`（指纹核对）
+6. 磁盘可用 ≥ 2GB
+7. DB/Redis 容器健康、数据目录未变
+
+### 12.2 首次 rollout 验收清单
+
+CI 绿、镜像推送成功、生产拉取成功、容器更新、DB/Redis/volumes 未动、站点可用、API key 可用、余额未变、MUC 端点正常、真实推理成功、**回滚演练成功（rollback 后须恢复到 sha- 镜像而非旧版 latest，演练完再部署回最新）**。
 
 ## 13. 边界约定
 
