@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"crypto/sha256"
+	"time"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -20,22 +21,54 @@ import (
 
 // ---- 打桩 ----
 
-type stubKeyCreator struct {
+type stubKeyManager struct {
 	lastUserID int64
 	lastReq    service.CreateAPIKeyRequest
 	key        *service.APIKey
 	err        error
 	calls      int
+	deleted    []int64
+	live       map[int64]service.APIKey // id -> key（模拟库存）
+	nextID     int64
 }
 
-func (s *stubKeyCreator) Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error) {
+func newStubKeyManager() *stubKeyManager {
+	return &stubKeyManager{
+		key:    &service.APIKey{Key: "sk-muc-test-key", Name: "MUC test"},
+		live:   map[int64]service.APIKey{},
+		nextID: 1000,
+	}
+}
+
+func (s *stubKeyManager) Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error) {
 	s.calls++
 	s.lastUserID = userID
 	s.lastReq = req
 	if s.err != nil {
 		return nil, s.err
 	}
-	return s.key, nil
+	s.nextID++
+	k := *s.key
+	k.ID = s.nextID
+	k.Name = req.Name
+	s.live[k.ID] = k
+	return &k, nil
+}
+
+func (s *stubKeyManager) Delete(ctx context.Context, id int64, userID int64) error {
+	s.deleted = append(s.deleted, id)
+	delete(s.live, id)
+	return nil
+}
+
+func (s *stubKeyManager) SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]service.APIKey, error) {
+	var out []service.APIKey
+	for _, k := range s.live {
+		if strings.Contains(k.Name, keyword) {
+			out = append(out, k)
+		}
+	}
+	return out, nil
 }
 
 type stubUserLookup struct {
@@ -48,13 +81,14 @@ func (s *stubUserLookup) GetByID(ctx context.Context, id int64) (*service.User, 
 
 // ---- 测试脚手架 ----
 
-func newMucTestEnv(t *testing.T) (*MucConnectHandler, *miniredis.Miniredis, *stubKeyCreator) {
+func newMucTestEnv(t *testing.T) (*MucConnectHandler, *miniredis.Miniredis, *stubKeyManager) {
 	t.Helper()
 	mr := miniredis.RunT(t)
 	h := NewMucConnectHandler(redis.NewClient(&redis.Options{Addr: mr.Addr()}), nil, nil)
-	creator := &stubKeyCreator{key: &service.APIKey{Key: "sk-muc-test-key", Name: "MUC test"}}
-	// 替换 creator/user 为可观察桩
-	h.apiKeyCreator = creator
+	creator := newStubKeyManager()
+	creator.key = &service.APIKey{Key: "sk-muc-test-key", Name: "MUC test"}
+	// 替换 keys/user 为可观察桩
+	h.keys = creator
 	h.userLookup = &stubUserLookup{user: &service.User{Email: "student@muc.edu.cn"}}
 	return h, mr, creator
 }
@@ -204,4 +238,48 @@ func TestMucExchange_KeyCreateFailure_Propagates(t *testing.T) {
 func sha256Hex(code string) string {
 	sum := sha256.Sum256([]byte(code))
 	return hex.EncodeToString(sum[:])
+}
+
+// MUC Harness: 同设备重连时旧 Key 应被轮换删除（防积累）
+func TestMucExchange_RotatesDeviceKey(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256.Sum256([]byte(code))
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
+	}
+
+	// 第一次连接
+	issue("code-first-aaaaaaaaaaaaaaaa", 42)
+	c1, w1 := mucCtxWithBody(t, `{"code":"code-first-aaaaaaaaaaaaaaaa","device_name":"MacBookPro"}`)
+	h.Exchange(c1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("first connect: expected 200, got %d: %s", w1.Code, w1.Body.String())
+	}
+
+	// 第二次连接（同设备重连）
+	issue("code-second-bbbbbbbbbbbbbbbb", 42)
+	c2, w2 := mucCtxWithBody(t, `{"code":"code-second-bbbbbbbbbbbbbbbb","device_name":"MacBookPro"}`)
+	h.Exchange(c2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("second connect: expected 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	// 旧 Key 已被轮换删除（异步协程，轮询等待）
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && len(creator.deleted) == 0 {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(creator.deleted) == 0 {
+		t.Fatalf("expected old device key to be rotated (deleted), got none")
+	}
+	if len(creator.live) != 1 {
+		t.Fatalf("expected exactly 1 live key after rotation, got %d", len(creator.live))
+	}
+	for _, k := range creator.live {
+		if !strings.Contains(k.Name, "MUC MacBookPro") {
+			t.Fatalf("unexpected surviving key name: %s", k.Name)
+		}
+	}
 }

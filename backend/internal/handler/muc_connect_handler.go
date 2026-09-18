@@ -44,17 +44,23 @@ type mucUserLookup interface {
 	GetByID(ctx context.Context, id int64) (*service.User, error)
 }
 
+type mucKeyManager interface {
+	Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error)
+	Delete(ctx context.Context, id int64, userID int64) error
+	SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]service.APIKey, error)
+}
+
 type MucConnectHandler struct {
-	redisClient   *redis.Client
-	apiKeyCreator mucKeyCreator
-	userLookup    mucUserLookup
+	redisClient *redis.Client
+	keys        mucKeyManager
+	userLookup  mucUserLookup
 }
 
 func NewMucConnectHandler(redisClient *redis.Client, apiKeyService *service.APIKeyService, userService *service.UserService) *MucConnectHandler {
 	return &MucConnectHandler{
-		redisClient:   redisClient,
-		apiKeyCreator: apiKeyService,
-		userLookup:    userService,
+		redisClient: redisClient,
+		keys:        apiKeyService,
+		userLookup:  userService,
 	}
 }
 
@@ -134,13 +140,29 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 	}
 
 	// 以绑定用户身份创建 per-device Key（明文只在创建响应中出现一次）
-	key, err := h.apiKeyCreator.Create(c.Request.Context(), payloadData.UserID, service.CreateAPIKeyRequest{
+	key, err := h.keys.Create(c.Request.Context(), payloadData.UserID, service.CreateAPIKeyRequest{
 		Name: deviceName,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
+
+	// MUC Harness: 轮换——异步清理该设备此前的旧 Key，防止重复连接积累
+	go func() {
+		bctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		olds, err := h.keys.SearchAPIKeys(bctx, payloadData.UserID, deviceName, 50)
+		if err != nil {
+			return
+		}
+		for _, old := range olds {
+			if old.ID == key.ID {
+				continue
+			}
+			_ = h.keys.Delete(bctx, old.ID, payloadData.UserID)
+		}
+	}()
 
 	userDisplay := ""
 	if h.userLookup != nil {
