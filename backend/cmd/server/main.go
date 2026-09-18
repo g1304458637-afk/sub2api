@@ -16,6 +16,7 @@ import (
 	"time"
 
 	_ "github.com/Wei-Shaw/sub2api/ent/runtime"
+	"github.com/Wei-Shaw/sub2api/internal/buildinfo"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -55,6 +56,10 @@ func init() {
 func main() {
 	logger.InitBootstrap()
 	defer logger.Sync()
+
+	// 回填构建信息供 /healthz 等运维端点读取。
+	buildinfo.Version = Version
+	buildinfo.Commit = Commit
 
 	// Parse command line flags
 	setupMode := flag.Bool("setup", false, "Run setup wizard in CLI mode")
