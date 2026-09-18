@@ -169,5 +169,9 @@ async function connect(): Promise<void> {
   }
 }
 
-onMounted(detectPlatform)
+onMounted(() => {
+  detectPlatform()
+  // MUC Harness: 已看过下载引导，后续登录直达控制台
+  localStorage.setItem('muc_seen', '1')
+})
 </script>

@@ -48,6 +48,16 @@
           <span class="hidden sm:inline">{{ t('nav.modelPlaza') }}</span>
         </router-link>
 
+        <!-- MUC Harness: 下载 MUC 入口 -->
+        <router-link
+          v-if="user"
+          to="/muc"
+          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-dark-800 sm:flex"
+        >
+          <Icon name="download" size="sm" />
+          <span class="hidden sm:inline">下载 MUC</span>
+        </router-link>
+
         <!-- Language Switcher -->
         <LocaleSwitcher />
 
