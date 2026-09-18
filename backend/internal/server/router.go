@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"log"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -91,6 +92,14 @@ func SetupRouter(
 
 	// 注册路由
 	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient)
+
+	// MUC Harness: 客户端安装包静态下载目录（宿主机 data/downloads 挂载；
+	// 换安装包直接替换文件即可，无需重建镜像。MUC_DOWNLOADS_DIR 可覆盖）
+	downloadsDir := os.Getenv("MUC_DOWNLOADS_DIR")
+	if downloadsDir == "" {
+		downloadsDir = "/app/data/downloads"
+	}
+	r.Static("/downloads", downloadsDir)
 
 	return r
 }
