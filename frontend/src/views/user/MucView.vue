@@ -83,6 +83,9 @@
         </ol>
         <p class="mt-4 text-xs text-gray-400 dark:text-gray-500">
           凭据保存在本机系统钥匙串（macOS Keychain）；每个设备生成独立 Key，可在「API 密钥」页单独撤销。
+        <
+          使用其他工具（Claude Code 等）？无需安装 MUC——在「API 密钥」页自行创建 Key，
+          网关地址：<code class="text-primary-700 dark:text-primary-300">{{ gatewayHint }}</code>
         </p>
       </section>
     </div>
@@ -100,6 +103,7 @@ type PlatformKey = 'mac-arm' | 'mac-intel' | 'win' | 'other'
 
 const platform = ref<{ key: PlatformKey; label: string }>({ key: 'mac-arm', label: 'macOS Apple Silicon' })
 const detectedLabel = computed(() => platform.value.label)
+const gatewayHint = `${location.origin}/v1`
 const state = ref<'idle' | 'issuing' | 'opening' | 'fallback'>('idle')
 
 const downloadOptions = [
