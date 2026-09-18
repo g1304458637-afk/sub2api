@@ -142,6 +142,8 @@ docs/*
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/CICD.md
+!docs/HUBU_LOCAL_IMPLEMENTATION_PLAN.md
+!docs/HUBU_LOCAL_REPORT.md
 !docs/channel-monitor-v2-safe-defaults.md
 !docs/legal/
 !docs/legal/*.md

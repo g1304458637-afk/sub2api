@@ -68,7 +68,7 @@ type Handlers struct {
 	ModelPlaza       *ModelPlazaHandler
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
-	MucConnect       *MucConnectHandler
+	CampusConnect    CampusConnectHandlers
 }
 
 // BuildInfo contains build-time information

@@ -195,7 +195,7 @@ func ProvideHandlers(
 	modelPlazaHandler *ModelPlazaHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
-	mucConnectHandler *MucConnectHandler,
+	campusConnectHandlers CampusConnectHandlers,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -222,7 +222,7 @@ func ProvideHandlers(
 		ModelPlaza:       modelPlazaHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
-		MucConnect:       mucConnectHandler,
+		CampusConnect:    campusConnectHandlers,
 	}
 }
 
@@ -249,7 +249,7 @@ var ProviderSet = wire.NewSet(
 	NewModelPlazaHandler,
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
-	NewMucConnectHandler,
+	ProvideCampusConnectHandlers,
 	muccode.NewCodeStore,
 
 	// Admin handlers

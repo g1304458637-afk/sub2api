@@ -93,9 +93,13 @@ func SetupRouter(
 	// 注册路由
 	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient)
 
-	// MUC Harness: 客户端安装包静态下载目录（宿主机 data/downloads 挂载；
-	// 换安装包直接替换文件即可，无需重建镜像。MUC_DOWNLOADS_DIR 可覆盖）
-	downloadsDir := os.Getenv("MUC_DOWNLOADS_DIR")
+	// 校园 Harness: 客户端安装包静态下载目录（宿主机 data/downloads 挂载；
+	// 换安装包直接替换文件即可，无需重建镜像。目录解析顺序：
+	// DOWNLOADS_DIR > MUC_DOWNLOADS_DIR（历史兼容）> 默认值）
+	downloadsDir := os.Getenv("DOWNLOADS_DIR")
+	if downloadsDir == "" {
+		downloadsDir = os.Getenv("MUC_DOWNLOADS_DIR")
+	}
 	if downloadsDir == "" {
 		downloadsDir = "/app/data/downloads"
 	}
@@ -136,6 +140,7 @@ func registerRoutes(
 	routes.RegisterAuthRoutes(v1, h, jwtAuth, auditLog, redisClient, settingService, panelRateLimiter)
 	routes.RegisterUserRoutes(v1, h, jwtAuth, auditLog, settingService, panelRateLimiter)
 	routes.RegisterMucRoutes(v1, h, jwtAuth)
+	routes.RegisterHubuRoutes(v1, h, jwtAuth)
 	routes.RegisterModelPlazaRoutes(v1, h, optionalJWTAuth, settingService, panelRateLimiter)
 	routes.RegisterAdminRoutes(v1, h, adminAuth, auditLog, stepUpAuth, settingService, panelRateLimiter)
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg)
