@@ -103,9 +103,9 @@ const detectedLabel = computed(() => platform.value.label)
 const state = ref<'idle' | 'issuing' | 'opening' | 'fallback'>('idle')
 
 const downloadOptions = [
-  { key: 'mac-arm' as PlatformKey, label: 'macOS Apple Silicon', file: 'MUC-mac-arm64.dmg' },
-  { key: 'mac-intel' as PlatformKey, label: 'macOS Intel', file: 'MUC-mac-x64.dmg' },
-  { key: 'win' as PlatformKey, label: 'Windows x64', file: 'MUC-windows-x64.exe' },
+  { key: 'mac-arm' as PlatformKey, label: 'macOS Apple Silicon', file: 'mucode-mac-arm64.dmg' },
+  { key: 'mac-intel' as PlatformKey, label: 'macOS Intel', file: 'mucode-mac-x64.dmg' },
+  { key: 'win' as PlatformKey, label: 'Windows x64', file: 'mucode-windows-x64.exe' },
 ]
 
 const steps = [
