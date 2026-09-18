@@ -1,6 +1,6 @@
 <template>
-  <!-- MUC（中央民族大学）品牌壳：实现见共用组件，文案/色值/图片由品牌注册表驱动 -->
-  <CampusConnectView :brand="brands.muc" />
+  <!-- HUBU（湖北大学）品牌壳：实现见共用组件，文案/色值/图片由品牌注册表驱动 -->
+  <CampusConnectView :brand="brands.hubu" />
 </template>
 
 <script setup lang="ts">

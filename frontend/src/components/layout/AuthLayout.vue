@@ -1,7 +1,7 @@
 <template>
   <div class="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
     <!-- MUC Harness: 校门插画背景 + 浅色遮罩保证表单可读 -->
-    <img src="@/assets/muc/campus.png" alt="" class="absolute inset-0 h-full w-full object-cover" />
+    <img :src="currentBrand.authBg" alt="" class="absolute inset-0 h-full w-full object-cover" />
     <div class="absolute inset-0 bg-gradient-to-br from-white/90 via-white/75 to-white/60 dark:from-dark-950/90 dark:via-dark-900/80 dark:to-dark-950/70"></div>
 
     <!-- Decorative Elements -->
@@ -37,7 +37,7 @@
           <h1 class="text-gradient mb-2 text-3xl font-bold">
             {{ siteName }}
           </h1>
-          <p class="text-xs tracking-[0.2em] text-[#8f6a3c]">中央民族大学 · 美美与共 知行合一</p>
+          <p class="text-xs tracking-[0.2em]" :style="{ color: currentBrand.authTaglineColor }">{{ currentBrand.authTagline }}</p>
           <p class="text-sm text-gray-500 dark:text-dark-400">
             {{ siteSubtitle }}
           </p>
@@ -63,6 +63,7 @@
 </template>
 
 <script setup lang="ts">
+import { currentBrand } from '@/brand'
 import { computed, onMounted } from 'vue'
 import { useAppStore } from '@/stores'
 import { sanitizeUrl } from '@/utils/url'

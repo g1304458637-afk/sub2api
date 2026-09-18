@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string
   readonly BASE_URL: string
+  /** 校园品牌（构建期由 BRAND env 注入，默认 muc） */
+  readonly VITE_BRAND: string
 }
 
 interface ImportMeta {

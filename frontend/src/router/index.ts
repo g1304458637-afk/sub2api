@@ -215,6 +215,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/hubu',
+    name: 'Hubu',
+    component: () => import('@/views/user/HubuView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'HUBU AI'
+    }
+  },
+  {
     path: '/keys',
     name: 'Keys',
     component: () => import('@/views/user/KeysView.vue'),

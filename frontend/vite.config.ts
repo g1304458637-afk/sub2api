@@ -101,7 +101,9 @@ export default defineConfig(({ mode }) => {
   define: {
     // 启用 vue-i18n JIT 编译，在 CSP 环境下处理消息插值
     // JIT 编译器生成 AST 对象而非 JS 代码，无需 unsafe-eval
-    __INTLIFY_JIT_COMPILATION__: true
+    __INTLIFY_JIT_COMPILATION__: true,
+    // 校园品牌（BRAND env，默认 muc；与 tailwind.config.js 保持同源）
+    'import.meta.env.VITE_BRAND': JSON.stringify(process.env.BRAND || env.VITE_BRAND || 'muc')
   },
   build: {
     outDir: '../backend/internal/web/dist',

@@ -188,6 +188,7 @@
 </template>
 
 <script setup lang="ts">
+import { currentBrand } from '@/brand'
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -739,7 +740,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   }
   items.push(
     // MUC Harness: mucode 桌面端下载与一键连接
-    { path: '/muc', label: '下载 MUC', icon: MucDownloadIcon },
+    { path: currentBrand.homePath, label: currentBrand.downloadLabel, icon: MucDownloadIcon },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
