@@ -54,7 +54,7 @@ jobs:
         working-directory: frontend
         run: pnpm run typecheck
 
-      - name: Critical tests (upstream gate: make test-frontend-critical)
+      - name: Critical tests (upstream gate - make test-frontend-critical)
         run: make test-frontend-critical
 
   backend:
