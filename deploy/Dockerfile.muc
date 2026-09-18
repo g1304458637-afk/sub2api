@@ -1,0 +1,33 @@
+# MUC Harness: mucode 生产镜像（宿主机编译版）
+# 服务端二进制已在宿主机交叉编译（CGO_ENABLED=0，内嵌前端 dist），
+# 本文件只做轻量组装 —— 规避 colima 容器内构建的内存限制。
+FROM alpine:3.20
+
+LABEL maintainer="Wei-Shaw <github.com/Wei-Shaw>"
+LABEL description="Sub2API - AI API Gateway Platform (mucode edition)"
+LABEL org.opencontainers.image.source="https://github.com/Wei-Shaw/sub2api"
+
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    curl \
+    su-exec \
+    && rm -rf /var/cache/apk/*
+
+RUN addgroup -g 1000 sub2api && \
+    adduser -u 1000 -G sub2api -s /bin/sh -D sub2api
+
+WORKDIR /app
+
+COPY mucode-server /app/sub2api
+COPY resources/ /app/resources
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh && mkdir -p /app/data && chown -R sub2api:sub2api /app
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget -q -T 5 -O /dev/null http://localhost:${SERVER_PORT:-8080}/health || exit 1
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["/app/sub2api"]

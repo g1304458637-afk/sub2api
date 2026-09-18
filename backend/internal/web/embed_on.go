@@ -360,6 +360,7 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		strings.HasPrefix(trimmed, "/backend-api/") ||
 		strings.HasPrefix(trimmed, "/antigravity/") ||
 		strings.HasPrefix(trimmed, "/setup/") ||
+		strings.HasPrefix(trimmed, "/downloads/") || // MUC Harness: 客户端安装包静态下载
 		trimmed == "/health" ||
 		trimmed == "/healthz" ||
 		trimmed == "/models" ||
