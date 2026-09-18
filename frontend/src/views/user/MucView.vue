@@ -3,7 +3,7 @@
     <div class="mx-auto max-w-5xl space-y-6 px-4 py-6">
       <!-- 品牌横幅：校门实景 + 校名 -->
       <section class="relative overflow-hidden rounded-2xl shadow-lg">
-        <img :src="campusImg" alt="中央民族大学" class="h-56 w-full object-cover sm:h-64" />
+        <img :src="campusImg" alt="中央民族大学" class="h-64 w-full object-cover object-top sm:h-72" />
         <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"></div>
         <div class="absolute bottom-0 left-0 right-0 p-6 text-white">
           <h1 class="text-2xl font-bold tracking-wide sm:text-3xl">MUC AI Harness</h1>
