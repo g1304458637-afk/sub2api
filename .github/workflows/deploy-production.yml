@@ -52,9 +52,8 @@ jobs:
       - name: Typecheck
         working-directory: frontend
         run: pnpm run typecheck
-      - name: Unit tests
-        working-directory: frontend
-        run: pnpm run test:run
+      - name: Critical tests (upstream gate: make test-frontend-critical)
+        run: make test-frontend-critical
 
   test-backend:
     name: Gate — Backend
