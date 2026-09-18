@@ -21,6 +21,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/muccode"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -35,7 +36,7 @@ const (
 )
 
 // 窄接口：handler 层禁止直接依赖 redis 客户端（depguard: handler-no-repository）。
-// 生产由 service.MucCodeStore 适配 *redis.Client；测试用 miniredis 适配桩。
+// 生产由 internal/pkg/muccode.CodeStore 适配 *redis.Client；测试用 miniredis 适配桩。
 type mucCodeStore interface {
 	SetCode(ctx context.Context, key string, payload []byte, ttl time.Duration) error
 	GetDelCode(ctx context.Context, key string) (string, error)
@@ -57,7 +58,7 @@ type MucConnectHandler struct {
 	userLookup mucUserLookup
 }
 
-func NewMucConnectHandler(codeStore *service.MucCodeStore, apiKeyService *service.APIKeyService, userService *service.UserService) *MucConnectHandler {
+func NewMucConnectHandler(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService) *MucConnectHandler {
 	return &MucConnectHandler{
 		codes:      codeStore,
 		keys:       apiKeyService,
