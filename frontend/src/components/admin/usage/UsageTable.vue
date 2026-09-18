@@ -132,7 +132,7 @@
             <span
               v-if="row.native_compaction_v2"
               data-testid="native-compaction-badge"
-              class="inline-flex items-center rounded bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900 dark:text-teal-200"
+              class="inline-flex items-center rounded bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-800 dark:bg-primary-900 dark:text-primary-200"
             >
               {{ t('usage.nativeCompactionV2') }}
             </span>
