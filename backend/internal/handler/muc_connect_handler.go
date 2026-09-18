@@ -20,10 +20,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 
-	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -35,9 +34,11 @@ const (
 	mucDefaultKeyHint = "MUC Desktop"
 )
 
-// 窄接口：仅依赖创建 Key 与查用户两个能力，便于单测打桩
-type mucKeyCreator interface {
-	Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error)
+// 窄接口：handler 层禁止直接依赖 redis 客户端（depguard: handler-no-repository）。
+// 生产由 service.MucCodeStore 适配 *redis.Client；测试用 miniredis 适配桩。
+type mucCodeStore interface {
+	SetCode(ctx context.Context, key string, payload []byte, ttl time.Duration) error
+	GetDelCode(ctx context.Context, key string) (string, error)
 }
 
 type mucUserLookup interface {
@@ -51,16 +52,16 @@ type mucKeyManager interface {
 }
 
 type MucConnectHandler struct {
-	redisClient *redis.Client
-	keys        mucKeyManager
-	userLookup  mucUserLookup
+	codes      mucCodeStore
+	keys       mucKeyManager
+	userLookup mucUserLookup
 }
 
-func NewMucConnectHandler(redisClient *redis.Client, apiKeyService *service.APIKeyService, userService *service.UserService) *MucConnectHandler {
+func NewMucConnectHandler(codeStore *service.MucCodeStore, apiKeyService *service.APIKeyService, userService *service.UserService) *MucConnectHandler {
 	return &MucConnectHandler{
-		redisClient: redisClient,
-		keys:        apiKeyService,
-		userLookup:  userService,
+		codes:      codeStore,
+		keys:       apiKeyService,
+		userLookup: userService,
 	}
 }
 
@@ -90,7 +91,7 @@ func (h *MucConnectHandler) ConnectCode(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if err := h.redisClient.Set(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:]), payload, mucCodeTTL).Err(); err != nil {
+	if err := h.codes.SetCode(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:]), payload, mucCodeTTL); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -119,7 +120,7 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 
 	sum := sha256.Sum256([]byte(req.Code))
 	// GETDEL：原子取出并删除 —— 单次使用（验收 D/E）
-	payload, err := h.redisClient.GetDel(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:])).Result()
+	payload, err := h.codes.GetDelCode(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:]))
 	if err != nil {
 		// 不存在（未签发/已过期/已使用）统一 404，不泄露具体原因
 		c.JSON(http.StatusNotFound, gin.H{"error": "code_not_found"})
@@ -139,6 +140,16 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		deviceName = "MUC " + req.DeviceName
 	}
 
+	// MUC Harness: 轮换——先删除该设备此前的旧 Key 再创建。
+	// 同步顺序保证不会误删后续连接创建的新 Key（先建后删在并发重连时会互删），
+	// 搜索失败视为轮换失败但不阻断换取（旧 Key 可另行清理）。
+	olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, deviceName, 50)
+	if err == nil {
+		for _, old := range olds {
+			_ = h.keys.Delete(c.Request.Context(), old.ID, payloadData.UserID)
+		}
+	}
+
 	// 以绑定用户身份创建 per-device Key（明文只在创建响应中出现一次）
 	key, err := h.keys.Create(c.Request.Context(), payloadData.UserID, service.CreateAPIKeyRequest{
 		Name: deviceName,
@@ -147,22 +158,6 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-
-	// MUC Harness: 轮换——异步清理该设备此前的旧 Key，防止重复连接积累
-	go func() {
-		bctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		olds, err := h.keys.SearchAPIKeys(bctx, payloadData.UserID, deviceName, 50)
-		if err != nil {
-			return
-		}
-		for _, old := range olds {
-			if old.ID == key.ID {
-				continue
-			}
-			_ = h.keys.Delete(bctx, old.ID, payloadData.UserID)
-		}
-	}()
 
 	userDisplay := ""
 	if h.userLookup != nil {

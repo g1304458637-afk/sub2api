@@ -3,17 +3,17 @@ package handler
 import (
 	"context"
 	"crypto/sha256"
-	"time"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -79,12 +79,33 @@ func (s *stubUserLookup) GetByID(ctx context.Context, id int64) (*service.User, 
 	return s.user, nil
 }
 
+// miniredis 适配 mucCodeStore：单线程测试下 Set/GetDel 语义与真实 GETDEL 等价
+type stubCodeStore struct {
+	mr *miniredis.Miniredis
+}
+
+func (s *stubCodeStore) SetCode(ctx context.Context, key string, payload []byte, ttl time.Duration) error {
+	return s.mr.Set(key, string(payload))
+}
+
+func (s *stubCodeStore) GetDelCode(ctx context.Context, key string) (string, error) {
+	if !s.mr.Exists(key) {
+		return "", errMucCodeNotFound
+	}
+	v, _ := s.mr.Get(key)
+	_ = s.mr.Del(key)
+	return v, nil
+}
+
+var errMucCodeNotFound = errors.New("muc code not found")
+
 // ---- 测试脚手架 ----
 
 func newMucTestEnv(t *testing.T) (*MucConnectHandler, *miniredis.Miniredis, *stubKeyManager) {
 	t.Helper()
 	mr := miniredis.RunT(t)
-	h := NewMucConnectHandler(redis.NewClient(&redis.Options{Addr: mr.Addr()}), nil, nil)
+	h := NewMucConnectHandler(nil, nil, nil)
+	h.codes = &stubCodeStore{mr: mr}
 	creator := newStubKeyManager()
 	creator.key = &service.APIKey{Key: "sk-muc-test-key", Name: "MUC test"}
 	// 替换 keys/user 为可观察桩
@@ -135,7 +156,7 @@ func TestMucConnectCode_IssuesCode(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 	var resp struct {
-		Code int    `json:"code"`
+		Code int `json:"code"`
 		Data struct {
 			Code      string `json:"code"`
 			ExpiresIn int    `json:"expires_in"`
@@ -159,7 +180,7 @@ func TestMucExchange_HappyPath_SingleUse(t *testing.T) {
 	issue := func(code string, userID int64) {
 		sum := sha256Hex(code)
 		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
-		mr.Set(mucCodeKeyPrefix+sum, string(payload))
+		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
 	}
 	issue("valid-code-aaaaaaaaaaaaaaaaaa", 42)
 
@@ -225,7 +246,7 @@ func TestMucExchange_KeyCreateFailure_Propagates(t *testing.T) {
 	creator.err = context.DeadlineExceeded
 	sum := sha256Hex("code-fail-aaaaaaaaaaaaaaaa")
 	payload, _ := json.Marshal(mucCodePayload{UserID: 7})
-	mr.Set(mucCodeKeyPrefix+sum, string(payload))
+	_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
 
 	c, w := mucCtxWithBody(t, `{"code":"code-fail-aaaaaaaaaaaaaaaa"}`)
 	h.Exchange(c)
@@ -247,7 +268,7 @@ func TestMucExchange_RotatesDeviceKey(t *testing.T) {
 	issue := func(code string, userID int64) {
 		sum := sha256.Sum256([]byte(code))
 		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
-		mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
+		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
 	}
 
 	// 第一次连接
