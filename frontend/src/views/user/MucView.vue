@@ -81,6 +81,12 @@
             <p>{{ step }}</p>
           </li>
         </ol>
+        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+          <p class="font-medium">macOS 首次打开提示「已损坏」？</p>
+          <p class="mt-1">安装包为开发测试签名（未公证），两种方式任选：
+          ① 终端执行 <code class="rounded bg-black/10 px-1">xattr -dr com.apple.quarantine /Applications/mucode.app</code>；
+          ② 或右键 app → 打开，并在 系统设置 → 隐私与安全性 中点「仍要打开」。之后即可正常使用。</p>
+        </div>
         <p class="mt-4 text-xs text-gray-400 dark:text-gray-500">
           凭据保存在本机系统钥匙串（macOS Keychain）；每个设备生成独立 Key，可在「API 密钥」页单独撤销。
         </p>
