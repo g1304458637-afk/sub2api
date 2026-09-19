@@ -8,10 +8,15 @@ package muccode
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+// ErrCodeNotFound 表示 code 不存在（未签发/已过期/已使用）；
+// 调用方必须把它与 Redis 基础设施故障（网络/超时等）区分处理。
+var ErrCodeNotFound = errors.New("muc code not found")
 
 // CodeStore 是 *redis.Client 的窄封装：只暴露授权码的写入与原子取出删除。
 type CodeStore struct {
@@ -27,5 +32,9 @@ func (s *CodeStore) SetCode(ctx context.Context, key string, payload []byte, ttl
 }
 
 func (s *CodeStore) GetDelCode(ctx context.Context, key string) (string, error) {
-	return s.client.GetDel(ctx, key).Result()
+	v, err := s.client.GetDel(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", ErrCodeNotFound
+	}
+	return v, err
 }

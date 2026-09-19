@@ -6,15 +6,18 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/muccode"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
@@ -50,7 +53,8 @@ func (s *stubKeyManager) Create(ctx context.Context, userID int64, req service.C
 	s.nextID++
 	k := *s.key
 	k.ID = s.nextID
-	k.Name = req.Name
+	// 与生产 service.CreateAPIKey 对齐：名称经 html.EscapeString 落库
+	k.Name = html.EscapeString(req.Name)
 	s.live[k.ID] = k
 	return &k, nil
 }
@@ -62,9 +66,11 @@ func (s *stubKeyManager) Delete(ctx context.Context, id int64, userID int64) err
 }
 
 func (s *stubKeyManager) SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]service.APIKey, error) {
+	// 与生产 NameContainsFold 对齐：大小写不敏感的子串搜索
+	kw := strings.ToLower(keyword)
 	var out []service.APIKey
 	for _, k := range s.live {
-		if strings.Contains(k.Name, keyword) {
+		if strings.Contains(strings.ToLower(k.Name), kw) {
 			out = append(out, k)
 		}
 	}
@@ -79,9 +85,11 @@ func (s *stubUserLookup) GetByID(ctx context.Context, id int64) (*service.User, 
 	return s.user, nil
 }
 
-// miniredis 适配 mucCodeStore：单线程测试下 Set/GetDel 语义与真实 GETDEL 等价
+// miniredis 适配 mucCodeStore：单线程测试下 Set/GetDel 语义与真实 GETDEL 等价。
+// infraErr 非 nil 时模拟 Redis 基础设施故障（网络/超时），与"码不存在"区分。
 type stubCodeStore struct {
-	mr *miniredis.Miniredis
+	mr       *miniredis.Miniredis
+	infraErr error
 }
 
 func (s *stubCodeStore) SetCode(ctx context.Context, key string, payload []byte, ttl time.Duration) error {
@@ -89,15 +97,22 @@ func (s *stubCodeStore) SetCode(ctx context.Context, key string, payload []byte,
 }
 
 func (s *stubCodeStore) GetDelCode(ctx context.Context, key string) (string, error) {
+	if s.infraErr != nil {
+		return "", s.infraErr
+	}
 	if !s.mr.Exists(key) {
-		return "", errMucCodeNotFound
+		return "", muccode.ErrCodeNotFound
 	}
 	v, _ := s.mr.Get(key)
 	_ = s.mr.Del(key)
 	return v, nil
 }
 
-var errMucCodeNotFound = errors.New("muc code not found")
+func (s *stubCodeStore) setInfraErr(err error) {
+	s.infraErr = err
+}
+
+var errMucCodeNotFound = muccode.ErrCodeNotFound
 
 // ---- 测试脚手架 ----
 
@@ -287,11 +302,7 @@ func TestMucExchange_RotatesDeviceKey(t *testing.T) {
 		t.Fatalf("second connect: expected 200, got %d: %s", w2.Code, w2.Body.String())
 	}
 
-	// 旧 Key 已被轮换删除（异步协程，轮询等待）
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) && len(creator.deleted) == 0 {
-		time.Sleep(10 * time.Millisecond)
-	}
+	// 旧 Key 已被同步轮换删除
 	if len(creator.deleted) == 0 {
 		t.Fatalf("expected old device key to be rotated (deleted), got none")
 	}
@@ -299,8 +310,117 @@ func TestMucExchange_RotatesDeviceKey(t *testing.T) {
 		t.Fatalf("expected exactly 1 live key after rotation, got %d", len(creator.live))
 	}
 	for _, k := range creator.live {
-		if !strings.Contains(k.Name, "MUC MacBookPro") {
+		if k.Name != html.EscapeString("MUC MacBookPro") {
 			t.Fatalf("unexpected surviving key name: %s", k.Name)
 		}
+	}
+}
+
+// 回归：轮换必须按名称精确匹配，子串匹配会误删其他设备/用户手建的同前缀 Key。
+func TestMucExchange_RotationExactMatch_NoCollateralDelete(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256.Sum256([]byte(code))
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
+	}
+
+	// 预置：用户已有若干 Key，只有 "MUC Mac" 是本设备（重连场景）的旧 Key
+	seed := map[int64]string{
+		101: "MUC Mac",          // 应被轮换删除
+		102: "MUC MacBookPro",   // 其他设备，不能误删
+		103: "MUC Mac Studio",   // 其他设备，不能误删
+		104: "muc mac 备份钥匙",  // 用户手建，不能误删
+		105: "手工钥匙",          // 无关 Key
+	}
+	for id, name := range seed {
+		creator.live[id] = service.APIKey{ID: id, Key: "sk-" + name, Name: html.EscapeString(name)}
+	}
+
+	issue("code-exact-aaaaaaaaaaaaaaaa", 42)
+	c, w := mucCtxWithBody(t, `{"code":"code-exact-aaaaaaaaaaaaaaaa","device_name":"Mac"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if len(creator.deleted) != 1 || creator.deleted[0] != 101 {
+		t.Fatalf("expected exactly old key 101 deleted, got %v", creator.deleted)
+	}
+	for _, id := range []int64{102, 103, 104, 105} {
+		if _, ok := creator.live[id]; !ok {
+			t.Fatalf("collateral delete: key %d (%q) must survive", id, seed[id])
+		}
+	}
+}
+
+// 回归：设备名含 HTML 特殊字符时，轮换搜索必须与落库的转义名称对齐。
+func TestMucExchange_RotationEscapedName(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256.Sum256([]byte(code))
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
+	}
+
+	issue("code-esc1-aaaaaaaaaaaaaaaa", 42)
+	c1, w1 := mucCtxWithBody(t, `{"code":"code-esc1-aaaaaaaaaaaaaaaa","device_name":"Tom & Jerry's <PC>"}`)
+	h.Exchange(c1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("first connect: expected 200, got %d: %s", w1.Code, w1.Body.String())
+	}
+
+	issue("code-esc2-bbbbbbbbbbbbbbbb", 42)
+	c2, w2 := mucCtxWithBody(t, `{"code":"code-esc2-bbbbbbbbbbbbbbbb","device_name":"Tom & Jerry's <PC>"}`)
+	h.Exchange(c2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("reconnect: expected 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	if len(creator.live) != 1 {
+		t.Fatalf("expected exactly 1 live key after escaped-name rotation, got %d", len(creator.live))
+	}
+}
+
+// 回归：超长中文设备名按 rune 截断，不得产生非法 UTF-8，兑换仍应成功。
+func TestMucExchange_LongChineseDeviceName(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256.Sum256([]byte(code))
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
+	}
+
+	longName := strings.Repeat("民大校园超级计算终端设备", 20) // 200 runes，全中文
+	issue("code-cjk1-aaaaaaaaaaaaaaaa", 42)
+	c, w := mucCtxWithBody(t, `{"code":"code-cjk1-aaaaaaaaaaaaaaaa","device_name":"`+longName+`"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for long CJK device name, got %d: %s", w.Code, w.Body.String())
+	}
+	name := creator.lastReq.Name
+	if !utf8.ValidString(name) {
+		t.Fatalf("device name must remain valid UTF-8 after truncation, got %q", name)
+	}
+	if got := len([]rune(strings.TrimPrefix(name, "MUC "))); got > mucMaxDeviceRunes {
+		t.Fatalf("truncated device name exceeds rune cap: %d", got)
+	}
+}
+
+// 回归：Redis 基础设施故障必须表现为服务端错误，不得伪装成 code_not_found(404)。
+func TestMucExchange_RedisInfraErrorIsServerError(t *testing.T) {
+	h, _, _ := newMucTestEnv(t)
+	h.codes.(*stubCodeStore).setInfraErr(errors.New("connection refused"))
+
+	c, w := mucCtxWithBody(t, `{"code":"whatever-aaaaaaaaaaaaaaaa"}`)
+	h.Exchange(c)
+	if w.Code == http.StatusNotFound {
+		t.Fatal("redis infra error must not be masked as 404 code_not_found")
+	}
+	if w.Code < 500 {
+		t.Fatalf("expected 5xx for redis infra error, got %d", w.Code)
 	}
 }

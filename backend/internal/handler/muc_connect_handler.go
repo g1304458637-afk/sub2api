@@ -16,7 +16,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"html"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,8 +35,10 @@ const (
 	mucCodeTTL        = 60 * time.Second
 	mucCodeKeyPrefix  = "muc:code:"
 	mucMaxCodeLength  = 128
-	mucMaxDeviceName  = 64
+	mucMaxDeviceRunes = 64
+	mucMaxStoredName  = 255 // api_keys.name 列宽；轮换/截断都按转义后的落库名称对齐
 	mucDefaultKeyHint = "MUC Desktop"
+	mucSearchPrefix   = "MUC "
 )
 
 // 窄接口：handler 层禁止直接依赖 redis 客户端（depguard: handler-no-repository）。
@@ -123,8 +129,13 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 	// GETDEL：原子取出并删除 —— 单次使用（验收 D/E）
 	payload, err := h.codes.GetDelCode(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:]))
 	if err != nil {
-		// 不存在（未签发/已过期/已使用）统一 404，不泄露具体原因
-		c.JSON(http.StatusNotFound, gin.H{"error": "code_not_found"})
+		// 不存在的 code（未签发/已过期/已使用）统一 404，不泄露具体原因；
+		// 其余错误是 Redis 基础设施故障，必须与 404 区分，否则故障被伪装成"码无效"。
+		if errors.Is(err, muccode.ErrCodeNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "code_not_found"})
+			return
+		}
+		response.ErrorFrom(c, fmt.Errorf("muc exchange: getdel code: %w", err))
 		return
 	}
 	var payloadData mucCodePayload
@@ -135,23 +146,14 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 
 	deviceName := mucDefaultKeyHint
 	if req.DeviceName != "" {
-		if len(req.DeviceName) > mucMaxDeviceName {
-			req.DeviceName = req.DeviceName[:mucMaxDeviceName]
-		}
-		deviceName = "MUC " + req.DeviceName
+		deviceName = "MUC " + mucTruncateDeviceName(req.DeviceName)
 	}
+	// service.CreateAPIKey 落库时会做 html.EscapeString；轮换必须按转义后的
+	// 完整名称精确匹配，按子串匹配会误删其他设备/用户手建的同前缀 Key。
+	storedName := html.EscapeString(deviceName)
 
-	// MUC Harness: 轮换——先删除该设备此前的旧 Key 再创建。
-	// 同步顺序保证不会误删后续连接创建的新 Key（先建后删在并发重连时会互删），
-	// 搜索失败视为轮换失败但不阻断换取（旧 Key 可另行清理）。
-	olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, deviceName, 50)
-	if err == nil {
-		for _, old := range olds {
-			_ = h.keys.Delete(c.Request.Context(), old.ID, payloadData.UserID)
-		}
-	}
-
-	// 以绑定用户身份创建 per-device Key（明文只在创建响应中出现一次）
+	// 以绑定用户身份创建 per-device Key（明文只在创建响应中出现一次）。
+	// 先建后删：创建失败时旧 Key 仍然有效，设备不致凭据全失。
 	key, err := h.keys.Create(c.Request.Context(), payloadData.UserID, service.CreateAPIKeyRequest{
 		Name: deviceName,
 	})
@@ -160,10 +162,21 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		return
 	}
 
+	// MUC Harness: 轮换——删除该设备此前的旧 Key（转义后名称精确相等，排除刚创建的）。
+	// 搜索失败视为轮换失败但不阻断换取（旧 Key 可另行清理）。
+	if olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, mucSearchPrefix, 50); err == nil {
+		for _, old := range olds {
+			if old.ID == key.ID || old.Name != storedName {
+				continue
+			}
+			_ = h.keys.Delete(c.Request.Context(), old.ID, payloadData.UserID)
+		}
+	}
+
 	userDisplay := ""
 	if h.userLookup != nil {
 		if user, err := h.userLookup.GetByID(c.Request.Context(), payloadData.UserID); err == nil && user != nil {
-			userDisplay = user.Email
+			userDisplay = mucMaskEmail(user.Email)
 		}
 	}
 
@@ -186,4 +199,36 @@ func mucPublicGatewayURL(c *gin.Context) string {
 		}
 	}
 	return scheme + "://" + c.Request.Host
+}
+
+// mucTruncateDeviceName 按 rune 截断设备名（保证 UTF-8 完整，中文不被切碎），
+// 并确保 html.EscapeString 转义后的长度不超过 api_keys.name 列宽。
+func mucTruncateDeviceName(name string) string {
+	runes := []rune(name)
+	if len(runes) > mucMaxDeviceRunes {
+		runes = runes[:mucMaxDeviceRunes]
+	}
+	for len(html.EscapeString(string(runes))) > mucMaxStoredName && len(runes) > 0 {
+		runes = runes[:len(runes)-1]
+	}
+	return string(runes)
+}
+
+// mucMaskEmail 兑换响应会连同授权码一起留在客户端与浏览器历史里，
+// 邮箱只回显足以辨识的脱敏形式。
+func mucMaskEmail(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at <= 0 {
+		return "***"
+	}
+	local, domain := email[:at], email[at+1:]
+	if len(local) > 1 {
+		local = local[:1] + "***"
+	} else {
+		local = "***"
+	}
+	if domain == "" {
+		return local
+	}
+	return local + "@" + domain
 }
