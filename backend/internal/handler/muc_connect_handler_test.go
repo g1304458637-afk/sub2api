@@ -33,6 +33,10 @@ type stubKeyManager struct {
 	deleted    []int64
 	live       map[int64]service.APIKey // id -> key（模拟库存）
 	nextID     int64
+
+	// GetUserGroupVisibility 桩返回值：restrict=true 时 handler 应绑定 allowedGroups 中最小 ID
+	allowedGroups map[int64]struct{}
+	restrict      bool
 }
 
 func newStubKeyManager() *stubKeyManager {
@@ -41,6 +45,10 @@ func newStubKeyManager() *stubKeyManager {
 		live:   map[int64]service.APIKey{},
 		nextID: 1000,
 	}
+}
+
+func (s *stubKeyManager) GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error) {
+	return s.allowedGroups, s.restrict, nil
 }
 
 func (s *stubKeyManager) Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error) {
@@ -185,6 +193,52 @@ func TestMucConnectCode_IssuesCode(t *testing.T) {
 	}
 	if len(resp.Data.Code) < 16 {
 		t.Fatalf("code too short: %s", resp.Data.Code)
+	}
+}
+
+// 限定分组的用户换码：Key 必须绑定其允许分组中 ID 最小的一个，
+// 否则生产 allow_ungrouped_key_scheduling=false 时 Key 无法调用网关。
+func TestMucExchange_BindsSmallestAllowedGroup(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+	creator.allowedGroups = map[int64]struct{}{14: {}, 7: {}, 21: {}}
+	creator.restrict = true
+
+	issue := func(code string, userID int64) {
+		sum := sha256Hex(code)
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
+	}
+	issue("group-code-1111111111111111", 42)
+
+	c, w := mucCtxWithBody(t, `{"code":"group-code-1111111111111111","device_name":"测试设备"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	got := creator.lastReq.GroupID
+	if got == nil || *got != 7 {
+		t.Fatalf("expected group 7 (smallest allowed), got %v", got)
+	}
+}
+
+// 未限定分组的管理员：保持 NULL，沿用站点未分组调度策略。
+func TestMucExchange_UnrestrictedUserKeepsNullGroup(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256Hex(code)
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
+	}
+	issue("nullgrp-code-111111111111111", 42)
+
+	c, w := mucCtxWithBody(t, `{"code":"nullgrp-code-111111111111111","device_name":"admin"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if creator.lastReq.GroupID != nil {
+		t.Fatalf("expected nil group for unrestricted user, got %v", *creator.lastReq.GroupID)
 	}
 }
 

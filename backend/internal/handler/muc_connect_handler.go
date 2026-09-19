@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -56,6 +57,7 @@ type mucKeyManager interface {
 	Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error)
 	Delete(ctx context.Context, id int64, userID int64) error
 	SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]service.APIKey, error)
+	GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error)
 }
 
 type MucConnectHandler struct {
@@ -154,8 +156,25 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 
 	// 以绑定用户身份创建 per-device Key（明文只在创建响应中出现一次）。
 	// 先建后删：创建失败时旧 Key 仍然有效，设备不致凭据全失。
+	//
+	// MUC Harness: 自动绑定分组。生产 allow_ungrouped_key_scheduling=false，
+	// 无分组 Key 无法调用网关；mucode 是免配置产品，Key 必须开箱可用：
+	// - 用户被限定分组（RestrictPublicGroups）时绑其允许分组（多个取最小 ID，稳定可预期）；
+	// - 管理员等未限定用户保持 NULL，沿用站点的未分组调度策略。
+	var keyGroupID *int64
+	if allowed, restrict, err := h.keys.GetUserGroupVisibility(c.Request.Context(), payloadData.UserID); err == nil && restrict {
+		ids := make([]int64, 0, len(allowed))
+		for id := range allowed {
+			ids = append(ids, id)
+		}
+		if len(ids) > 0 {
+			sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+			keyGroupID = &ids[0]
+		}
+	}
 	key, err := h.keys.Create(c.Request.Context(), payloadData.UserID, service.CreateAPIKeyRequest{
-		Name: deviceName,
+		Name:    deviceName,
+		GroupID: keyGroupID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
