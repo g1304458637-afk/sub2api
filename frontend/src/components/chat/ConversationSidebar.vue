@@ -1,12 +1,12 @@
 <template>
   <aside
-    class="flex h-full w-64 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900"
+    class="flex h-full w-64 shrink-0 flex-col border-r border-gray-100 bg-gray-50/70 dark:border-dark-700/60 dark:bg-dark-950/40"
   >
     <!-- Top: collapse + new chat -->
-    <div class="flex items-center gap-1 p-3">
+    <div class="flex items-center gap-1.5 p-3">
       <button
         type="button"
-        class="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-dark-300"
+        class="rounded-xl p-2 text-gray-300 transition-colors hover:bg-gray-200/60 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 dark:text-dark-600 dark:hover:bg-dark-800 dark:hover:text-dark-300"
         :title="t('chat.sidebar.collapse')"
         :aria-label="t('chat.sidebar.collapse')"
         @click="emit('collapse')"
@@ -15,7 +15,7 @@
       </button>
       <button
         type="button"
-        class="btn btn-primary flex-1 !py-2"
+        class="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-primary-200 bg-white/60 py-2 text-sm font-medium text-primary-700 transition-colors hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 dark:border-primary-800 dark:bg-transparent dark:text-primary-300 dark:hover:border-primary-700 dark:hover:bg-primary-900/20"
         @click="emit('new')"
       >
         <Icon name="plus" size="sm" />
@@ -31,15 +31,15 @@
       >
         {{ t('chat.sidebar.empty') }}
       </p>
-      <div v-else class="space-y-1">
+      <div v-else class="space-y-0.5">
         <div
           v-for="conversation in conversations"
           :key="conversation.id"
           class="group relative flex items-center rounded-xl transition-colors"
           :class="
             conversation.id === currentId
-              ? 'bg-primary-50 dark:bg-primary-900/20'
-              : 'hover:bg-gray-100 dark:hover:bg-dark-800'
+              ? 'bg-white shadow-sm ring-1 ring-gray-200/80 dark:bg-dark-800 dark:ring-dark-700'
+              : 'hover:bg-gray-200/50 dark:hover:bg-dark-800/60'
           "
         >
           <button
@@ -48,11 +48,11 @@
             @click="emit('select', conversation.id)"
           >
             <p
-              class="truncate text-sm font-medium"
+              class="truncate text-[13px] font-medium"
               :class="
                 conversation.id === currentId
                   ? 'text-primary-700 dark:text-primary-300'
-                  : 'text-gray-700 dark:text-gray-200'
+                  : 'text-gray-600 dark:text-dark-300'
               "
             >
               {{ conversation.title || t('chat.title') }}
@@ -75,8 +75,8 @@
     </div>
 
     <!-- Footer hint -->
-    <div class="border-t border-gray-100 px-4 py-3 dark:border-dark-700">
-      <p class="text-xs text-gray-400 dark:text-dark-500">
+    <div class="px-4 pb-3 pt-2">
+      <p class="text-[11px] leading-relaxed text-gray-400 dark:text-dark-500">
         {{ t('chat.sidebar.localOnly') }}
       </p>
     </div>

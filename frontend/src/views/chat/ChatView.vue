@@ -1,7 +1,7 @@
 <template>
   <AppLayout>
   <div
-    class="relative flex h-[calc(100vh-6rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:h-[calc(100vh-7rem)] lg:h-[calc(100vh-8rem)] dark:border-dark-700 dark:bg-dark-900"
+    class="relative flex h-[calc(100vh-6rem)] overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-card md:h-[calc(100vh-7rem)] lg:h-[calc(100vh-8rem)] dark:border-dark-700/80 dark:bg-dark-900"
   >
     <!-- Sidebar: collapsed rail -->
     <div
@@ -73,45 +73,39 @@
 
       <!-- Chat UI -->
       <template v-else>
-        <!-- Top bar -->
-        <div
-          class="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-3 dark:border-dark-700"
-        >
-          <div class="flex w-24 items-center gap-1">
-            <button
-              type="button"
-              class="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-dark-300 md:hidden"
-              :title="t('chat.sidebar.expand')"
-              :aria-label="t('chat.sidebar.expand')"
-              @click="sidebarCollapsed = false"
-            >
-              <Icon name="menu" size="sm" />
-            </button>
-          </div>
-
-          <!-- Current model button -->
+        <!-- Top bar: frameless, ghost model chip -->
+        <div class="relative flex h-14 shrink-0 items-center justify-center px-3">
           <button
             type="button"
-            class="mx-auto flex max-w-[70%] items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-200 dark:hover:bg-dark-800"
+            class="absolute left-3 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-dark-300 md:hidden"
+            :title="t('chat.sidebar.expand')"
+            :aria-label="t('chat.sidebar.expand')"
+            @click="sidebarCollapsed = false"
+          >
+            <Icon name="menu" size="sm" />
+          </button>
+
+          <!-- Current model chip -->
+          <button
+            type="button"
+            class="mx-auto flex max-w-[70%] items-center gap-1.5 rounded-full border border-gray-200 px-4 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-600 dark:text-dark-300 dark:hover:border-primary-700 dark:hover:text-primary-300"
             :disabled="chatModels.length === 0"
             @click="pickerOpen = true"
           >
-            <Icon name="cube" size="sm" class="shrink-0 text-gray-400 dark:text-dark-400" />
+            <Icon name="cube" size="sm" class="shrink-0 text-primary-500/80 dark:text-primary-400/80" />
             <span class="truncate">{{ modelLabel }}</span>
-            <Icon name="chevronDown" size="xs" class="shrink-0 text-gray-400 dark:text-dark-400" />
+            <Icon name="chevronDown" size="xs" class="shrink-0 text-gray-400 dark:text-dark-500" />
           </button>
 
-          <div class="flex w-24 items-center justify-end gap-1">
-            <button
-              type="button"
-              class="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary-600 focus:outline-none dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-primary-400"
-              :title="t('chat.sidebar.newChat')"
-              :aria-label="t('chat.sidebar.newChat')"
-              @click="handleNewChat"
-            >
-              <Icon name="plus" size="sm" />
-            </button>
-          </div>
+          <button
+            type="button"
+            class="absolute right-3 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary-600 focus:outline-none md:hidden dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-primary-400"
+            :title="t('chat.sidebar.newChat')"
+            :aria-label="t('chat.sidebar.newChat')"
+            @click="handleNewChat"
+          >
+            <Icon name="plus" size="sm" />
+          </button>
         </div>
 
         <!-- Messages -->
@@ -121,6 +115,7 @@
           :error-texts="runtimeErrorTexts"
           @regenerate="handleRegenerate"
           @retry="handleRetry"
+          @suggest="handleSuggest"
         />
 
         <!-- Input -->
@@ -379,7 +374,8 @@ function ensureConversation(content: string): ChatConversation {
   }
   conversations.value.unshift(conversation)
   currentId.value = conversation.id
-  return conversation
+  // 返回数组内的响应式代理而非局部原始对象，否则后续流式写入不触发视图更新
+  return conversations.value.find((item) => item.id === conversation.id) ?? conversation
 }
 
 function clearRuntimeErrors(): void {
@@ -393,6 +389,12 @@ function handleNewChat(): void {
   currentId.value = null
   clearRuntimeErrors()
   currentModel.value = resolveDefaultModel()
+}
+
+// 欢迎页建议问题：填入输入框并聚焦，不直接发送
+function handleSuggest(text: string): void {
+  chatInputRef.value?.setText(text)
+  chatInputRef.value?.focus()
 }
 
 function handleSelectConversation(id: string): void {

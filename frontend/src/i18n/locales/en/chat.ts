@@ -12,8 +12,12 @@ export default {
       localOnly: 'Conversations are stored in this browser',
     },
     welcome: {
+      motto: 'Minzu University of China',
       title: 'How can I help you today?',
       hint: 'I am this site\'s AI assistant. I can answer questions and help with writing and translation. Responses are for reference only.',
+      suggestion1: 'Draft a study plan',
+      suggestion2: 'Explain a concept',
+      suggestion3: 'Polish my writing',
     },
     input: {
       placeholder: 'Type a message. Enter to send, Shift+Enter for a new line',

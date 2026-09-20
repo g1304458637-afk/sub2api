@@ -12,8 +12,12 @@ export default {
       localOnly: '对话保存在本浏览器',
     },
     welcome: {
+      motto: '中央民族大学 · 美美与共 知行合一',
       title: '有什么可以帮忙的？',
       hint: '我是本站 AI 助手，可以回答问题、协助写作与翻译。内容仅供参考，请注意甄别。',
+      suggestion1: '写一份学习计划',
+      suggestion2: '解释一个专业概念',
+      suggestion3: '帮我润色一段文字',
     },
     input: {
       placeholder: '输入消息，Enter 发送，Shift+Enter 换行',

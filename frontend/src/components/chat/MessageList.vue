@@ -9,17 +9,35 @@
       v-if="messages.length === 0"
       class="flex h-full flex-col items-center justify-center px-4 py-10 text-center"
     >
-      <div
-        class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-900/20"
+      <!-- 校名标识行 -->
+      <p
+        class="mb-3 flex items-center gap-2.5 text-xs font-medium tracking-[0.2em] text-primary-600/80 dark:text-primary-400/80"
       >
-        <Icon name="sparkles" size="lg" class="text-primary-500 dark:text-primary-400" />
-      </div>
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+        <span class="inline-block h-px w-6 bg-primary-300/70 dark:bg-primary-700/60"></span>
+        {{ t('chat.welcome.motto') }}
+        <span class="inline-block h-px w-6 bg-primary-300/70 dark:bg-primary-700/60"></span>
+      </p>
+      <h2
+        class="font-serif text-[28px] font-semibold leading-snug text-gray-900 dark:text-white"
+      >
         {{ t('chat.welcome.title') }}
       </h2>
-      <p class="mt-2 max-w-md text-sm leading-relaxed text-gray-500 dark:text-dark-400">
+      <p class="mt-2.5 max-w-md text-sm leading-relaxed text-gray-400 dark:text-dark-500">
         {{ t('chat.welcome.hint') }}
       </p>
+
+      <!-- 建议问题 -->
+      <div class="mt-7 flex flex-wrap items-center justify-center gap-2">
+        <button
+          v-for="suggestion in suggestions"
+          :key="suggestion"
+          type="button"
+          class="rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] text-gray-500 transition-all hover:-translate-y-px hover:border-primary-300 hover:text-primary-700 focus:outline-none dark:border-dark-600 dark:bg-dark-900 dark:text-dark-400 dark:hover:border-primary-700 dark:hover:text-primary-300"
+          @click="emit('suggest', suggestion)"
+        >
+          {{ suggestion }}
+        </button>
+      </div>
     </div>
 
     <!-- Messages -->
@@ -43,7 +61,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Icon from '@/components/icons/Icon.vue'
 import MessageItem from './MessageItem.vue'
 import type { ChatMessage } from './types'
 
@@ -62,9 +79,16 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'regenerate'): void
   (e: 'retry', index: number): void
+  (e: 'suggest', text: string): void
 }>()
 
 const { t } = useI18n()
+
+const suggestions = computed(() => [
+  t('chat.welcome.suggestion1'),
+  t('chat.welcome.suggestion2'),
+  t('chat.welcome.suggestion3'),
+])
 
 const containerRef = ref<HTMLElement | null>(null)
 const stickToBottom = ref(true)

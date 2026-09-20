@@ -9,67 +9,63 @@
       </div>
     </div>
 
-    <!-- Assistant message: left-aligned markdown -->
+    <!-- Assistant message: open text, no bubble box -->
     <div v-else class="flex justify-start">
-      <div class="min-w-0 max-w-[92%]">
+      <div class="relative min-w-0 max-w-[92%] py-0.5">
+        <!-- Error bar -->
         <div
-          class="relative rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-dark-700 dark:bg-dark-900"
+          v-if="message.error"
+          class="mb-2 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
         >
-          <!-- Error bar -->
-          <div
-            v-if="message.error"
-            class="mb-2 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
-          >
-            <p class="min-w-0 break-words">
-              {{ errorText || t('chat.error.responseFailed') }}
-            </p>
-            <button
-              type="button"
-              class="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors hover:bg-red-100 focus:outline-none dark:hover:bg-red-900/40"
-              @click="emit('retry')"
-            >
-              <Icon name="refresh" size="xs" />
-              {{ t('chat.message.retry') }}
-            </button>
-          </div>
-
-          <!-- Markdown content (sanitized with DOMPurify) -->
-          <div
-            v-if="renderedHtml"
-            class="markdown-body text-sm"
-            v-html="renderedHtml"
-          ></div>
-          <div v-else-if="streaming" class="flex items-center gap-1 py-1" aria-hidden="true">
-            <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-dark-600"></span>
-            <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-dark-600"></span>
-            <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-dark-600"></span>
-          </div>
-
-          <!-- Streaming cursor -->
-          <span
-            v-if="streaming"
-            class="chat-stream-cursor ml-0.5 inline-block h-4 w-2 rounded-[2px] bg-gray-400 align-text-bottom dark:bg-dark-400"
-            aria-hidden="true"
-          ></span>
-
-          <!-- Copy button (hover) -->
+          <p class="min-w-0 break-words">
+            {{ errorText || t('chat.error.responseFailed') }}
+          </p>
           <button
-            v-if="message.content"
             type="button"
-            class="absolute right-2 top-2 hidden rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none group-hover:block dark:text-dark-500 dark:hover:bg-dark-700 dark:hover:text-dark-300"
-            :title="t('chat.message.copy')"
-            :aria-label="t('chat.message.copy')"
-            @click="copyContent"
+            class="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors hover:bg-red-100 focus:outline-none dark:hover:bg-red-900/40"
+            @click="emit('retry')"
           >
-            <Icon name="copy" size="sm" />
+            <Icon name="refresh" size="xs" />
+            {{ t('chat.message.retry') }}
           </button>
         </div>
 
+        <!-- Markdown content (sanitized with DOMPurify) -->
+        <div
+          v-if="renderedHtml"
+          class="markdown-body text-sm"
+          v-html="renderedHtml"
+        ></div>
+        <div v-else-if="streaming" class="flex items-center gap-1 py-1" aria-hidden="true">
+          <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-dark-600"></span>
+          <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-dark-600"></span>
+          <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-dark-600"></span>
+        </div>
+
+        <!-- Streaming cursor -->
+        <span
+          v-if="streaming"
+          class="chat-stream-cursor ml-0.5 inline-block h-4 w-2 rounded-[2px] bg-gray-400 align-text-bottom dark:bg-dark-400"
+          aria-hidden="true"
+        ></span>
+
+        <!-- Copy button (hover) -->
+        <button
+          v-if="message.content"
+          type="button"
+          class="absolute -top-1 right-0 hidden rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none group-hover:block dark:text-dark-600 dark:hover:bg-dark-800 dark:hover:text-dark-300"
+          :title="t('chat.message.copy')"
+          :aria-label="t('chat.message.copy')"
+          @click="copyContent"
+        >
+          <Icon name="copy" size="sm" />
+        </button>
+
         <!-- Regenerate (last assistant message only) -->
-        <div v-if="showRegenerate && !streaming" class="mt-1.5 flex">
+        <div v-if="showRegenerate && !streaming" class="mt-1 flex">
           <button
             type="button"
-            class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-dark-200"
+            class="flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none dark:text-dark-500 dark:hover:bg-dark-800 dark:hover:text-dark-200"
             @click="emit('regenerate')"
           >
             <Icon name="refresh" size="xs" />

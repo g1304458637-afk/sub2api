@@ -101,5 +101,9 @@ function focus(): void {
   textareaRef.value?.focus()
 }
 
-defineExpose({ focus })
+function setText(value: string): void {
+  text.value = value
+}
+
+defineExpose({ focus, setText })
 </script>
