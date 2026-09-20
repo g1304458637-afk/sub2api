@@ -23,8 +23,19 @@
         </p>
       </div>
 
+      <!-- Account-level reset cards（只读展示；消费入口待 Reset Card Runtime） -->
+      <div
+        v-if="!loading && subscriptions.length > 0 && resetCardsAvailable > 0"
+        class="card flex items-center justify-between border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10"
+      >
+        <div class="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+          <Icon name="clock" size="sm" />
+          <span>{{ t('userSubscriptions.resetCards', { count: resetCardsAvailable }) }}</span>
+        </div>
+      </div>
+
       <!-- Subscriptions Grid -->
-      <div v-else class="grid gap-6 lg:grid-cols-2">
+      <div v-if="!loading && subscriptions.length > 0" class="grid gap-6 lg:grid-cols-2">
         <div
           v-for="subscription in subscriptions"
           :key="subscription.id"
@@ -49,12 +60,7 @@
                 <p v-if="subscription.group?.description" class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
                   {{ subscription.group.description }}
                 </p>
-                <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-400 dark:text-gray-500">
-                  <span>{{ t('payment.planCard.rate') }}: ×{{ subscription.group?.rate_multiplier ?? 1 }}</span>
-                  <span v-if="subscriptionHasPeakRate(subscription)" class="text-amber-700 dark:text-amber-300">
-                    {{ t('payment.planCard.peakRate') }}: {{ subscriptionPeakRateLabel(subscription) }}
-                  </span>
-                </div>
+
               </div>
             </div>
             <div class="flex items-center gap-2">
@@ -100,146 +106,55 @@
               }}</span>
             </div>
 
-            <!-- Daily Usage -->
-            <div v-if="subscription.group?.daily_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.daily') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.daily_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.daily_limit_usd.toFixed(2)
-                  }}
-                </span>
-              </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.daily_usage_usd,
-                      subscription.group.daily_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.daily_usage_usd,
-                      subscription.group.daily_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.daily_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
+            <!-- Weekly Usage（Phase 4.1 合同：仅整数百分比，无内部 USD 值） -->
+            <template v-if="statusById[subscription.id]">
+              <div
+                v-if="statusById[subscription.id].usage_status !== 'unmetered'"
+                class="space-y-2"
               >
-                {{ formatDailyUsageWindow(subscription) }}
-              </p>
-            </div>
-
-            <!-- Weekly Usage -->
-            <div v-if="subscription.group?.weekly_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.weekly') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.weekly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.weekly_limit_usd.toFixed(2)
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('userSubscriptions.weeklyUsage') }}
+                  </span>
+                  <span class="text-sm text-gray-500 dark:text-dark-400">
+                    {{ t(`userSubscriptions.usageStatus.${statusById[subscription.id].usage_status}`) }}
+                  </span>
+                </div>
+                <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                  <div
+                    class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                    :class="getProgressBarClass(statusById[subscription.id])"
+                    :style="{ width: getProgressWidth(statusById[subscription.id]) }"
+                  ></div>
+                </div>
+                <p
+                  v-if="statusById[subscription.id].weekly_period_ends_at"
+                  class="text-xs text-gray-500 dark:text-dark-400"
+                >
+                  {{
+                    t('userSubscriptions.resetIn', {
+                      time: formatResetCountdown(statusById[subscription.id].weekly_period_ends_at)
+                    })
                   }}
-                </span>
+                </p>
               </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.weekly_usage_usd,
-                      subscription.group.weekly_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.weekly_usage_usd,
-                      subscription.group.weekly_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.weekly_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
+              <div
+                v-else
+                class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-primary-50 py-6 dark:from-emerald-900/20 dark:to-primary-900/20"
               >
-                {{
-                  t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.weekly_window_start, 168)
-                  })
-                }}
-              </p>
-            </div>
-
-            <!-- Monthly Usage -->
-            <div v-if="subscription.group?.monthly_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.monthly') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.monthly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.monthly_limit_usd.toFixed(2)
-                  }}
-                </span>
-              </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.monthly_usage_usd,
-                      subscription.group.monthly_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.monthly_usage_usd,
-                      subscription.group.monthly_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.monthly_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
-              >
-                {{
-                  t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.monthly_window_start, 720)
-                  })
-                }}
-              </p>
-            </div>
-
-            <!-- No limits configured - Unlimited badge -->
-            <div
-              v-if="
-                !subscription.group?.daily_limit_usd &&
-                !subscription.group?.weekly_limit_usd &&
-                !subscription.group?.monthly_limit_usd
-              "
-              class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-primary-50 py-6 dark:from-emerald-900/20 dark:to-primary-900/20"
-            >
-              <div class="flex items-center gap-3">
-                <span class="text-4xl text-emerald-600 dark:text-emerald-400">∞</span>
-                <div>
-                  <p class="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                    {{ t('userSubscriptions.unlimited') }}
-                  </p>
-                  <p class="text-xs text-emerald-600/70 dark:text-emerald-400/70">
-                    {{ t('userSubscriptions.unlimitedDesc') }}
-                  </p>
+                <div class="flex items-center gap-3">
+                  <span class="text-4xl text-emerald-600 dark:text-emerald-400">∞</span>
+                  <div>
+                    <p class="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      {{ t('userSubscriptions.unmetered') }}
+                    </p>
+                    <p class="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                      {{ t('userSubscriptions.unlimitedDesc') }}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
       </div>
@@ -252,17 +167,15 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import subscriptionsAPI from '@/api/subscriptions'
+import subscriptionsAPI, { type AccountSubscriptionStatus } from '@/api/subscriptions'
 import type { UserSubscription } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTimeToMinute } from '@/utils/format'
-import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { platformBorderClass, platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
 import {
   getExpirationDateRelation,
   getRemainingDurationParts,
-  isOneTimeDailyQuota,
   type RemainingDurationParts
 } from '@/utils/subscriptionQuota'
 
@@ -281,20 +194,27 @@ const router = useRouter()
 const appStore = useAppStore()
 
 const subscriptions = ref<UserSubscription[]>([])
+// Phase 4.1 状态合同：百分比/状态/周期由服务端计算，此处仅按订阅 id 消费
+const statusById = ref<Record<number, AccountSubscriptionStatus>>({})
+const resetCardsAvailable = ref(0)
 const loading = ref(true)
-
-function subscriptionHasPeakRate(subscription: UserSubscription): boolean {
-  return hasPeakRate(subscription.group)
-}
-
-function subscriptionPeakRateLabel(subscription: UserSubscription): string {
-  return formatPeakRateWindow(subscription.group, serverTimezoneLabel(appStore.cachedPublicSettings?.server_utc_offset))
-}
 
 async function loadSubscriptions() {
   try {
     loading.value = true
-    subscriptions.value = await subscriptionsAPI.getMySubscriptions()
+    // 并行拉取：订阅元数据（active 列表）+ 净化状态（百分比/周期/重置卡）
+    const [subs, , status] = await Promise.all([
+      subscriptionsAPI.getMySubscriptions(),
+      subscriptionsAPI.getActiveSubscriptions(),
+      subscriptionsAPI.getAccountStatus().catch(() => null)
+    ])
+    subscriptions.value = subs
+    if (status) {
+      const map: Record<number, AccountSubscriptionStatus> = {}
+      for (const st of status.subscriptions) map[st.id] = st
+      statusById.value = map
+      resetCardsAvailable.value = status.reset_cards.available
+    }
   } catch (error) {
     console.error('Failed to load subscriptions:', error)
     appStore.showError(t('userSubscriptions.failedToLoad'))
@@ -303,18 +223,22 @@ async function loadSubscriptions() {
   }
 }
 
-function getProgressWidth(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return '0%'
-  const percentage = Math.min(((used || 0) / limit) * 100, 100)
-  return `${percentage}%`
+function getProgressWidth(st: AccountSubscriptionStatus): string {
+  const pct = st.weekly_usage_percent ?? 0
+  return `${Math.min(pct, 100)}%`
 }
 
-function getProgressBarClass(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return 'bg-gray-400'
-  const percentage = ((used || 0) / limit) * 100
-  if (percentage >= 90) return 'bg-red-500'
-  if (percentage >= 70) return 'bg-orange-500'
+function getProgressBarClass(st: AccountSubscriptionStatus): string {
+  const pct = st.weekly_usage_percent ?? 0
+  if (pct >= 90) return 'bg-red-500'
+  if (pct >= 70) return 'bg-orange-500'
   return 'bg-green-500'
+}
+
+function formatResetCountdown(endsAt: string | null): string {
+  if (!endsAt) return t('userSubscriptions.windowNotActive')
+  const parts = getRemainingDurationParts(endsAt)
+  return parts ? formatDurationParts(parts) : t('userSubscriptions.windowNotActive')
 }
 
 function formatExpirationDate(expiresAt: string): string {
@@ -364,28 +288,6 @@ function formatDurationParts(parts: RemainingDurationParts): string {
   }
 
   return `${parts.minutes}m`
-}
-
-function formatDailyUsageWindow(subscription: UserSubscription): string {
-  if (isOneTimeDailyQuota(subscription) && subscription.expires_at) {
-    const parts = getRemainingDurationParts(subscription.expires_at)
-    if (!parts) return t('userSubscriptions.windowNotActive')
-    return t('userSubscriptions.quotaEndsIn', { time: formatDurationParts(parts) })
-  }
-
-  return t('userSubscriptions.resetIn', {
-    time: formatResetTime(subscription.daily_window_start, 24)
-  })
-}
-
-function formatResetTime(windowStart: string | null, windowHours: number): string {
-  if (!windowStart) return t('userSubscriptions.windowNotActive')
-
-  const start = new Date(windowStart)
-  const end = new Date(start.getTime() + windowHours * 60 * 60 * 1000)
-  const parts = getRemainingDurationParts(end)
-
-  return parts ? formatDurationParts(parts) : t('userSubscriptions.windowNotActive')
 }
 
 onMounted(() => {

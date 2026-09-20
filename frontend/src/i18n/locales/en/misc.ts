@@ -14,7 +14,15 @@ export default {
     expiresTomorrow: 'Expires tomorrow',
     viewAll: 'View all subscriptions',
     noSubscriptions: 'No active subscriptions',
-    unlimited: 'Unlimited'
+    unlimited: 'Unlimited',
+    weeklyUsage: 'Weekly usage',
+    usageStatus: {
+      normal: 'Normal',
+      high: 'High usage',
+      near_limit: 'Near weekly limit',
+      exhausted: 'Weekly allowance used up',
+      unmetered: 'Unmetered'
+    }
   },
 
   // Version Badge
@@ -127,8 +135,18 @@ export default {
     usage: 'Usage',
     expires: 'Expires',
     noExpiration: 'No expiration',
+    unmetered: 'Unmetered',
     unlimited: 'Unlimited',
     unlimitedDesc: 'No usage limits on this subscription',
+    weeklyUsage: 'Weekly usage',
+    resetCards: 'Reset cards ×{count}',
+    usageStatus: {
+      normal: 'Normal',
+      high: 'High usage',
+      near_limit: 'Near weekly limit',
+      exhausted: 'Weekly allowance used up',
+      unmetered: 'Unmetered'
+    },
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',

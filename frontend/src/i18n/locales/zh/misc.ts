@@ -14,7 +14,15 @@ export default {
     expiresTomorrow: '明天到期',
     viewAll: '查看全部订阅',
     noSubscriptions: '暂无有效订阅',
-    unlimited: '无限制'
+    unlimited: '无限制',
+    weeklyUsage: '本周使用量',
+    usageStatus: {
+      normal: '正常',
+      high: '使用较多',
+      near_limit: '接近本周额度',
+      exhausted: '本周额度已用完',
+      unmetered: '不限'
+    }
   },
 
   // Version Badge
@@ -124,7 +132,17 @@ export default {
     usage: '用量',
     expires: '到期时间',
     noExpiration: '无到期时间',
+    unmetered: '不限',
     unlimited: '无限制',
+    weeklyUsage: '本周使用量',
+    resetCards: '重置卡 ×{count}',
+    usageStatus: {
+      normal: '正常',
+      high: '使用较多',
+      near_limit: '接近本周额度',
+      exhausted: '本周额度已用完',
+      unmetered: '不限'
+    },
     unlimitedDesc: '该订阅无用量限制',
     daily: '每日',
     weekly: '每周',
