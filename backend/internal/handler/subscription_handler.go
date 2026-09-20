@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -33,13 +34,36 @@ type SubscriptionProgressInfo struct {
 // SubscriptionHandler handles user subscription operations
 type SubscriptionHandler struct {
 	subscriptionService *service.SubscriptionService
+	accountStatus       *service.AccountStatusService
 }
 
 // NewSubscriptionHandler creates a new user subscription handler
-func NewSubscriptionHandler(subscriptionService *service.SubscriptionService) *SubscriptionHandler {
+func NewSubscriptionHandler(subscriptionService *service.SubscriptionService, accountStatus *service.AccountStatusService) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
+		accountStatus:       accountStatus,
 	}
+}
+
+// GetStatus 返回统一账户状态：Wallet + 全部 active subscriptions（净化视图，
+// 无任何内部 USD 额度/倍率；百分比与状态由服务端权威计算）。
+// GET /api/v1/subscriptions/status
+func (h *SubscriptionHandler) GetStatus(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	if h.accountStatus == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_STATUS_UNAVAILABLE", "account status service is unavailable"))
+		return
+	}
+	status, err := h.accountStatus.GetAccountStatus(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, status)
 }
 
 // List handles listing current user's subscriptions

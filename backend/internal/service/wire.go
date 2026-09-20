@@ -901,6 +901,8 @@ var ProviderSet = wire.NewSet(
 	// Subscription V1: inject the unified Reset Core event-application repository
 	ProvideSubscriptionServiceWithReset,
 	wire.Bind(new(DefaultSubscriptionAssigner), new(*SubscriptionService)),
+	wire.Bind(new(SubscriptionWindowMaintainer), new(*SubscriptionService)),
+	NewAccountStatusService,
 	ProvideConcurrencyService,
 	ProvideUserMessageQueueService,
 	NewUsageRecordWorkerPool,

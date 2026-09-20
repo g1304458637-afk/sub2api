@@ -29,6 +29,10 @@ type UserSubscription struct {
 	AssignedAt time.Time
 	Notes      string
 
+	// 用户级 PAYG fallback 开关（Phase 1 列；首个消费方 = AccountStatusService，
+	// Gateway fallback 运行时在后续 Phase 实现）
+	AutoPaygFallback bool
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt *time.Time
