@@ -56,6 +56,15 @@
 
 **未采用**：每个请求实时聚合（热路径成本）；按当前请求 Group 的 override（Phase 0 证明同池不同限语义不自洽）；负值/0 覆盖（0=unlimited 不得被限）。
 
-## Phase 10 — Plan Change Runtime（占位，实现前补充）
+## Phase 10 — Plan Change Runtime
 
-**待调研**：Chargebee plan change / proration、Stripe Billing subscription update proration、Lago subscription lifecycle、prepaid extension / term snapshot 模式。
+**调研**：Stripe `proration_behavior=always_invoice`（升级立即生效 + 未用时间 credit + 立即开票）、Stripe `pending_update` / Chargebee `end_of_term`（降级 term 末生效）、Chargebee `update_subscription_estimate`（服务端权威报价预览）、OpenMeter grants / Lago 订阅+钱包分离（entitlement 切换不触碰 Wallet）；本仓库 payment_orders（plan_id/amount/subscription_days 真实支付事实）与 assignOrExtend 履约链。
+
+**采用**：
+- Quote 冻结（30 分钟）：金额/双价快照/剩余窗口在报价行落库，创建订单只读冻结行（客户端 amount 一律忽略；过期重新报价）——Stripe quote / Chargebee estimate 模式；
+- 立即升级 proration：按未消费 term 逐段 decimal 折算（毫秒级 ratio；未消费起点 = max(now, termStart) 防未来段双重计入——45/60 天测试抓出的真实 bug）；credit 不为负；
+- 履约单事务：订阅行锁 + 源组校验 + 目标组冲突终检 + SwitchPlan（保 usage/anchor/starts/expires/fallback）+ 升级 term + Key 组迁移（ID/secret 不变）+ 取消旧 scheduled downgrade + 提交后缓存失效；
+- Scheduled Downgrade：next_plan_id + 审计行；当前 term 权益不变；Renewal 时按目标档报价执行；升级 supersede 旧降级（superseded_by_upgrade）；
+- 四闸门：plan_id identity（历史 NULL=unresolved 拒绝）、term 快照价格真相（非目录价）、逐段预付折算、tier_rank（≠sort_order）。
+
+**未采用**：客户端提交金额；目录价充当历史实付；多段平均化；自动 merge 目标组已有订阅；跨币种/跨 cadence（V1 显式拒绝）；独立 invoice 系统。

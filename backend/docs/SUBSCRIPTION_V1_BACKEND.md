@@ -1,7 +1,7 @@
 # Subscription V1 Backend
 
-> 状态：**进行中**（Phase 0-9 已完成；Phase 10 Plan Change / Phase 11 完整 Hardening 进行中）。
-> 本文档随实现更新；最终版随 BACKEND READY 一并冻结。
+> 状态：**BACKEND READY**（Phase 0-11 全部完成；Full Backend E2E 通过）。
+> 剩余工作仅为最终 Website / MUCODE 前端。
 
 ## 1. Architecture
 
@@ -64,6 +64,15 @@ Concurrency: effective = max(users.concurrency, max active metered group overrid
 | POST/PUT | /admin/groups（既有，含 concurrency_override） | Group CRUD |
 | POST | /admin/subscriptions/:id/reset-quota（既有） | 单订阅手动重置（走 Reset Core） |
 
+### Plan Change（用户）
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | /api/v1/subscriptions/:id/change/preview | 升级报价（服务端 proration；纯读） |
+| POST | /api/v1/subscriptions/:id/upgrade | 创建升级订单（金额只来自冻结报价；Idempotency-Key） |
+| POST | /api/v1/subscriptions/:id/schedule-downgrade | 计划降级（term 末生效；替换语义） |
+| DELETE | /api/v1/subscriptions/:id/schedule-downgrade | 取消计划降级 |
+| GET | /api/v1/subscriptions/:id/changes | Plan Change 审计历史 |
+
 ### MUCODE（API Key scope）
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -75,7 +84,7 @@ Concurrency: effective = max(users.concurrency, max active metered group overrid
 | --- | --- |
 | 239 | subscription_v1_fallback_and_resets：user_subscriptions.auto_payg_fallback、groups.concurrency_override、subscription_reset_events/applications/cards |
 | 240 | reward_grants（Reward Track） |
-| 241+ | Phase 10 Plan Change（tier_rank / term snapshots / subscription_plan_changes）——实现中 |
+| 241 | Phase 10 Plan Change：subscription_plans.tier_rank、user_subscriptions.plan_id/next_plan_id、subscription_terms（已付 term 快照）、subscription_plan_changes（报价冻结+审计）、payment_orders.plan_change_id |
 
 ## 5. Failure / Retry Semantics
 
