@@ -60,6 +60,7 @@ export default {
 	    availableBalance: '可用余额',
 	    frozenBalance: '冻结金额',
 	    totalBalance: '总余额',
+    currencyToggle: '切换人民币/美元显示',
 	    available: '可用',
     copiedToClipboard: '已复制到剪贴板',
     copied: '已复制',

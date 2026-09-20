@@ -13,6 +13,17 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+vi.mock('@/stores/currencyDisplay', () => ({
+  useCurrencyDisplayStore: () => ({
+    displayCurrency: 'USD',
+    usdToCnyRate: 0,
+    canDisplayCNY: false,
+    toggleCurrency: vi.fn(),
+    formatUSD: (amount: number | null | undefined) => `$${Number(amount ?? 0).toFixed(2)}`
+  })
+}))
+
+
 function tokenModel(overrides: Partial<PlazaModel> = {}): PlazaModel {
   return {
     name: 'claude-sonnet',

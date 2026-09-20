@@ -159,3 +159,7 @@ output/
 .vite/
 # 本地闭源插件开发目录及构建产物不进入 Sub2API 仓库
 /plugins/
+
+# AI agent working artifacts (Codex 等 agent 运行产物)
+.omx/
+frontend/.qa/

@@ -85,20 +85,22 @@ type UpdateProfileRequest struct {
 
 type userProfileResponse struct {
 	dto.User
-	AvatarURL         string                                 `json:"avatar_url,omitempty"`
-	AvatarSource      *userProfileSourceContext              `json:"avatar_source,omitempty"`
-	UsernameSource    *userProfileSourceContext              `json:"username_source,omitempty"`
-	DisplayNameSource *userProfileSourceContext              `json:"display_name_source,omitempty"`
-	NicknameSource    *userProfileSourceContext              `json:"nickname_source,omitempty"`
-	ProfileSources    map[string]*userProfileSourceContext   `json:"profile_sources,omitempty"`
-	Identities        service.UserIdentitySummarySet         `json:"identities"`
-	AuthBindings      map[string]service.UserIdentitySummary `json:"auth_bindings"`
-	IdentityBindings  map[string]service.UserIdentitySummary `json:"identity_bindings"`
-	EmailBound        bool                                   `json:"email_bound"`
-	LinuxDoBound      bool                                   `json:"linuxdo_bound"`
-	OIDCBound         bool                                   `json:"oidc_bound"`
-	WeChatBound       bool                                   `json:"wechat_bound"`
-	DingTalkBound     bool                                   `json:"dingtalk_bound"`
+	AvatarURL           string                                 `json:"avatar_url,omitempty"`
+	AvatarSource        *userProfileSourceContext              `json:"avatar_source,omitempty"`
+	UsernameSource      *userProfileSourceContext              `json:"username_source,omitempty"`
+	DisplayNameSource   *userProfileSourceContext              `json:"display_name_source,omitempty"`
+	NicknameSource      *userProfileSourceContext              `json:"nickname_source,omitempty"`
+	ProfileSources      map[string]*userProfileSourceContext   `json:"profile_sources,omitempty"`
+	Identities          service.UserIdentitySummarySet         `json:"identities"`
+	AuthBindings        map[string]service.UserIdentitySummary `json:"auth_bindings"`
+	IdentityBindings    map[string]service.UserIdentitySummary `json:"identity_bindings"`
+	EmailBound          bool                                   `json:"email_bound"`
+	EducationEmail      service.UserIdentitySummary            `json:"education_email"`
+	EducationEmailBound bool                                   `json:"education_email_bound"`
+	LinuxDoBound        bool                                   `json:"linuxdo_bound"`
+	OIDCBound           bool                                   `json:"oidc_bound"`
+	WeChatBound         bool                                   `json:"wechat_bound"`
+	DingTalkBound       bool                                   `json:"dingtalk_bound"`
 }
 
 type userProfileSourceContext struct {
@@ -245,6 +247,69 @@ type BindEmailIdentityRequest struct {
 
 type SendEmailBindingCodeRequest struct {
 	Email string `json:"email" binding:"required,email"`
+}
+
+type SendEducationEmailCodeRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type VerifyEducationEmailRequest struct {
+	Email string `json:"email" binding:"required,email"`
+	Code  string `json:"code" binding:"required,len=6,numeric"`
+}
+
+func (h *UserHandler) SendEducationEmailCode(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.authService == nil {
+		response.InternalError(c, "Auth service not configured")
+		return
+	}
+	var req SendEducationEmailCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := h.authService.SendEducationEmailCode(c.Request.Context(), subject.UserID, req.Email, c.GetHeader("Accept-Language")); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "Verification code sent successfully"})
+}
+
+func (h *UserHandler) VerifyEducationEmail(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.authService == nil {
+		response.InternalError(c, "Auth service not configured")
+		return
+	}
+	var req VerifyEducationEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := h.authService.VerifyAndBindEducationEmail(c.Request.Context(), subject.UserID, req.Email, req.Code); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	user, err := h.userService.GetByID(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	profileResp, err := h.buildUserProfileResponse(c.Request.Context(), subject.UserID, user)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, profileResp)
 }
 
 // StartIdentityBinding returns the backend authorize URL for starting a third-party identity bind flow.
@@ -546,31 +611,34 @@ func userProfileResponseFromService(user *service.User, identities service.UserI
 	bindings := userProfileBindingMap(identities)
 	profileSources, avatarSource, usernameSource := inferUserProfileSources(user, identities)
 	return userProfileResponse{
-		User:              *base,
-		AvatarURL:         user.AvatarURL,
-		AvatarSource:      avatarSource,
-		UsernameSource:    usernameSource,
-		DisplayNameSource: usernameSource,
-		NicknameSource:    usernameSource,
-		ProfileSources:    profileSources,
-		Identities:        identities,
-		AuthBindings:      bindings,
-		IdentityBindings:  bindings,
-		EmailBound:        identities.Email.Bound,
-		LinuxDoBound:      identities.LinuxDo.Bound,
-		OIDCBound:         identities.OIDC.Bound,
-		WeChatBound:       identities.WeChat.Bound,
-		DingTalkBound:     identities.DingTalk.Bound,
+		User:                *base,
+		AvatarURL:           user.AvatarURL,
+		AvatarSource:        avatarSource,
+		UsernameSource:      usernameSource,
+		DisplayNameSource:   usernameSource,
+		NicknameSource:      usernameSource,
+		ProfileSources:      profileSources,
+		Identities:          identities,
+		AuthBindings:        bindings,
+		IdentityBindings:    bindings,
+		EmailBound:          identities.Email.Bound,
+		EducationEmail:      identities.EducationEmail,
+		EducationEmailBound: identities.EducationEmail.Bound,
+		LinuxDoBound:        identities.LinuxDo.Bound,
+		OIDCBound:           identities.OIDC.Bound,
+		WeChatBound:         identities.WeChat.Bound,
+		DingTalkBound:       identities.DingTalk.Bound,
 	}
 }
 
 func userProfileBindingMap(identities service.UserIdentitySummarySet) map[string]service.UserIdentitySummary {
 	return map[string]service.UserIdentitySummary{
-		"email":    identities.Email,
-		"linuxdo":  identities.LinuxDo,
-		"oidc":     identities.OIDC,
-		"wechat":   identities.WeChat,
-		"dingtalk": identities.DingTalk,
+		"email":           identities.Email,
+		"education_email": identities.EducationEmail,
+		"linuxdo":         identities.LinuxDo,
+		"oidc":            identities.OIDC,
+		"wechat":          identities.WeChat,
+		"dingtalk":        identities.DingTalk,
 	}
 }
 

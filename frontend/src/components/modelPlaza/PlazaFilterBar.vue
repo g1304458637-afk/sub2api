@@ -79,7 +79,7 @@
       </div>
     </div>
 
-    <!-- 四级:模型名搜索(纯前端过滤) -->
+    <!-- 四级:模型名搜索(纯前端过滤) + 展示币种切换 -->
     <div class="flex flex-wrap items-start gap-2">
       <span class="w-10 shrink-0 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-dark-500">
         {{ t('modelPlaza.filters.modelLabel') }}
@@ -106,6 +106,16 @@
           <Icon name="x" size="xs" class="h-3.5 w-3.5" />
         </button>
       </div>
+      <button
+        v-if="currencyStore.canDisplayCNY"
+        type="button"
+        data-testid="plaza-currency-toggle"
+        class="ml-auto rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 ring-1 ring-inset ring-gray-200 transition hover:bg-gray-50 hover:text-gray-900 dark:text-dark-300 dark:ring-dark-700 dark:hover:bg-dark-800"
+        :title="t('common.currencyToggle')"
+        @click="currencyStore.toggleCurrency()"
+      >
+        {{ currencyStore.displayCurrency === 'CNY' ? '¥ 人民币' : '$ USD' }}
+      </button>
     </div>
   </div>
 </template>
@@ -115,6 +125,7 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import { platformAccentColor } from '@/utils/platformColors'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import type { GroupPlatform } from '@/types'
 
 const props = defineProps<{
@@ -139,6 +150,7 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const currencyStore = useCurrencyDisplayStore()
 
 /**
  * 三个维度互为约束(faceted):某选项可点 ⟺ 在「其他两维」当前选择下仍有分组命中。

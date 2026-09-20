@@ -7825,7 +7825,7 @@
                       v-model="form.payment_product_name_prefix"
                       type="text"
                       class="input"
-                      placeholder="Sub2API"
+                      placeholder="MUC AI"
                     />
                   </div>
                   <div>
@@ -7847,7 +7847,7 @@
                       class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300"
                     >
                       {{
-                        (form.payment_product_name_prefix || "Sub2API") +
+                        (form.payment_product_name_prefix || "MUC AI") +
                         " 100 " +
                         (form.payment_product_name_suffix || "CNY")
                       }}
@@ -7976,6 +7976,30 @@
                       {{
                         t("admin.settings.payment.subscriptionUsdToCnyRateHint")
                       }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="input-label">{{
+                      t("admin.settings.payment.usdToCnyDisplayRate")
+                    }}</label>
+                    <input
+                      :value="form.payment_usd_to_cny_display_rate || ''"
+                      @input="
+                        form.payment_usd_to_cny_display_rate =
+                          parseFloat(
+                            ($event.target as HTMLInputElement).value,
+                          ) || 0
+                      "
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      class="input"
+                      :placeholder="
+                        t('admin.settings.payment.usdToCnyDisplayRateDisabled')
+                      "
+                    />
+                    <p class="mt-0.5 text-xs text-gray-400">
+                      {{ t("admin.settings.payment.usdToCnyDisplayRateHint") }}
                     </p>
                   </div>
                   <div>
@@ -9621,7 +9645,7 @@ const form = reactive<SettingsForm>({
   default_subscriptions: [],
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
-  site_name: "Sub2API",
+  site_name: "MUC AI",
   site_logo: "",
   site_subtitle: "Subscription to API Conversion Platform",
   api_base_url: "",
@@ -9642,6 +9666,7 @@ const form = reactive<SettingsForm>({
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_usd_to_cny_display_rate: 0,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_enabled_types: [],
@@ -11475,6 +11500,8 @@ async function saveSettings() {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
         Number(form.payment_balance_recharge_multiplier) || 1,
+      payment_usd_to_cny_display_rate:
+        Number(form.payment_usd_to_cny_display_rate) || 0,
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,

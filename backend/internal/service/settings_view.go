@@ -373,6 +373,7 @@ type PublicSettings struct {
 	BackendModeEnabled       bool
 	PaymentEnabled           bool
 	PaymentBalanceDisabled   bool
+	USDToCNYDisplayRate      float64
 	OIDCOAuthEnabled         bool
 	OIDCOAuthProviderName    string
 	GitHubOAuthEnabled       bool

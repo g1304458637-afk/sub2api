@@ -60,6 +60,7 @@ export default {
 	    availableBalance: 'Available balance',
 	    frozenBalance: 'Frozen balance',
 	    totalBalance: 'Total balance',
+    currencyToggle: 'Toggle CNY/USD display',
 	    available: 'Available',
     copiedToClipboard: 'Copied to clipboard',
     copied: 'Copied',

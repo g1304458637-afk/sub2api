@@ -84,6 +84,9 @@ export interface User {
   linuxdo_bound?: boolean
   oidc_bound?: boolean
   wechat_bound?: boolean
+  /** Campus identity: verified exact @muc.edu.cn email (independent of the login email). */
+  education_email_bound?: boolean
+  education_email?: UserAuthBindingStatus | null
   role: 'admin' | 'user' // User role for authorization
   balance: number // User balance for API usage
   frozen_balance?: number // Balance currently held by async batch jobs
@@ -242,6 +245,8 @@ export interface PublicSettings {
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean
+  /** USD ledger amounts may be displayed in CNY at this configured rate; 0 disables conversion. */
+  usd_to_cny_display_rate?: number
   risk_control_enabled: boolean
   table_default_page_size: number
   table_page_size_options: number[]

@@ -37,6 +37,9 @@ type EmailCache interface {
 	GetVerificationCode(ctx context.Context, email string) (*VerificationCodeData, error)
 	SetVerificationCode(ctx context.Context, email string, data *VerificationCodeData, ttl time.Duration) error
 	DeleteVerificationCode(ctx context.Context, email string) error
+	ConsumeVerificationCode(ctx context.Context, email string) (*VerificationCodeData, error)
+	ReserveVerificationCodeCooldown(ctx context.Context, email string, cooldown time.Duration) (bool, error)
+	ReleaseVerificationCodeCooldown(ctx context.Context, email string) error
 
 	// Notify email verification code methods
 	GetNotifyVerifyCode(ctx context.Context, email string) (*VerificationCodeData, error)
@@ -62,6 +65,7 @@ type EmailCache interface {
 type VerificationCodeData struct {
 	Code      string
 	Attempts  int
+	Target    string
 	CreatedAt time.Time
 	ExpiresAt time.Time // absolute expiry; used to preserve remaining TTL when updating attempts
 }
@@ -342,6 +346,13 @@ func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName strin
 		return fmt.Errorf("save verify code: %w", err)
 	}
 
+	return s.SendVerificationCodeEmail(ctx, email, code, siteName, locale...)
+}
+
+// SendVerificationCodeEmail sends an already-generated code without writing it
+// to the ordinary email-address keyed verification store. Purpose-specific
+// flows can keep their code bound to a user or action in the same cache facility.
+func (s *EmailService) SendVerificationCodeEmail(ctx context.Context, email, code, siteName string, locale ...string) error {
 	if s.notificationEmailService != nil {
 		err := s.notificationEmailService.Send(ctx, NotificationEmailSendInput{
 			Event:          NotificationEmailEventAuthVerifyCode,
@@ -371,6 +382,24 @@ func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName strin
 		return fmt.Errorf("send email: %w", err)
 	}
 
+	return nil
+}
+
+// SendEducationEmailVerification sends the campus verification message using
+// the existing SMTP configuration while keeping the purpose and school name
+// independent from the site's upstream branding.
+func (s *EmailService) SendEducationEmailVerification(ctx context.Context, email, code string) error {
+	subject := "[MUC Campus] 教育邮箱身份验证 / Education Email Verification"
+	body := fmt.Sprintf(`<!doctype html><html><body style="font-family:Arial,sans-serif;color:#1f2937">
+<h2>MUC Campus 教育邮箱认证</h2>
+<p>您的验证码是：</p><p style="font:700 32px monospace;letter-spacing:8px">%s</p>
+<p>验证码 15 分钟内有效。若非本人操作，请忽略此邮件。</p>
+<hr><h2>MUC Campus Education Email Verification</h2>
+<p>Your verification code is <strong>%s</strong>. It expires in 15 minutes.</p>
+<p>If you did not request this code, you can ignore this email.</p></body></html>`, code, code)
+	if err := s.SendEmail(ctx, email, subject, body); err != nil {
+		return fmt.Errorf("send education email verification: %w", err)
+	}
 	return nil
 }
 
