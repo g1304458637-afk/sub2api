@@ -141,7 +141,7 @@ func (User) Edges() []ent.Edge {
 		edge.To("pending_auth_sessions", PendingAuthSession.Type),
 		edge.To("platform_quotas", UserPlatformQuota.Type),
 		// Subscription V1 reset 权益（migration 239）
-		edge.To("reset_cards", SubscriptionResetCard.Type),         // 卡的拥有者
+		edge.To("reset_cards", SubscriptionResetCard.Type),           // 卡的拥有者
 		edge.To("created_reset_events", SubscriptionResetEvent.Type), // 事件创建者（管理员）
 		edge.To("created_reset_cards", SubscriptionResetCard.Type),   // 发卡操作者（管理员）
 	}

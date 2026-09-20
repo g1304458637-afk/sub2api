@@ -33,6 +33,11 @@ type UserSubscription struct {
 	// Gateway fallback 运行时在后续 Phase 实现）
 	AutoPaygFallback bool
 
+	// Plan 身份（Gate 1）：历史行为 NULL = plan_identity_unresolved
+	PlanID *int64
+	// scheduled downgrade 目标（term 末生效）
+	NextPlanID *int64
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt *time.Time

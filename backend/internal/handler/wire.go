@@ -206,6 +206,7 @@ func ProvideHandlers(
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
+	planChangeHandler *PlanChangeHandler,
 ) *Handlers {
 	return &Handlers{
 		Auth:             authHandler,
@@ -231,6 +232,7 @@ func ProvideHandlers(
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
 		MucConnect:       mucConnectHandler,
+		PlanChange:       planChangeHandler,
 	}
 }
 

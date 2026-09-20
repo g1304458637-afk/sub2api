@@ -221,6 +221,9 @@ func (s *PaymentService) executeFulfillment(ctx context.Context, oid int64) erro
 	if o.OrderType == payment.OrderTypeSubscription {
 		return s.ExecuteSubscriptionFulfillment(ctx, oid)
 	}
+	if o.OrderType == payment.OrderTypePlanChange {
+		return s.ExecutePlanChangeFulfillment(ctx, oid)
+	}
 	return s.ExecuteBalanceFulfillment(ctx, oid)
 }
 
@@ -581,14 +584,35 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 		case lookupErr != nil && !errors.Is(lookupErr, ErrSubscriptionNotFound):
 			return fmt.Errorf("check existing subscription assignment: %w", lookupErr)
 		default:
-			if _, _, err := s.subscriptionSvc.assignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
+			sub, _, err := s.subscriptionSvc.assignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
 				UserID:       o.UserID,
 				GroupID:      groupID,
 				ValidityDays: days,
 				AssignedBy:   0,
 				Notes:        orderNote,
-			}, true); err != nil {
+				PlanID:       o.PlanID,
+			}, true)
+			if err != nil {
 				return fmt.Errorf("assign subscription: %w", err)
+			}
+			// Gate 1/2：新购买/续费落 plan identity + 已付 term 快照（升级价格真相）
+			if sub != nil && o.PlanID != nil && s.termStore != nil {
+				now := time.Now()
+				planID := *o.PlanID
+				orderID := o.ID
+				if err := s.termStore.RecordTerm(txCtx, &SubscriptionTermRecord{
+					SubscriptionID: sub.ID,
+					OrderID:        &orderID,
+					PlanID:         &planID,
+					PricePaid:      o.Amount,
+					Currency:       planCurrencyOf(o),
+					Days:           days,
+					TermStart:      now,
+					TermEnd:        now.AddDate(0, 0, days),
+					Source:         "purchase",
+				}); err != nil {
+					return fmt.Errorf("record subscription term: %w", err)
+				}
 			}
 		}
 
@@ -884,4 +908,59 @@ func (s *PaymentService) RetryFulfillment(ctx context.Context, oid int64) error 
 	}
 	s.writeAuditLog(ctx, oid, "RECHARGE_RETRY", "admin", map[string]any{"detail": "admin manual retry"})
 	return s.executeFulfillment(ctx, oid)
+}
+
+// ExecutePlanChangeFulfillment 升级订单履约：paid → quote 标记 paid → PlanChange
+// 单事务切换（订阅切组 + Key 迁移 + term + 审计）；任何失败走既有 markFailed/租约重试。
+func (s *PaymentService) ExecutePlanChangeFulfillment(ctx context.Context, oid int64) error {
+	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
+	if err != nil {
+		return infraerrors.NotFound("NOT_FOUND", "order not found")
+	}
+	if o.Status == OrderStatusCompleted {
+		return nil
+	}
+	if psIsRefundStatus(o.Status) {
+		return infraerrors.BadRequest("INVALID_STATUS", "refund-related order cannot fulfill")
+	}
+	if o.Status != OrderStatusPaid && o.Status != OrderStatusFailed && o.Status != OrderStatusRecharging {
+		return infraerrors.BadRequest("INVALID_STATUS", "order cannot fulfill in status "+o.Status)
+	}
+	if o.PlanChangeID == nil {
+		return infraerrors.BadRequest("INVALID_STATUS", "plan change order missing plan_change_id")
+	}
+	lease, err := s.acquirePaymentFulfillmentLease(ctx, o)
+	if err != nil {
+		return err
+	}
+	if lease == nil {
+		return nil
+	}
+
+	if s.planChanges == nil {
+		return errors.New("plan change service is unavailable")
+	}
+	// quote → paid（幂等：paid/fulfilled 均放行）
+	if err := s.planChangeStore.MarkPaid(ctx, *o.PlanChangeID); err != nil {
+		s.markFailed(ctx, oid, lease, err)
+		return err
+	}
+	if err := s.planChanges.FulfillUpgrade(ctx, *o.PlanChangeID); err != nil {
+		s.markFailed(ctx, oid, lease, err)
+		return err
+	}
+	s.writeAuditLog(ctx, o.ID, "PLAN_CHANGE_SUCCESS", "system", map[string]any{
+		"plan_change_id": *o.PlanChangeID,
+	})
+	return s.markCompleted(ctx, o, lease, "PLAN_CHANGE_SUCCESS")
+}
+
+// planCurrencyOf 订单币种（plan.currency 未随订单快照；V1 使用 CNY 直付语义）。
+func planCurrencyOf(o *dbent.PaymentOrder) string {
+	if o.ProviderSnapshot != nil {
+		if c, ok := o.ProviderSnapshot["currency"].(string); ok && c != "" {
+			return c
+		}
+	}
+	return "CNY"
 }

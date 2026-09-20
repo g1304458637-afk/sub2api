@@ -72,6 +72,7 @@ type Handlers struct {
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
 	MucConnect       *MucConnectHandler
+	PlanChange       *PlanChangeHandler
 }
 
 // BuildInfo contains build-time information

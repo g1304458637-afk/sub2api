@@ -55,7 +55,23 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	orderAmount := req.Amount
 	limitAmount := req.Amount
-	if plan != nil {
+	var planChangeRow *dbent.SubscriptionPlanChange
+	if req.OrderType == payment.OrderTypePlanChange {
+		// 金额唯一来源：冻结报价行（客户端 amount 一律忽略；防篡改/TOCTOU）
+		changeRow, cerr := s.entClient.SubscriptionPlanChange.Get(ctx, req.PlanChangeID)
+		if cerr != nil || changeRow.Status != "quoted" {
+			return nil, infraerrors.NotFound("PLAN_QUOTE_NOT_AVAILABLE", "plan change quote not found or not payable")
+		}
+		if changeRow.QuoteExpiresAt == nil || changeRow.QuoteExpiresAt.Before(time.Now()) {
+			return nil, infraerrors.Conflict("PLAN_QUOTE_EXPIRED", "quote expired; re-quote required")
+		}
+		if changeRow.UserID != req.UserID {
+			return nil, infraerrors.NotFound("PLAN_QUOTE_NOT_AVAILABLE", "plan change quote not found")
+		}
+		planChangeRow = changeRow
+		orderAmount = changeRow.AmountDue
+		limitAmount = changeRow.AmountDue
+	} else if plan != nil {
 		orderAmount = plan.Price
 		limitAmount = plan.Price
 	} else if req.OrderType == payment.OrderTypeBalance {
@@ -100,7 +116,11 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if oauthResp != nil {
 		return oauthResp, nil
 	}
-	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel)
+	planChangeID := int64(0)
+	if planChangeRow != nil {
+		planChangeID = planChangeRow.ID
+	}
+	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel, planChangeID)
 	if err != nil {
 		return nil, err
 	}
@@ -121,12 +141,24 @@ func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrder
 	if req.OrderType == payment.OrderTypeSubscription {
 		return s.validateSubOrder(ctx, req)
 	}
+	if req.OrderType == payment.OrderTypePlanChange {
+		return s.validatePlanChangeOrder(ctx, req)
+	}
 	if math.IsNaN(req.Amount) || math.IsInf(req.Amount, 0) || req.Amount <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "amount must be a positive number")
 	}
 	if (cfg.MinAmount > 0 && req.Amount < cfg.MinAmount) || (cfg.MaxAmount > 0 && req.Amount > cfg.MaxAmount) {
 		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "amount out of range").
 			WithMetadata(map[string]string{"min": fmt.Sprintf("%.2f", cfg.MinAmount), "max": fmt.Sprintf("%.2f", cfg.MaxAmount)})
+	}
+	return nil, nil
+}
+
+// validatePlanChangeOrder 升级订单前置校验：报价行的真实校验（归属/状态/过期/金额）
+// 在 CreateOrder 主流程从冻结行读取时完成，客户端 amount 一律忽略。
+func (s *PaymentService) validatePlanChangeOrder(ctx context.Context, req CreateOrderRequest) (*dbent.SubscriptionPlan, error) {
+	if req.PlanChangeID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_INPUT", "plan change order requires plan_change_id")
 	}
 	return nil, nil
 }
@@ -149,7 +181,7 @@ func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRe
 	return plan, nil
 }
 
-func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection) (*dbent.PaymentOrder, error) {
+func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection, planChangeID int64) (*dbent.PaymentOrder, error) {
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -208,6 +240,9 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	}
 	if plan != nil {
 		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+	}
+	if planChangeID > 0 {
+		b.SetPlanChangeID(planChangeID)
 	}
 	order, err := b.Save(ctx)
 	if err != nil {

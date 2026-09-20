@@ -36,9 +36,11 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionplanchange"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetevent"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionterm"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
@@ -1363,37 +1365,37 @@ func init() {
 	// paymentorder.ProviderKeyValidator is a validator for the "provider_key" field. It is called by the builders before save.
 	paymentorder.ProviderKeyValidator = paymentorderDescProviderKey.Validators[0].(func(string) error)
 	// paymentorderDescStatus is the schema descriptor for status field.
-	paymentorderDescStatus := paymentorderFields[21].Descriptor()
+	paymentorderDescStatus := paymentorderFields[22].Descriptor()
 	// paymentorder.DefaultStatus holds the default value on creation for the status field.
 	paymentorder.DefaultStatus = paymentorderDescStatus.Default.(string)
 	// paymentorder.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	paymentorder.StatusValidator = paymentorderDescStatus.Validators[0].(func(string) error)
 	// paymentorderDescRefundAmount is the schema descriptor for refund_amount field.
-	paymentorderDescRefundAmount := paymentorderFields[22].Descriptor()
+	paymentorderDescRefundAmount := paymentorderFields[23].Descriptor()
 	// paymentorder.DefaultRefundAmount holds the default value on creation for the refund_amount field.
 	paymentorder.DefaultRefundAmount = paymentorderDescRefundAmount.Default.(float64)
 	// paymentorderDescForceRefund is the schema descriptor for force_refund field.
-	paymentorderDescForceRefund := paymentorderFields[25].Descriptor()
+	paymentorderDescForceRefund := paymentorderFields[26].Descriptor()
 	// paymentorder.DefaultForceRefund holds the default value on creation for the force_refund field.
 	paymentorder.DefaultForceRefund = paymentorderDescForceRefund.Default.(bool)
 	// paymentorderDescRefundRequestedBy is the schema descriptor for refund_requested_by field.
-	paymentorderDescRefundRequestedBy := paymentorderFields[28].Descriptor()
+	paymentorderDescRefundRequestedBy := paymentorderFields[29].Descriptor()
 	// paymentorder.RefundRequestedByValidator is a validator for the "refund_requested_by" field. It is called by the builders before save.
 	paymentorder.RefundRequestedByValidator = paymentorderDescRefundRequestedBy.Validators[0].(func(string) error)
 	// paymentorderDescClientIP is the schema descriptor for client_ip field.
-	paymentorderDescClientIP := paymentorderFields[34].Descriptor()
+	paymentorderDescClientIP := paymentorderFields[35].Descriptor()
 	// paymentorder.ClientIPValidator is a validator for the "client_ip" field. It is called by the builders before save.
 	paymentorder.ClientIPValidator = paymentorderDescClientIP.Validators[0].(func(string) error)
 	// paymentorderDescSrcHost is the schema descriptor for src_host field.
-	paymentorderDescSrcHost := paymentorderFields[35].Descriptor()
+	paymentorderDescSrcHost := paymentorderFields[36].Descriptor()
 	// paymentorder.SrcHostValidator is a validator for the "src_host" field. It is called by the builders before save.
 	paymentorder.SrcHostValidator = paymentorderDescSrcHost.Validators[0].(func(string) error)
 	// paymentorderDescCreatedAt is the schema descriptor for created_at field.
-	paymentorderDescCreatedAt := paymentorderFields[37].Descriptor()
+	paymentorderDescCreatedAt := paymentorderFields[38].Descriptor()
 	// paymentorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	paymentorder.DefaultCreatedAt = paymentorderDescCreatedAt.Default.(func() time.Time)
 	// paymentorderDescUpdatedAt is the schema descriptor for updated_at field.
-	paymentorderDescUpdatedAt := paymentorderFields[38].Descriptor()
+	paymentorderDescUpdatedAt := paymentorderFields[39].Descriptor()
 	// paymentorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	paymentorder.DefaultUpdatedAt = paymentorderDescUpdatedAt.Default.(func() time.Time)
 	// paymentorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1889,16 +1891,91 @@ func init() {
 	subscriptionplanDescSortOrder := subscriptionplanFields[11].Descriptor()
 	// subscriptionplan.DefaultSortOrder holds the default value on creation for the sort_order field.
 	subscriptionplan.DefaultSortOrder = subscriptionplanDescSortOrder.Default.(int)
+	// subscriptionplanDescTierRank is the schema descriptor for tier_rank field.
+	subscriptionplanDescTierRank := subscriptionplanFields[12].Descriptor()
+	// subscriptionplan.DefaultTierRank holds the default value on creation for the tier_rank field.
+	subscriptionplan.DefaultTierRank = subscriptionplanDescTierRank.Default.(int)
 	// subscriptionplanDescCreatedAt is the schema descriptor for created_at field.
-	subscriptionplanDescCreatedAt := subscriptionplanFields[12].Descriptor()
+	subscriptionplanDescCreatedAt := subscriptionplanFields[13].Descriptor()
 	// subscriptionplan.DefaultCreatedAt holds the default value on creation for the created_at field.
 	subscriptionplan.DefaultCreatedAt = subscriptionplanDescCreatedAt.Default.(func() time.Time)
 	// subscriptionplanDescUpdatedAt is the schema descriptor for updated_at field.
-	subscriptionplanDescUpdatedAt := subscriptionplanFields[13].Descriptor()
+	subscriptionplanDescUpdatedAt := subscriptionplanFields[14].Descriptor()
 	// subscriptionplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	subscriptionplan.DefaultUpdatedAt = subscriptionplanDescUpdatedAt.Default.(func() time.Time)
 	// subscriptionplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	subscriptionplan.UpdateDefaultUpdatedAt = subscriptionplanDescUpdatedAt.UpdateDefault.(func() time.Time)
+	subscriptionplanchangeMixin := schema.SubscriptionPlanChange{}.Mixin()
+	subscriptionplanchangeMixinHooks1 := subscriptionplanchangeMixin[1].Hooks()
+	subscriptionplanchange.Hooks[0] = subscriptionplanchangeMixinHooks1[0]
+	subscriptionplanchangeMixinInters1 := subscriptionplanchangeMixin[1].Interceptors()
+	subscriptionplanchange.Interceptors[0] = subscriptionplanchangeMixinInters1[0]
+	subscriptionplanchangeMixinFields0 := subscriptionplanchangeMixin[0].Fields()
+	_ = subscriptionplanchangeMixinFields0
+	subscriptionplanchangeFields := schema.SubscriptionPlanChange{}.Fields()
+	_ = subscriptionplanchangeFields
+	// subscriptionplanchangeDescCreatedAt is the schema descriptor for created_at field.
+	subscriptionplanchangeDescCreatedAt := subscriptionplanchangeMixinFields0[0].Descriptor()
+	// subscriptionplanchange.DefaultCreatedAt holds the default value on creation for the created_at field.
+	subscriptionplanchange.DefaultCreatedAt = subscriptionplanchangeDescCreatedAt.Default.(func() time.Time)
+	// subscriptionplanchangeDescUpdatedAt is the schema descriptor for updated_at field.
+	subscriptionplanchangeDescUpdatedAt := subscriptionplanchangeMixinFields0[1].Descriptor()
+	// subscriptionplanchange.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	subscriptionplanchange.DefaultUpdatedAt = subscriptionplanchangeDescUpdatedAt.Default.(func() time.Time)
+	// subscriptionplanchange.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	subscriptionplanchange.UpdateDefaultUpdatedAt = subscriptionplanchangeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// subscriptionplanchangeDescChangeType is the schema descriptor for change_type field.
+	subscriptionplanchangeDescChangeType := subscriptionplanchangeFields[2].Descriptor()
+	// subscriptionplanchange.ChangeTypeValidator is a validator for the "change_type" field. It is called by the builders before save.
+	subscriptionplanchange.ChangeTypeValidator = subscriptionplanchangeDescChangeType.Validators[0].(func(string) error)
+	// subscriptionplanchangeDescFromTier is the schema descriptor for from_tier field.
+	subscriptionplanchangeDescFromTier := subscriptionplanchangeFields[7].Descriptor()
+	// subscriptionplanchange.DefaultFromTier holds the default value on creation for the from_tier field.
+	subscriptionplanchange.DefaultFromTier = subscriptionplanchangeDescFromTier.Default.(int)
+	// subscriptionplanchangeDescToTier is the schema descriptor for to_tier field.
+	subscriptionplanchangeDescToTier := subscriptionplanchangeFields[8].Descriptor()
+	// subscriptionplanchange.DefaultToTier holds the default value on creation for the to_tier field.
+	subscriptionplanchange.DefaultToTier = subscriptionplanchangeDescToTier.Default.(int)
+	// subscriptionplanchangeDescNewPriceSnapshot is the schema descriptor for new_price_snapshot field.
+	subscriptionplanchangeDescNewPriceSnapshot := subscriptionplanchangeFields[10].Descriptor()
+	// subscriptionplanchange.DefaultNewPriceSnapshot holds the default value on creation for the new_price_snapshot field.
+	subscriptionplanchange.DefaultNewPriceSnapshot = subscriptionplanchangeDescNewPriceSnapshot.Default.(float64)
+	// subscriptionplanchangeDescCurrency is the schema descriptor for currency field.
+	subscriptionplanchangeDescCurrency := subscriptionplanchangeFields[11].Descriptor()
+	// subscriptionplanchange.DefaultCurrency holds the default value on creation for the currency field.
+	subscriptionplanchange.DefaultCurrency = subscriptionplanchangeDescCurrency.Default.(string)
+	// subscriptionplanchange.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	subscriptionplanchange.CurrencyValidator = subscriptionplanchangeDescCurrency.Validators[0].(func(string) error)
+	// subscriptionplanchangeDescRemainingSeconds is the schema descriptor for remaining_seconds field.
+	subscriptionplanchangeDescRemainingSeconds := subscriptionplanchangeFields[14].Descriptor()
+	// subscriptionplanchange.DefaultRemainingSeconds holds the default value on creation for the remaining_seconds field.
+	subscriptionplanchange.DefaultRemainingSeconds = subscriptionplanchangeDescRemainingSeconds.Default.(int64)
+	// subscriptionplanchangeDescUnusedCredit is the schema descriptor for unused_credit field.
+	subscriptionplanchangeDescUnusedCredit := subscriptionplanchangeFields[15].Descriptor()
+	// subscriptionplanchange.DefaultUnusedCredit holds the default value on creation for the unused_credit field.
+	subscriptionplanchange.DefaultUnusedCredit = subscriptionplanchangeDescUnusedCredit.Default.(float64)
+	// subscriptionplanchangeDescProratedCharge is the schema descriptor for prorated_charge field.
+	subscriptionplanchangeDescProratedCharge := subscriptionplanchangeFields[16].Descriptor()
+	// subscriptionplanchange.DefaultProratedCharge holds the default value on creation for the prorated_charge field.
+	subscriptionplanchange.DefaultProratedCharge = subscriptionplanchangeDescProratedCharge.Default.(float64)
+	// subscriptionplanchangeDescAmountDue is the schema descriptor for amount_due field.
+	subscriptionplanchangeDescAmountDue := subscriptionplanchangeFields[17].Descriptor()
+	// subscriptionplanchange.DefaultAmountDue holds the default value on creation for the amount_due field.
+	subscriptionplanchange.DefaultAmountDue = subscriptionplanchangeDescAmountDue.Default.(float64)
+	// subscriptionplanchangeDescStatus is the schema descriptor for status field.
+	subscriptionplanchangeDescStatus := subscriptionplanchangeFields[21].Descriptor()
+	// subscriptionplanchange.DefaultStatus holds the default value on creation for the status field.
+	subscriptionplanchange.DefaultStatus = subscriptionplanchangeDescStatus.Default.(string)
+	// subscriptionplanchange.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	subscriptionplanchange.StatusValidator = subscriptionplanchangeDescStatus.Validators[0].(func(string) error)
+	// subscriptionplanchangeDescCancelReason is the schema descriptor for cancel_reason field.
+	subscriptionplanchangeDescCancelReason := subscriptionplanchangeFields[22].Descriptor()
+	// subscriptionplanchange.CancelReasonValidator is a validator for the "cancel_reason" field. It is called by the builders before save.
+	subscriptionplanchange.CancelReasonValidator = subscriptionplanchangeDescCancelReason.Validators[0].(func(string) error)
+	// subscriptionplanchangeDescIdempotencyKey is the schema descriptor for idempotency_key field.
+	subscriptionplanchangeDescIdempotencyKey := subscriptionplanchangeFields[24].Descriptor()
+	// subscriptionplanchange.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
+	subscriptionplanchange.IdempotencyKeyValidator = subscriptionplanchangeDescIdempotencyKey.Validators[0].(func(string) error)
 	subscriptionresetapplicationFields := schema.SubscriptionResetApplication{}.Fields()
 	_ = subscriptionresetapplicationFields
 	// subscriptionresetapplicationDescAppliedAt is the schema descriptor for applied_at field.
@@ -2029,6 +2106,32 @@ func init() {
 	subscriptionreseteventDescCampaign := subscriptionreseteventFields[6].Descriptor()
 	// subscriptionresetevent.CampaignValidator is a validator for the "campaign" field. It is called by the builders before save.
 	subscriptionresetevent.CampaignValidator = subscriptionreseteventDescCampaign.Validators[0].(func(string) error)
+	subscriptiontermFields := schema.SubscriptionTerm{}.Fields()
+	_ = subscriptiontermFields
+	// subscriptiontermDescPricePaid is the schema descriptor for price_paid field.
+	subscriptiontermDescPricePaid := subscriptiontermFields[3].Descriptor()
+	// subscriptionterm.DefaultPricePaid holds the default value on creation for the price_paid field.
+	subscriptionterm.DefaultPricePaid = subscriptiontermDescPricePaid.Default.(float64)
+	// subscriptiontermDescCurrency is the schema descriptor for currency field.
+	subscriptiontermDescCurrency := subscriptiontermFields[4].Descriptor()
+	// subscriptionterm.DefaultCurrency holds the default value on creation for the currency field.
+	subscriptionterm.DefaultCurrency = subscriptiontermDescCurrency.Default.(string)
+	// subscriptionterm.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	subscriptionterm.CurrencyValidator = subscriptiontermDescCurrency.Validators[0].(func(string) error)
+	// subscriptiontermDescDays is the schema descriptor for days field.
+	subscriptiontermDescDays := subscriptiontermFields[5].Descriptor()
+	// subscriptionterm.DefaultDays holds the default value on creation for the days field.
+	subscriptionterm.DefaultDays = subscriptiontermDescDays.Default.(int)
+	// subscriptiontermDescSource is the schema descriptor for source field.
+	subscriptiontermDescSource := subscriptiontermFields[8].Descriptor()
+	// subscriptionterm.DefaultSource holds the default value on creation for the source field.
+	subscriptionterm.DefaultSource = subscriptiontermDescSource.Default.(string)
+	// subscriptionterm.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	subscriptionterm.SourceValidator = subscriptiontermDescSource.Validators[0].(func(string) error)
+	// subscriptiontermDescCreatedAt is the schema descriptor for created_at field.
+	subscriptiontermDescCreatedAt := subscriptiontermFields[9].Descriptor()
+	// subscriptionterm.DefaultCreatedAt holds the default value on creation for the created_at field.
+	subscriptionterm.DefaultCreatedAt = subscriptiontermDescCreatedAt.Default.(func() time.Time)
 	tlsfingerprintprofileMixin := schema.TLSFingerprintProfile{}.Mixin()
 	tlsfingerprintprofileMixinFields0 := tlsfingerprintprofileMixin[0].Fields()
 	_ = tlsfingerprintprofileMixinFields0

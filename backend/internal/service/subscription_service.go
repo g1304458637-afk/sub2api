@@ -203,6 +203,8 @@ type AssignSubscriptionInput struct {
 	ValidityDays int
 	AssignedBy   int64
 	Notes        string
+	// PlanID 可选：来自订单的 SKU 身份（Gate 1）；管理员手动分配可为空。
+	PlanID *int64
 }
 
 // AssignSubscription 分配订阅给用户（不允许重复分配）
@@ -437,6 +439,7 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 		Status:     SubscriptionStatusActive,
 		AssignedAt: now,
 		Notes:      input.Notes,
+		PlanID:     input.PlanID,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}

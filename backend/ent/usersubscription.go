@@ -55,6 +55,10 @@ type UserSubscription struct {
 	Notes *string `json:"notes,omitempty"`
 	// AutoPaygFallback holds the value of the "auto_payg_fallback" field.
 	AutoPaygFallback bool `json:"auto_payg_fallback,omitempty"`
+	// PlanID holds the value of the "plan_id" field.
+	PlanID *int64 `json:"plan_id,omitempty"`
+	// NextPlanID holds the value of the "next_plan_id" field.
+	NextPlanID *int64 `json:"next_plan_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserSubscriptionQuery when eager-loading is set.
 	Edges        UserSubscriptionEdges `json:"edges"`
@@ -71,13 +75,15 @@ type UserSubscriptionEdges struct {
 	AssignedByUser *User `json:"assigned_by_user,omitempty"`
 	// UsageLogs holds the value of the usage_logs edge.
 	UsageLogs []*UsageLog `json:"usage_logs,omitempty"`
+	// Terms holds the value of the terms edge.
+	Terms []*SubscriptionTerm `json:"terms,omitempty"`
 	// ResetApplications holds the value of the reset_applications edge.
 	ResetApplications []*SubscriptionResetApplication `json:"reset_applications,omitempty"`
 	// UsedByResetCards holds the value of the used_by_reset_cards edge.
 	UsedByResetCards []*SubscriptionResetCard `json:"used_by_reset_cards,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [7]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -122,10 +128,19 @@ func (e UserSubscriptionEdges) UsageLogsOrErr() ([]*UsageLog, error) {
 	return nil, &NotLoadedError{edge: "usage_logs"}
 }
 
+// TermsOrErr returns the Terms value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserSubscriptionEdges) TermsOrErr() ([]*SubscriptionTerm, error) {
+	if e.loadedTypes[4] {
+		return e.Terms, nil
+	}
+	return nil, &NotLoadedError{edge: "terms"}
+}
+
 // ResetApplicationsOrErr returns the ResetApplications value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserSubscriptionEdges) ResetApplicationsOrErr() ([]*SubscriptionResetApplication, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.ResetApplications, nil
 	}
 	return nil, &NotLoadedError{edge: "reset_applications"}
@@ -134,7 +149,7 @@ func (e UserSubscriptionEdges) ResetApplicationsOrErr() ([]*SubscriptionResetApp
 // UsedByResetCardsOrErr returns the UsedByResetCards value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserSubscriptionEdges) UsedByResetCardsOrErr() ([]*SubscriptionResetCard, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.UsedByResetCards, nil
 	}
 	return nil, &NotLoadedError{edge: "used_by_reset_cards"}
@@ -149,7 +164,7 @@ func (*UserSubscription) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case usersubscription.FieldDailyUsageUsd, usersubscription.FieldWeeklyUsageUsd, usersubscription.FieldMonthlyUsageUsd:
 			values[i] = new(sql.NullFloat64)
-		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldGroupID, usersubscription.FieldAssignedBy:
+		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldGroupID, usersubscription.FieldAssignedBy, usersubscription.FieldPlanID, usersubscription.FieldNextPlanID:
 			values[i] = new(sql.NullInt64)
 		case usersubscription.FieldStatus, usersubscription.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -290,6 +305,20 @@ func (_m *UserSubscription) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AutoPaygFallback = value.Bool
 			}
+		case usersubscription.FieldPlanID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field plan_id", values[i])
+			} else if value.Valid {
+				_m.PlanID = new(int64)
+				*_m.PlanID = value.Int64
+			}
+		case usersubscription.FieldNextPlanID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field next_plan_id", values[i])
+			} else if value.Valid {
+				_m.NextPlanID = new(int64)
+				*_m.NextPlanID = value.Int64
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -321,6 +350,11 @@ func (_m *UserSubscription) QueryAssignedByUser() *UserQuery {
 // QueryUsageLogs queries the "usage_logs" edge of the UserSubscription entity.
 func (_m *UserSubscription) QueryUsageLogs() *UsageLogQuery {
 	return NewUserSubscriptionClient(_m.config).QueryUsageLogs(_m)
+}
+
+// QueryTerms queries the "terms" edge of the UserSubscription entity.
+func (_m *UserSubscription) QueryTerms() *SubscriptionTermQuery {
+	return NewUserSubscriptionClient(_m.config).QueryTerms(_m)
 }
 
 // QueryResetApplications queries the "reset_applications" edge of the UserSubscription entity.
@@ -421,6 +455,16 @@ func (_m *UserSubscription) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("auto_payg_fallback=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AutoPaygFallback))
+	builder.WriteString(", ")
+	if v := _m.PlanID; v != nil {
+		builder.WriteString("plan_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.NextPlanID; v != nil {
+		builder.WriteString("next_plan_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

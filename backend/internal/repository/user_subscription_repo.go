@@ -52,6 +52,8 @@ func (r *userSubscriptionRepository) Create(ctx context.Context, sub *service.Us
 		builder.SetAssignedAt(sub.AssignedAt)
 	}
 	// Keep compatibility with historical behavior: always store notes as a string value.
+	builder.SetNillablePlanID(sub.PlanID)
+	builder.SetNillableNextPlanID(sub.NextPlanID)
 	builder.SetNotes(sub.Notes)
 
 	created, err := builder.Save(ctx)
@@ -150,6 +152,8 @@ func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.Us
 		SetWeeklyUsageUsd(sub.WeeklyUsageUSD).
 		SetMonthlyUsageUsd(sub.MonthlyUsageUSD).
 		SetNillableAssignedBy(sub.AssignedBy).
+		SetNillablePlanID(sub.PlanID).
+		SetNillableNextPlanID(sub.NextPlanID).
 		SetAssignedAt(sub.AssignedAt).
 		SetNotes(sub.Notes)
 
@@ -656,6 +660,8 @@ func userSubscriptionEntityToServiceWithStatusMapping(m *dbent.UserSubscription,
 		AssignedBy:         m.AssignedBy,
 		AssignedAt:         m.AssignedAt,
 		AutoPaygFallback:   m.AutoPaygFallback,
+		PlanID:             m.PlanID,
+		NextPlanID:         m.NextPlanID,
 		Notes:              derefString(m.Notes),
 		CreatedAt:          m.CreatedAt,
 		UpdatedAt:          m.UpdatedAt,

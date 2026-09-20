@@ -369,6 +369,18 @@ func (f SubscriptionPlanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionPlanMutation", m)
 }
 
+// The SubscriptionPlanChangeFunc type is an adapter to allow the use of ordinary
+// function as SubscriptionPlanChange mutator.
+type SubscriptionPlanChangeFunc func(context.Context, *ent.SubscriptionPlanChangeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubscriptionPlanChangeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubscriptionPlanChangeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionPlanChangeMutation", m)
+}
+
 // The SubscriptionResetApplicationFunc type is an adapter to allow the use of ordinary
 // function as SubscriptionResetApplication mutator.
 type SubscriptionResetApplicationFunc func(context.Context, *ent.SubscriptionResetApplicationMutation) (ent.Value, error)
@@ -403,6 +415,18 @@ func (f SubscriptionResetEventFunc) Mutate(ctx context.Context, m ent.Mutation) 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionResetEventMutation", m)
+}
+
+// The SubscriptionTermFunc type is an adapter to allow the use of ordinary
+// function as SubscriptionTerm mutator.
+type SubscriptionTermFunc func(context.Context, *ent.SubscriptionTermMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubscriptionTermFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubscriptionTermMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionTermMutation", m)
 }
 
 // The TLSFingerprintProfileFunc type is an adapter to allow the use of ordinary

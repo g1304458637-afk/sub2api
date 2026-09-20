@@ -51,6 +51,10 @@ const (
 	FieldNotes = "notes"
 	// FieldAutoPaygFallback holds the string denoting the auto_payg_fallback field in the database.
 	FieldAutoPaygFallback = "auto_payg_fallback"
+	// FieldPlanID holds the string denoting the plan_id field in the database.
+	FieldPlanID = "plan_id"
+	// FieldNextPlanID holds the string denoting the next_plan_id field in the database.
+	FieldNextPlanID = "next_plan_id"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// EdgeGroup holds the string denoting the group edge name in mutations.
@@ -59,6 +63,8 @@ const (
 	EdgeAssignedByUser = "assigned_by_user"
 	// EdgeUsageLogs holds the string denoting the usage_logs edge name in mutations.
 	EdgeUsageLogs = "usage_logs"
+	// EdgeTerms holds the string denoting the terms edge name in mutations.
+	EdgeTerms = "terms"
 	// EdgeResetApplications holds the string denoting the reset_applications edge name in mutations.
 	EdgeResetApplications = "reset_applications"
 	// EdgeUsedByResetCards holds the string denoting the used_by_reset_cards edge name in mutations.
@@ -93,6 +99,13 @@ const (
 	UsageLogsInverseTable = "usage_logs"
 	// UsageLogsColumn is the table column denoting the usage_logs relation/edge.
 	UsageLogsColumn = "subscription_id"
+	// TermsTable is the table that holds the terms relation/edge.
+	TermsTable = "subscription_terms"
+	// TermsInverseTable is the table name for the SubscriptionTerm entity.
+	// It exists in this package in order to avoid circular dependency with the "subscriptionterm" package.
+	TermsInverseTable = "subscription_terms"
+	// TermsColumn is the table column denoting the terms relation/edge.
+	TermsColumn = "subscription_id"
 	// ResetApplicationsTable is the table that holds the reset_applications relation/edge.
 	ResetApplicationsTable = "subscription_reset_applications"
 	// ResetApplicationsInverseTable is the table name for the SubscriptionResetApplication entity.
@@ -130,6 +143,8 @@ var Columns = []string{
 	FieldAssignedAt,
 	FieldNotes,
 	FieldAutoPaygFallback,
+	FieldPlanID,
+	FieldNextPlanID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -270,6 +285,16 @@ func ByAutoPaygFallback(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAutoPaygFallback, opts...).ToFunc()
 }
 
+// ByPlanID orders the results by the plan_id field.
+func ByPlanID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlanID, opts...).ToFunc()
+}
+
+// ByNextPlanID orders the results by the next_plan_id field.
+func ByNextPlanID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNextPlanID, opts...).ToFunc()
+}
+
 // ByUserField orders the results by user field.
 func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -302,6 +327,20 @@ func ByUsageLogsCount(opts ...sql.OrderTermOption) OrderOption {
 func ByUsageLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newUsageLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByTermsCount orders the results by terms count.
+func ByTermsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTermsStep(), opts...)
+	}
+}
+
+// ByTerms orders the results by terms terms.
+func ByTerms(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTermsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -358,6 +397,13 @@ func newUsageLogsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UsageLogsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, UsageLogsTable, UsageLogsColumn),
+	)
+}
+func newTermsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TermsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TermsTable, TermsColumn),
 	)
 }
 func newResetApplicationsStep() *sqlgraph.Step {
