@@ -57,6 +57,10 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	defaults := map[string]string{
 		SettingKeyRegistrationEnabled:                       "true",
 		SettingKeyEmailVerifyEnabled:                        "false",
+		SettingKeyEducationEmailVerificationEnabled:         "false",
+		SettingKeyStudentVerificationRewardEnabled:          "false",
+		SettingKeyStudentVerificationRewardAmount:           "0.00000000",
+		SettingKeyStudentVerificationRewardCampaign:         "",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
 		SettingKeyRegistrationEmailDomainQuotaEnabled:       "false",
 		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
@@ -266,6 +270,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky:         "",
 
 		SettingKeyAllowUserViewErrorRequests: "false",
+
+		// 网页聊天/绘图（web_chat_models 空串 = 回退模式）
+		SettingKeyWebChatEnabled:      "true",
+		SettingKeyWebChatModels:       "",
+		SettingKeyWebChatDefaultModel: "",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -324,7 +333,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		FrontendURL:                            settings[SettingKeyFrontendURL],
 		InvitationCodeEnabled:                  settings[SettingKeyInvitationCodeEnabled] == "true",
 		TotpEnabled:                            settings[SettingKeyTotpEnabled] == "true",
+		EducationEmailVerificationEnabled:      settings[SettingKeyEducationEmailVerificationEnabled] == "true",
 		PasskeyEnabled:                         s.passkeySettingEnabled(settings),
+		StudentVerificationRewardEnabled:       settings[SettingKeyStudentVerificationRewardEnabled] == "true",
 		SessionBindingEnabled:                  settings[SettingKeySessionBindingEnabled] == "true", // 默认关闭
 		StepUpEnabled:                          settings[SettingKeyStepUpEnabled] == "true",         // 默认关闭
 		AuditLogRetentionDays:                  parseAuditLogRetentionDays(settings[SettingKeyAuditLogRetentionDays]),
@@ -398,6 +409,12 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.DefaultBalance = s.cfg.Default.UserBalance
 	}
+	if rewardAmount, err := strconv.ParseFloat(settings[SettingKeyStudentVerificationRewardAmount], 64); err == nil {
+		result.StudentVerificationRewardAmount = rewardAmount
+	} else {
+		result.StudentVerificationRewardAmount = 0
+	}
+	result.StudentVerificationRewardCampaign = strings.TrimSpace(settings[SettingKeyStudentVerificationRewardCampaign])
 	if rebateRate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRate], 64); err == nil {
 		result.AffiliateRebateRate = clampAffiliateRebateRate(rebateRate)
 	} else {
@@ -979,6 +996,13 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 
 	result.AllowUserViewErrorRequests = settings[SettingKeyAllowUserViewErrorRequests] == "true" // default false
+
+	// 网页聊天开关：键缺失（存量站点未写入设置行）或显式 "true" 均视为开启（门户首页是产品默认形态）；
+	// 显式 "false" 关闭；脏值（"1"/"True" 等）按关闭处理（fail-closed）。
+	result.WebChatEnabled = settings[SettingKeyWebChatEnabled] == "true" || settings[SettingKeyWebChatEnabled] == ""
+	// web_chat_models 保存原始 JSON 数组字符串（空串 = 回退模式），由 web_chat_service 按条目容错解析。
+	result.WebChatModels = settings[SettingKeyWebChatModels]
+	result.WebChatDefaultModel = strings.TrimSpace(settings[SettingKeyWebChatDefaultModel])
 
 	// Publish Grok default model_mapping options for accounts with empty mapping.
 	xai.SetRuntimeModelMappingOptions(xai.ModelMappingOptions{

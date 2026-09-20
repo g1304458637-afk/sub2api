@@ -307,6 +307,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatScaled, resolveIntervalPrices } from '@/utils/pricing'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { platformAccentColor, platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
 import {
   BILLING_MODE_TOKEN,
@@ -405,11 +406,20 @@ function periodRate(period: PlazaTimePricingPeriod): number {
   return Math.round(effectiveRate.value * period.multiplier * 1000) / 1000
 }
 
-/** 实付价 = 渠道单价 × 生效倍率(时段行再乘时段倍率),按 $/1M token 展示。 */
+/** 展示币种换算:CNY 展示按配置的 USD/CNY 汇率换算,账本本身保持 USD。 */
+const currencyStore = useCurrencyDisplayStore()
+const displayCurrencyFactor = computed(() =>
+  currencyStore.displayCurrency === 'CNY' ? currencyStore.usdToCnyRate : 1
+)
+const displayCurrencySymbol = computed(() =>
+  currencyStore.displayCurrency === 'CNY' ? '¥' : '$'
+)
+
+/** 实付价 = 渠道单价 × 生效倍率(时段行再乘时段倍率),按展示币种/1M token 展示。 */
 function paidPerMillion(value: number | null | undefined, period: PlazaTimePricingPeriod | null = null): string {
   if (value == null) return '-'
   const rate = period ? periodRate(period) : effectiveRate.value
-  return formatScaled(value * rate, PER_MILLION, MIN_DECIMALS)
+  return formatScaled(value * rate * displayCurrencyFactor.value, PER_MILLION, MIN_DECIMALS, displayCurrencySymbol.value)
 }
 
 /** 图片计费模型且分组开启生图独立倍率:实付倍率取独立倍率,与计费口径一致。 */
@@ -425,13 +435,13 @@ function requestRate(m: PlazaModel): number {
 /** 按次 / 按图片单价(乘该行生效倍率,不换算 1M)。 */
 function paidRequestPrice(m: PlazaModel, value: number | null | undefined): string {
   if (value == null) return '-'
-  return formatScaled(value * requestRate(m), 1, MIN_DECIMALS)
+  return formatScaled(value * requestRate(m) * displayCurrencyFactor.value, 1, MIN_DECIMALS, displayCurrencySymbol.value)
 }
 
 /** 官方参考价不乘倍率。 */
 function official(value: number | null | undefined): string {
   if (value == null) return '-'
-  return formatScaled(value, PER_MILLION, MIN_DECIMALS)
+  return formatScaled(value * displayCurrencyFactor.value, PER_MILLION, MIN_DECIMALS, displayCurrencySymbol.value)
 }
 
 /** 非 token 计费的单位后缀:按图片 → “/ 张”,按次 → “/ 次”。 */

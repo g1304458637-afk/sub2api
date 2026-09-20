@@ -60,6 +60,7 @@ export default {
 	    availableBalance: '可用余额',
 	    frozenBalance: '冻结金额',
 	    totalBalance: '总余额',
+    currencyToggle: '切换人民币/美元显示',
 	    available: '可用',
     copiedToClipboard: '已复制到剪贴板',
     copied: '已复制',
@@ -214,6 +215,12 @@ export default {
     contentModeration: '内容审核',
     promptAudit: '提示词审计',
     auditLogs: '操作日志',
+    // 普通用户侧边栏门户分组
+    groupLlm: '大模型服务',
+    groupMine: '我的',
+    chat: 'AI 对话',
+    draw: '绘图',
+    mucDownload: '下载 MUC',
   },
 
   // Auth

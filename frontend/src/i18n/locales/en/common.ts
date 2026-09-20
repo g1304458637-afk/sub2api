@@ -60,6 +60,7 @@ export default {
 	    availableBalance: 'Available balance',
 	    frozenBalance: 'Frozen balance',
 	    totalBalance: 'Total balance',
+    currencyToggle: 'Toggle CNY/USD display',
 	    available: 'Available',
     copiedToClipboard: 'Copied to clipboard',
     copied: 'Copied',
@@ -214,6 +215,12 @@ export default {
     contentModeration: 'Content Moderation',
     promptAudit: 'Prompt Audit',
     auditLogs: 'Audit Logs',
+    // Sidebar portal groups for regular users
+    groupLlm: 'AI Services',
+    groupMine: 'My Account',
+    chat: 'AI Chat',
+    draw: 'Image Generation',
+    mucDownload: 'Download MUC',
   },
 
   // Auth

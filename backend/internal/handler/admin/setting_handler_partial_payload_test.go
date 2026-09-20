@@ -66,6 +66,23 @@ func TestUpdateSettingsSMTPFromAliasIsWritable(t *testing.T) {
 	require.Equal(t, "new@example.com", repo.values[service.SettingKeySMTPFrom])
 }
 
+func TestUpdateSettingsCampusEmailVerificationSwitchPersistsAndSurvivesPartialUpdates(t *testing.T) {
+	h, repo := newStepUpSwitchTestHandler(t, map[string]string{
+		service.SettingKeyEducationEmailVerificationEnabled: "false",
+	})
+
+	rec := doUpdateSettings(t, h, map[string]any{
+		"education_email_verification_enabled": true,
+	}, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyEducationEmailVerificationEnabled])
+
+	rec = doUpdateSettings(t, h, map[string]any{"risk_control_enabled": true}, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyEducationEmailVerificationEnabled],
+		"a legacy partial settings save must not silently turn off campus email verification")
+}
+
 func TestUpdateSettingsGrokDefaultBaseURLModeIsWritable(t *testing.T) {
 	h, repo := newStepUpSwitchTestHandler(t, map[string]string{
 		service.SettingKeyGrokDefaultBaseURLMode: service.GrokDefaultBaseURLModeCLI,

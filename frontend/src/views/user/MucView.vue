@@ -53,6 +53,21 @@
           安装后回到本页点击「一键连接 MUC」。登录后自动同步你的可用模型。
         </p>
 
+        <!-- MUC Harness: 最新版本区块（数据来自 /downloads/latest-mucode.json，缺失时隐藏） -->
+        <div
+          v-if="latest"
+          class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-100"
+        >
+          <p class="font-medium">
+            最新版本：{{ latest.version }}
+            <span v-if="latest.releasedAt"> · 发布于 {{ latest.releasedAt.slice(0, 10) }}</span>
+          </p>
+          <p v-if="latest.notes" class="mt-1 text-xs leading-5 opacity-90">{{ latest.notes }}</p>
+          <p class="mt-1 text-xs opacity-75">
+            已装旧版时重新下载覆盖安装即可升级；完整性可用同目录 SHA256SUMS 校验。
+          </p>
+        </div>
+
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
           <a
             v-for="opt in downloadOptions"
@@ -106,6 +121,7 @@ import { computed, onMounted, ref } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { createMucConnectCode } from '@/api/muc'
 import { useAppStore } from '@/stores'
+import { fetchLatestMucodeManifest, type MucodeManifest } from '@/utils/mucUpdate'
 import campusImg from '@/assets/muc/campus.png'
 
 type PlatformKey = 'mac-arm' | 'mac-intel' | 'win' | 'other'
@@ -115,6 +131,7 @@ const platform = ref<{ key: PlatformKey; label: string }>({ key: 'mac-arm', labe
 const detectedLabel = computed(() => platform.value.label)
 const gatewayHint = `${location.origin}/v1`
 const state = ref<'idle' | 'issuing' | 'opening' | 'fallback'>('idle')
+const latest = ref<MucodeManifest | null>(null)
 
 const downloadOptions = [
   { key: 'mac-arm' as PlatformKey, label: 'macOS Apple Silicon', file: 'mucode-mac-arm64.dmg' },
@@ -199,5 +216,9 @@ onMounted(() => {
   detectPlatform()
   // MUC Harness: 已看过下载引导，后续登录直达控制台
   localStorage.setItem('muc_seen', '1')
+  // 最新版本信息拉取失败时静默（版本区块整体隐藏）
+  void fetchLatestMucodeManifest().then((m) => {
+    if (m) latest.value = m
+  })
 })
 </script>

@@ -176,7 +176,7 @@ export default {
         }
       },
       upstreamBilling: {
-        trustWarning: '此倍率由上游站点针对当前 API Key 自行声明。Sub2API 无法验证该值是否与实际扣费一致；上游站点或中间代理可能返回伪造、过期或被篡改的数据。请结合账单、余额变化和实际用量自行核验。',
+        trustWarning: '此倍率由上游站点针对当前 API Key 自行声明。MUC AI 无法验证该值是否与实际扣费一致；上游站点或中间代理可能返回伪造、过期或被篡改的数据。请结合账单、余额变化和实际用量自行核验。',
         autoProbe: '自动探测上游声明倍率',
         autoProbeHint: '启用后按全局周期刷新上游声明倍率；此开关本身不会修改账号倍率。',
         syncRate: '同步上游声明倍率',
@@ -804,8 +804,8 @@ export default {
         searchTestHint:
           '独立网页搜索探测（与网关 /v1/web_search 语义一致），不是带 tools 的自由对话。',
         ttsTextLabel: 'TTS 文本',
-        ttsTextPlaceholder: '例如：Hello from Sub2API connectivity test.',
-        ttsTextDefault: 'Hello from Sub2API account connectivity test.',
+        ttsTextPlaceholder: '例如：Hello from MUC AI connectivity test.',
+        ttsTextDefault: 'Hello from MUC AI account connectivity test.',
         ttsTestHint: '独立调用 /v1/tts（language=en）；成功时显示音频字节数。',
         sttTestHint: '独立调用 /v1/stt，使用合成静音 WAV；成功表示接口可达。',
         realtimeTestHint:

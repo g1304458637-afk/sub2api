@@ -300,7 +300,7 @@ export default {
         }
       },
       upstreamBilling: {
-        trustWarning: 'This rate is declared by the upstream site for the current API key. Sub2API cannot verify that it matches actual charges. The upstream site or an intermediary may return forged, stale, or modified data. Verify it against bills, balance changes, and actual usage.',
+        trustWarning: 'This rate is declared by the upstream site for the current API key. MUC AI cannot verify that it matches actual charges. The upstream site or an intermediary may return forged, stale, or modified data. Verify it against bills, balance changes, and actual usage.',
         autoProbe: 'Automatically probe upstream declared rate',
         autoProbeHint: 'Refresh the upstream declared rate on the global interval. This switch alone does not change the account rate.',
         syncRate: 'Sync upstream declared rate',
@@ -726,8 +726,8 @@ export default {
         searchTestHint:
           'Standalone web_search probe (same as gateway /v1/web_search). Not a free-form chat with tools.',
         ttsTextLabel: 'TTS text',
-        ttsTextPlaceholder: 'Example: Hello from Sub2API connectivity test.',
-        ttsTextDefault: 'Hello from Sub2API account connectivity test.',
+        ttsTextPlaceholder: 'Example: Hello from MUC AI connectivity test.',
+        ttsTextDefault: 'Hello from MUC AI account connectivity test.',
         ttsTestHint: 'Standalone /v1/tts with language=en; success reports audio byte size.',
         sttTestHint: 'Standalone /v1/stt with a synthetic silent WAV; success means the endpoint is reachable.',
         realtimeTestHint:

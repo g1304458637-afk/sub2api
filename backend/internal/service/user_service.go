@@ -226,11 +226,12 @@ type UserIdentitySummary struct {
 }
 
 type UserIdentitySummarySet struct {
-	Email    UserIdentitySummary `json:"email"`
-	LinuxDo  UserIdentitySummary `json:"linuxdo"`
-	OIDC     UserIdentitySummary `json:"oidc"`
-	WeChat   UserIdentitySummary `json:"wechat"`
-	DingTalk UserIdentitySummary `json:"dingtalk"`
+	Email          UserIdentitySummary `json:"email"`
+	EducationEmail UserIdentitySummary `json:"education_email"`
+	LinuxDo        UserIdentitySummary `json:"linuxdo"`
+	OIDC           UserIdentitySummary `json:"oidc"`
+	WeChat         UserIdentitySummary `json:"wechat"`
+	DingTalk       UserIdentitySummary `json:"dingtalk"`
 }
 
 type StartUserIdentityBindingRequest struct {
@@ -346,15 +347,38 @@ func (s *UserService) GetProfileIdentitySummaries(ctx context.Context, userID in
 	}
 
 	summaries := UserIdentitySummarySet{
-		Email:    s.buildEmailIdentitySummary(user, records),
-		LinuxDo:  s.buildProviderIdentitySummary("linuxdo", user, records),
-		OIDC:     s.buildProviderIdentitySummary("oidc", user, records),
-		WeChat:   s.buildProviderIdentitySummary("wechat", user, records),
-		DingTalk: s.buildProviderIdentitySummary("dingtalk", user, records),
+		Email:          s.buildEmailIdentitySummary(user, records),
+		EducationEmail: buildEducationEmailIdentitySummary(records),
+		LinuxDo:        s.buildProviderIdentitySummary("linuxdo", user, records),
+		OIDC:           s.buildProviderIdentitySummary("oidc", user, records),
+		WeChat:         s.buildProviderIdentitySummary("wechat", user, records),
+		DingTalk:       s.buildProviderIdentitySummary("dingtalk", user, records),
 	}
 
 	s.applyExplicitProviderAvailability(ctx, &summaries)
 	return summaries, nil
+}
+
+func buildEducationEmailIdentitySummary(records []UserAuthIdentityRecord) UserIdentitySummary {
+	summary := UserIdentitySummary{Provider: educationEmailProvider, CanBind: true}
+	for _, record := range filterUserAuthIdentities(records, educationEmailProvider) {
+		email := strings.ToLower(strings.TrimSpace(record.ProviderSubject))
+		if record.ProviderKey != educationEmailProviderKey || !strings.HasSuffix(email, "@"+educationEmailProviderKey) || record.VerifiedAt == nil {
+			continue
+		}
+		summary.Bound = true
+		summary.BoundCount++
+		if summary.VerifiedAt == nil || record.VerifiedAt.After(*summary.VerifiedAt) {
+			summary.DisplayName = email
+			summary.SubjectHint = maskEmailIdentity(email)
+			summary.ProviderKey = record.ProviderKey
+			summary.VerifiedAt = record.VerifiedAt
+		}
+	}
+	if summary.Bound {
+		summary.CanBind = false
+	}
+	return summary
 }
 
 func (s *UserService) applyExplicitProviderAvailability(ctx context.Context, summaries *UserIdentitySummarySet) {

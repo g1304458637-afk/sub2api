@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from '../client'
-import type { AdminUser, UpdateUserRequest, PaginatedResponse, ApiKey } from '@/types'
+import type { AdminUser, UpdateUserRequest, PaginatedResponse, ApiKey, UserAuthBindingStatus } from '@/types'
 
 export interface AdminBindAuthIdentityChannelRequest {
   channel: string
@@ -42,6 +42,12 @@ export interface AdminBoundAuthIdentity {
   created_at: string
   updated_at: string
   channel?: AdminBoundAuthIdentityChannel | null
+}
+
+export interface EducationEmailStatus {
+  user_id: number
+  education_email_verification_enabled: boolean
+  education_email: UserAuthBindingStatus
 }
 
 export interface BatchUpdateUserLimitsRequest {
@@ -119,6 +125,12 @@ export async function list(
 export async function getById(id: number, includeDeleted = false): Promise<AdminUser> {
   const url = includeDeleted ? `/admin/users/${id}?include_deleted=true` : `/admin/users/${id}`
   const { data } = await apiClient.get<AdminUser>(url)
+  return data
+}
+
+/** Read a user's campus-email verification record for administrative review. */
+export async function getEducationEmailStatus(userId: number): Promise<EducationEmailStatus> {
+  const { data } = await apiClient.get<EducationEmailStatus>(`/admin/users/${userId}/education-email`)
   return data
 }
 
@@ -402,6 +414,7 @@ export async function resetPlatformQuotaWindow(
 export const usersAPI = {
   list,
   getById,
+  getEducationEmailStatus,
   create,
   update,
   delete: deleteUser,

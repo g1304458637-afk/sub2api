@@ -130,6 +130,9 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// 网页聊天（管理端只读：可用模型并集）
+		admin.GET("/web-chat/available-models", h.WebChat.AdminAvailableModels)
 	}
 }
 
@@ -302,6 +305,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		users.GET("", h.Admin.User.List)
 		users.GET("/:id", h.Admin.User.GetByID)
+		users.GET("/:id/education-email", h.Admin.User.GetEducationEmailStatus)
 		users.POST("/:id/auth-identities", h.Admin.User.BindAuthIdentity)
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)

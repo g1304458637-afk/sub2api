@@ -404,12 +404,7 @@
             rel="noopener noreferrer"
             class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
           >{{ t('home.docs') }}</a>
-          <a
-            :href="githubUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >GitHub</a>
+
         </div>
       </div>
     </footer>
@@ -417,9 +412,11 @@
 </template>
 
 <script setup lang="ts">
+import { resolveSiteName } from '@/utils/branding'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { FeatureFlags, resolveFeatureFlag } from '@/utils/featureFlags'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -429,14 +426,14 @@ import { sanitizeUrl } from '@/utils/url'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 const subscriptionFeatureEnabled = computed(() => resolveFeatureFlag(appStore.cachedPublicSettings, FeatureFlags.subscription))
 
 // ==================== Site Settings (same as HomeView) ====================
 
-const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'Sub2API')
+const siteName = computed(() => resolveSiteName(appStore.cachedPublicSettings?.site_name || appStore.siteName))
 const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
 const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
-const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
 
 // ==================== Theme (same as HomeView) ====================
 
@@ -914,7 +911,7 @@ const showDailyUsage = computed(() => Boolean(resultData.value && Array.isArray(
 
 function usd(value: number | null | undefined): string {
   if (value == null || value < 0) return '-'
-  return '$' + Number(value).toFixed(2)
+  return currencyStore.formatUSD(value)
 }
 
 function fmtNum(val: number | null | undefined): string {

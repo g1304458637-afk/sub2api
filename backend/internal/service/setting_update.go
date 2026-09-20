@@ -175,6 +175,10 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
 	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
+	updates[SettingKeyEducationEmailVerificationEnabled] = strconv.FormatBool(settings.EducationEmailVerificationEnabled)
+	updates[SettingKeyStudentVerificationRewardEnabled] = strconv.FormatBool(settings.StudentVerificationRewardEnabled)
+	updates[SettingKeyStudentVerificationRewardAmount] = strconv.FormatFloat(settings.StudentVerificationRewardAmount, 'f', 8, 64)
+	updates[SettingKeyStudentVerificationRewardCampaign] = strings.TrimSpace(settings.StudentVerificationRewardCampaign)
 	updates[SettingKeyPasskeyEnabled] = strconv.FormatBool(settings.PasskeyEnabled)
 	updates[SettingKeySessionBindingEnabled] = strconv.FormatBool(settings.SessionBindingEnabled)
 	updates[SettingKeyStepUpEnabled] = strconv.FormatBool(settings.StepUpEnabled)
@@ -547,6 +551,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 
 	updates[SettingKeyAllowUserViewErrorRequests] = strconv.FormatBool(settings.AllowUserViewErrorRequests)
+
+	// 网页聊天设置（web_chat_models 存原始 JSON 串，整体替换语义）
+	updates[SettingKeyWebChatEnabled] = strconv.FormatBool(settings.WebChatEnabled)
+	updates[SettingKeyWebChatModels] = settings.WebChatModels
+	updates[SettingKeyWebChatDefaultModel] = strings.TrimSpace(settings.WebChatDefaultModel)
 
 	return updates, nil
 }

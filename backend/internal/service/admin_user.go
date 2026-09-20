@@ -721,6 +721,18 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int
 		return codes, total, totalRecharged, nil
 	}
 
+	if codeType == RedeemTypeRewardGrant {
+		codes, total, err := s.listRewardGrantHistory(ctx, userID, params)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		totalRecharged, err := s.redeemCodeRepo.SumPositiveBalanceByUser(ctx, userID)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		return codes, total, totalRecharged, nil
+	}
+
 	if codeType == "" {
 		return s.getAllUserBalanceHistory(ctx, userID, params)
 	}
@@ -752,13 +764,17 @@ func (s *adminServiceImpl) getAllUserBalanceHistory(ctx context.Context, userID 
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	codes := mergeBalanceHistoryCodes(redeemCodes, affiliateCodes, params)
+	rewardCodes, rewardTotal, err := s.listRewardGrantsForMerge(ctx, userID, needed)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	codes := mergeBalanceHistoryCodes(redeemCodes, affiliateCodes, params, rewardCodes)
 
 	totalRecharged, err := s.redeemCodeRepo.SumPositiveBalanceByUser(ctx, userID)
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	return codes, redeemTotal + affiliateTotal, totalRecharged, nil
+	return codes, redeemTotal + affiliateTotal + rewardTotal, totalRecharged, nil
 }
 
 func (s *adminServiceImpl) listRedeemBalanceHistoryForMerge(ctx context.Context, userID int64, needed int) ([]RedeemCode, int64, error) {
@@ -869,6 +885,118 @@ LIMIT $3`, userID, params.Offset(), params.Limit())
 	return codes, total, nil
 }
 
+// listRewardGrantHistory 分页查询某用户的系统奖励发放记录（余额历史 reward_grant 过滤视图）。
+func (s *adminServiceImpl) listRewardGrantHistory(ctx context.Context, userID int64, params pagination.PaginationParams) ([]RedeemCode, int64, error) {
+	if s == nil || s.entClient == nil || userID <= 0 {
+		return nil, 0, nil
+	}
+
+	rows, err := s.entClient.QueryContext(ctx, `
+SELECT id, source_type, campaign, amount::double precision, created_at
+FROM reward_grants
+WHERE user_id = $1
+ORDER BY created_at DESC, id DESC
+OFFSET $2
+LIMIT $3`, userID, params.Offset(), params.Limit())
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	codes := make([]RedeemCode, 0, params.Limit())
+	for rows.Next() {
+		var (
+			id         int64
+			sourceType string
+			campaign   string
+			amount     float64
+			createdAt  time.Time
+		)
+		if err := rows.Scan(&id, &sourceType, &campaign, &amount, &createdAt); err != nil {
+			return nil, 0, err
+		}
+		codes = append(codes, newRewardGrantHistoryCode(id, userID, sourceType, campaign, amount, createdAt))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	total, err := countRewardGrantHistory(ctx, s.entClient, userID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return codes, total, nil
+}
+
+// listRewardGrantsForMerge 为全量归并取前 needed 条奖励记录（照 affiliate 归并的分页循环模式）。
+func (s *adminServiceImpl) listRewardGrantsForMerge(ctx context.Context, userID int64, needed int) ([]RedeemCode, int64, error) {
+	if needed <= 0 {
+		return nil, 0, nil
+	}
+
+	var (
+		out   []RedeemCode
+		total int64
+	)
+	for page := 1; len(out) < needed; page++ {
+		params := pagination.PaginationParams{Page: page, PageSize: 1000}
+		codes, currentTotal, err := s.listRewardGrantHistory(ctx, userID, params)
+		if err != nil {
+			return nil, 0, err
+		}
+		total = currentTotal
+		out = append(out, codes...)
+		if len(codes) < params.Limit() || int64(len(out)) >= total {
+			break
+		}
+	}
+	if len(out) > needed {
+		out = out[:needed]
+	}
+	return out, total, nil
+}
+
+// newRewardGrantHistoryCode 把 reward_grants 行映射成余额历史展示行。
+// ID 取负数避免与真实 redeem code ID 冲突；不写任何 redeem_codes 行（奖励事实只存 reward_grants）。
+func newRewardGrantHistoryCode(id, userID int64, sourceType, campaign string, amount float64, createdAt time.Time) RedeemCode {
+	usedBy := userID
+	usedAt := createdAt
+	return RedeemCode{
+		ID:        -id,
+		Code:      fmt.Sprintf("RWD-%d", id),
+		Type:      RedeemTypeRewardGrant,
+		Value:     amount,
+		Status:    StatusUsed,
+		UsedBy:    &usedBy,
+		UsedAt:    &usedAt,
+		CreatedAt: createdAt,
+		Notes:     fmt.Sprintf("%s · campaign %s", sourceType, campaign),
+	}
+}
+
+func countRewardGrantHistory(ctx context.Context, client *dbent.Client, userID int64) (int64, error) {
+	rows, err := client.QueryContext(ctx, `
+SELECT COUNT(*)
+FROM reward_grants
+WHERE user_id = $1`, userID)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return 0, err
+		}
+		return 0, nil
+	}
+	var total int64
+	if err := rows.Scan(&total); err != nil {
+		return 0, err
+	}
+	return total, rows.Err()
+}
+
 func countAffiliateBalanceHistory(ctx context.Context, client *dbent.Client, userID int64) (int64, error) {
 	rows, err := client.QueryContext(ctx, `
 SELECT COUNT(*)
@@ -895,8 +1023,13 @@ WHERE user_id = $1
 	return total.Int64, nil
 }
 
-func mergeBalanceHistoryCodes(redeemCodes, affiliateCodes []RedeemCode, params pagination.PaginationParams) []RedeemCode {
+// mergeBalanceHistoryCodes 按时间倒序合并多个来源的余额历史并分页。
+// extras 可变参数容纳 reward_grants 等后续新增来源，保持既有调用兼容。
+func mergeBalanceHistoryCodes(redeemCodes, affiliateCodes []RedeemCode, params pagination.PaginationParams, extras ...[]RedeemCode) []RedeemCode {
 	combined := append(append([]RedeemCode{}, redeemCodes...), affiliateCodes...)
+	for _, extra := range extras {
+		combined = append(combined, extra...)
+	}
 	sort.SliceStable(combined, func(i, j int) bool {
 		return redeemCodeHistoryTime(combined[i]).After(redeemCodeHistoryTime(combined[j]))
 	})

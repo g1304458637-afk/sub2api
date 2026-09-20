@@ -408,6 +408,10 @@ export interface SystemSettings {
   frontend_url: string;
   invitation_code_enabled: boolean;
   totp_enabled: boolean; // TOTP 双因素认证
+  education_email_verification_enabled: boolean;
+  student_verification_reward_enabled: boolean;
+  student_verification_reward_amount: number;
+  student_verification_reward_campaign: string;
   totp_encryption_key_configured: boolean; // TOTP 加密密钥是否已配置
   passkey_enabled: boolean;
   passkey_configured: boolean;
@@ -664,6 +668,7 @@ export interface SystemSettings {
   payment_enabled_types: string[];
   payment_balance_disabled: boolean;
   payment_balance_recharge_multiplier: number;
+  payment_usd_to_cny_display_rate: number;
   payment_subscription_usd_to_cny_rate: number;
   payment_recharge_fee_rate: number;
   payment_load_balance_strategy: string;
@@ -758,6 +763,10 @@ export interface UpdateSettingsRequest {
   frontend_url?: string;
   invitation_code_enabled?: boolean;
   totp_enabled?: boolean; // TOTP 双因素认证
+  education_email_verification_enabled?: boolean;
+  student_verification_reward_enabled?: boolean;
+  student_verification_reward_amount?: number;
+  student_verification_reward_campaign?: string;
   passkey_enabled?: boolean;
   session_binding_enabled?: boolean; // 会话 IP/UA 绑定
   step_up_enabled?: boolean; // 敏感操作 step-up 2FA
@@ -981,6 +990,7 @@ export interface UpdateSettingsRequest {
   payment_enabled_types?: string[];
   payment_balance_disabled?: boolean;
   payment_balance_recharge_multiplier?: number;
+  payment_usd_to_cny_display_rate?: number;
   payment_subscription_usd_to_cny_rate?: number;
   payment_recharge_fee_rate?: number;
   payment_load_balance_strategy?: string;

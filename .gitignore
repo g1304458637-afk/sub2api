@@ -137,6 +137,7 @@ docs/*
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
+!docs/STUDENT_REWARD_INTEGRATION.md
 !docs/ASYNC_IMAGE_TASKS.md
 !docs/BATCH_IMAGE_MVP.md
 !docs/COMPOSITE_GROUPS.md
@@ -159,3 +160,7 @@ output/
 .vite/
 # 本地闭源插件开发目录及构建产物不进入 Sub2API 仓库
 /plugins/
+
+# AI agent working artifacts (Codex 等 agent 运行产物)
+.omx/
+frontend/.qa/

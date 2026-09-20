@@ -184,6 +184,17 @@ func (s *SettingService) IsTotpEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsEducationEmailVerificationEnabled reports whether users may start or
+// complete the @muc.edu.cn campus-email verification flow. It fails closed so
+// an unconfigured deployment does not send verification mail.
+func (s *SettingService) IsEducationEmailVerificationEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyEducationEmailVerificationEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
 // PasskeyEnabled reports the effective runtime switch. WebAuthn deployment
 // configuration remains the security boundary; the database setting can only
 // disable a valid configured relying party, never replace or weaken it.
@@ -1216,4 +1227,35 @@ func mergePlatformQuotaDefaults(dst, src *DefaultPlatformQuotaSetting) {
 	if src.MonthlyLimitUSD != nil {
 		dst.MonthlyLimitUSD = src.MonthlyLimitUSD
 	}
+}
+
+// IsStudentVerificationRewardEnabled 学生认证奖励发放开关。
+// 与学生认证功能开关解耦：仅控制"认证通过后是否自动发奖励"。读取失败按未配置处理（fail-closed）。
+func (s *SettingService) IsStudentVerificationRewardEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyStudentVerificationRewardEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// GetStudentVerificationRewardAmount 学生认证奖励金额（<= 0 视为未配置）。
+func (s *SettingService) GetStudentVerificationRewardAmount(ctx context.Context) float64 {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyStudentVerificationRewardAmount)
+	if err != nil {
+		return 0
+	}
+	if v, err := strconv.ParseFloat(strings.TrimSpace(value), 64); err == nil {
+		return v
+	}
+	return 0
+}
+
+// GetStudentVerificationRewardCampaign 学生认证奖励活动标识（发放幂等的 campaign 维度）。
+func (s *SettingService) GetStudentVerificationRewardCampaign(ctx context.Context) string {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyStudentVerificationRewardCampaign)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(value)
 }

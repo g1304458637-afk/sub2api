@@ -77,6 +77,13 @@ describe('HomeView compact mode', () => {
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
   })
 
+  it('uses campus branding for legacy settings and removes upstream promotion', () => {
+    const wrapper = mountHome({ site_name: 'Sub2API' })
+    expect(wrapper.text()).toContain('中央民族大学 AI 服务平台')
+    expect(wrapper.find('a[href*="Wei-Shaw"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Sub2API')
+  })
+
   it('renders custom HTML ahead of compact mode', () => {
     const wrapper = mountHome({
       compact_home_enabled: true,

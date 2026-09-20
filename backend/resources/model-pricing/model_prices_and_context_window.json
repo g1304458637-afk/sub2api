@@ -5915,6 +5915,19 @@
     "supports_system_messages": true,
     "supports_tool_choice": true
   },
+  "grok-4.6": {
+    "cache_read_input_token_cost": 5e-07,
+    "cache_read_input_token_cost_above_200k_tokens": 1e-06,
+    "input_cost_per_token": 2e-06,
+    "input_cost_per_token_above_200k_tokens": 4e-06,
+    "litellm_provider": "xai",
+    "max_input_tokens": 500000,
+    "mode": "chat",
+    "output_cost_per_token": 6e-06,
+    "output_cost_per_token_above_200k_tokens": 1.2e-05,
+    "source": "https://docs.x.ai/developers/pricing",
+    "supports_prompt_caching": true
+  },
   "o1-2024-12-17": {
     "cache_read_input_token_cost": 7.5e-06,
     "input_cost_per_token": 1.5e-05,

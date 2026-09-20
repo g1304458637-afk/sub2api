@@ -11,6 +11,16 @@ const { showInfo, showSuccess, showError, fetchPublicSettings } = vi.hoisted(() 
   fetchPublicSettings: vi.fn(),
 }))
 
+vi.mock('@/stores/currencyDisplay', () => ({
+  useCurrencyDisplayStore: () => ({
+    displayCurrency: 'USD',
+    usdToCnyRate: 0,
+    canDisplayCNY: false,
+    toggleCurrency: vi.fn(),
+    formatUSD: (amount: number | null | undefined) => `$${Number(amount ?? 0).toFixed(2)}`
+  })
+}))
+
 const messages: Record<string, string> = {
   'keyUsage.title': 'API Key Usage',
   'keyUsage.subtitle': 'Usage status',

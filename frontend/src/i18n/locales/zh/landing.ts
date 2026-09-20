@@ -15,11 +15,11 @@ export default {
     getStarted: '立即开始',
     goToDashboard: '进入控制台',
     // 新增：面向用户的价值主张
-    heroSubtitle: '一个密钥，畅用多个 AI 模型',
-    heroDescription: '无需管理多个订阅账号，一站式接入 Claude、GPT、Gemini 等主流 AI 服务',
+    heroSubtitle: '让 AI 融入教学与科研',
+    heroDescription: '面向师生提供统一的 AI 服务入口，支持课程学习、学术研究与创新实践',
     tags: {
-      subscriptionToApi: '订阅转 API',
-      stickySession: '会话保持',
+      subscriptionToApi: '教学科研',
+      stickySession: '统一接入',
       realtimeBilling: '按量计费'
     },
     // 用户痛点区块
@@ -53,7 +53,7 @@ export default {
       unifiedGateway: '一键接入',
       unifiedGatewayDesc: '获取一个 API 密钥，即可调用所有已接入的 AI 模型，无需分别申请。',
       multiAccount: '稳定可靠',
-      multiAccountDesc: '智能调度多个上游账号，自动切换和负载均衡，告别频繁报错。',
+      multiAccountDesc: '统一访问多种 AI 模型，为课程学习与科研任务提供稳定支持。',
       balanceQuota: '用多少付多少',
       balanceQuotaDesc: '按实际使用量计费，支持设置配额上限，团队用量一目了然。'
     },
@@ -202,8 +202,8 @@ export default {
 
   // Setup Wizard
   setup: {
-    title: 'Sub2API 安装向导',
-    description: '配置您的 Sub2API 实例',
+    title: 'MUC AI 安装向导',
+    description: '配置您的 MUC AI 实例',
     database: {
       title: '数据库配置',
       description: '连接到您的 PostgreSQL 数据库',

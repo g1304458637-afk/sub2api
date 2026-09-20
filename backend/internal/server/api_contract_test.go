@@ -51,6 +51,14 @@ func TestAPIContracts(t *testing.T) {
 					"id": 1,
 					"email": "alice@example.com",
 					"email_bound": true,
+					"education_email_bound": false,
+					"education_email": {
+						"provider": "education_email",
+						"bound": false,
+						"bound_count": 0,
+						"can_bind": true,
+						"can_unbind": false
+					},
 					"username": "alice",
 						"role": "user",
 						"balance": 12.5,
@@ -83,6 +91,13 @@ func TestAPIContracts(t *testing.T) {
 							"note_key": "profile.authBindings.notes.emailManagedFromProfile",
 							"note": "Primary account email is managed from the profile form."
 						},
+							"education_email": {
+								"provider": "education_email",
+								"bound": false,
+								"bound_count": 0,
+								"can_bind": true,
+								"can_unbind": false
+							},
 						"linuxdo": {
 							"provider": "linuxdo",
 							"bound": false,
@@ -129,6 +144,13 @@ func TestAPIContracts(t *testing.T) {
 							"note_key": "profile.authBindings.notes.emailManagedFromProfile",
 							"note": "Primary account email is managed from the profile form."
 						},
+							"education_email": {
+								"provider": "education_email",
+								"bound": false,
+								"bound_count": 0,
+								"can_bind": true,
+								"can_unbind": false
+							},
 						"linuxdo": {
 							"provider": "linuxdo",
 							"bound": false,
@@ -175,6 +197,13 @@ func TestAPIContracts(t *testing.T) {
 							"note_key": "profile.authBindings.notes.emailManagedFromProfile",
 							"note": "Primary account email is managed from the profile form."
 						},
+							"education_email": {
+								"provider": "education_email",
+								"bound": false,
+								"bound_count": 0,
+								"can_bind": true,
+								"can_unbind": false
+							},
 						"linuxdo": {
 							"provider": "linuxdo",
 							"bound": false,
@@ -1020,7 +1049,15 @@ func TestAPIContracts(t *testing.T) {
 					"wechat_connect_redirect_url": "",
 					"wechat_connect_frontend_redirect_url": "/auth/wechat/callback",
 					"wechat_connect_scopes": "snsapi_login",
-					"allow_user_view_error_requests": false
+					"allow_user_view_error_requests": false,
+					"education_email_verification_enabled": false,
+					"payment_usd_to_cny_display_rate": 0,
+					"web_chat_enabled": true,
+					"web_chat_models": "",
+					"web_chat_default_model": "",
+					"student_verification_reward_enabled": false,
+					"student_verification_reward_campaign": "",
+					"student_verification_reward_amount": 0
 				}
 			}`,
 		},
@@ -1371,7 +1408,15 @@ func TestAPIContracts(t *testing.T) {
 					"auth_source_default_dingtalk_grant_on_signup": false,
 					"auth_source_default_dingtalk_grant_on_first_bind": false,
 					"force_email_on_third_party_signup": false,
-					"allow_user_view_error_requests": false
+					"allow_user_view_error_requests": false,
+					"education_email_verification_enabled": false,
+					"payment_usd_to_cny_display_rate": 0,
+					"web_chat_enabled": true,
+					"web_chat_models": "",
+					"web_chat_default_model": "",
+					"student_verification_reward_enabled": false,
+					"student_verification_reward_campaign": "",
+					"student_verification_reward_amount": 0
 				}
 			}`,
 		},
