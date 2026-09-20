@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -231,6 +233,20 @@ func (_c *UserSubscriptionCreate) SetNillableNotes(v *string) *UserSubscriptionC
 	return _c
 }
 
+// SetAutoPaygFallback sets the "auto_payg_fallback" field.
+func (_c *UserSubscriptionCreate) SetAutoPaygFallback(v bool) *UserSubscriptionCreate {
+	_c.mutation.SetAutoPaygFallback(v)
+	return _c
+}
+
+// SetNillableAutoPaygFallback sets the "auto_payg_fallback" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableAutoPaygFallback(v *bool) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetAutoPaygFallback(*v)
+	}
+	return _c
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_c *UserSubscriptionCreate) SetUser(v *User) *UserSubscriptionCreate {
 	return _c.SetUserID(v.ID)
@@ -273,6 +289,36 @@ func (_c *UserSubscriptionCreate) AddUsageLogs(v ...*UsageLog) *UserSubscription
 		ids[i] = v[i].ID
 	}
 	return _c.AddUsageLogIDs(ids...)
+}
+
+// AddResetApplicationIDs adds the "reset_applications" edge to the SubscriptionResetApplication entity by IDs.
+func (_c *UserSubscriptionCreate) AddResetApplicationIDs(ids ...int64) *UserSubscriptionCreate {
+	_c.mutation.AddResetApplicationIDs(ids...)
+	return _c
+}
+
+// AddResetApplications adds the "reset_applications" edges to the SubscriptionResetApplication entity.
+func (_c *UserSubscriptionCreate) AddResetApplications(v ...*SubscriptionResetApplication) *UserSubscriptionCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddResetApplicationIDs(ids...)
+}
+
+// AddUsedByResetCardIDs adds the "used_by_reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_c *UserSubscriptionCreate) AddUsedByResetCardIDs(ids ...int64) *UserSubscriptionCreate {
+	_c.mutation.AddUsedByResetCardIDs(ids...)
+	return _c
+}
+
+// AddUsedByResetCards adds the "used_by_reset_cards" edges to the SubscriptionResetCard entity.
+func (_c *UserSubscriptionCreate) AddUsedByResetCards(v ...*SubscriptionResetCard) *UserSubscriptionCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddUsedByResetCardIDs(ids...)
 }
 
 // Mutation returns the UserSubscriptionMutation object of the builder.
@@ -349,6 +395,10 @@ func (_c *UserSubscriptionCreate) defaults() error {
 		v := usersubscription.DefaultAssignedAt()
 		_c.mutation.SetAssignedAt(v)
 	}
+	if _, ok := _c.mutation.AutoPaygFallback(); !ok {
+		v := usersubscription.DefaultAutoPaygFallback
+		_c.mutation.SetAutoPaygFallback(v)
+	}
 	return nil
 }
 
@@ -391,6 +441,9 @@ func (_c *UserSubscriptionCreate) check() error {
 	}
 	if _, ok := _c.mutation.AssignedAt(); !ok {
 		return &ValidationError{Name: "assigned_at", err: errors.New(`ent: missing required field "UserSubscription.assigned_at"`)}
+	}
+	if _, ok := _c.mutation.AutoPaygFallback(); !ok {
+		return &ValidationError{Name: "auto_payg_fallback", err: errors.New(`ent: missing required field "UserSubscription.auto_payg_fallback"`)}
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "UserSubscription.user"`)}
@@ -481,6 +534,10 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 		_spec.SetField(usersubscription.FieldNotes, field.TypeString, value)
 		_node.Notes = &value
 	}
+	if value, ok := _c.mutation.AutoPaygFallback(); ok {
+		_spec.SetField(usersubscription.FieldAutoPaygFallback, field.TypeBool, value)
+		_node.AutoPaygFallback = value
+	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -541,6 +598,38 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ResetApplicationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.ResetApplicationsTable,
+			Columns: []string{usersubscription.ResetApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetapplication.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.UsedByResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.UsedByResetCardsTable,
+			Columns: []string{usersubscription.UsedByResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -843,6 +932,18 @@ func (u *UserSubscriptionUpsert) UpdateNotes() *UserSubscriptionUpsert {
 // ClearNotes clears the value of the "notes" field.
 func (u *UserSubscriptionUpsert) ClearNotes() *UserSubscriptionUpsert {
 	u.SetNull(usersubscription.FieldNotes)
+	return u
+}
+
+// SetAutoPaygFallback sets the "auto_payg_fallback" field.
+func (u *UserSubscriptionUpsert) SetAutoPaygFallback(v bool) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldAutoPaygFallback, v)
+	return u
+}
+
+// UpdateAutoPaygFallback sets the "auto_payg_fallback" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateAutoPaygFallback() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldAutoPaygFallback)
 	return u
 }
 
@@ -1175,6 +1276,20 @@ func (u *UserSubscriptionUpsertOne) UpdateNotes() *UserSubscriptionUpsertOne {
 func (u *UserSubscriptionUpsertOne) ClearNotes() *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetAutoPaygFallback sets the "auto_payg_fallback" field.
+func (u *UserSubscriptionUpsertOne) SetAutoPaygFallback(v bool) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetAutoPaygFallback(v)
+	})
+}
+
+// UpdateAutoPaygFallback sets the "auto_payg_fallback" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateAutoPaygFallback() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateAutoPaygFallback()
 	})
 }
 
@@ -1673,6 +1788,20 @@ func (u *UserSubscriptionUpsertBulk) UpdateNotes() *UserSubscriptionUpsertBulk {
 func (u *UserSubscriptionUpsertBulk) ClearNotes() *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetAutoPaygFallback sets the "auto_payg_fallback" field.
+func (u *UserSubscriptionUpsertBulk) SetAutoPaygFallback(v bool) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetAutoPaygFallback(v)
+	})
+}
+
+// UpdateAutoPaygFallback sets the "auto_payg_fallback" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateAutoPaygFallback() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateAutoPaygFallback()
 	})
 }
 

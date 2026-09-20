@@ -15,6 +15,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -23,15 +25,17 @@ import (
 // UserSubscriptionQuery is the builder for querying UserSubscription entities.
 type UserSubscriptionQuery struct {
 	config
-	ctx                *QueryContext
-	order              []usersubscription.OrderOption
-	inters             []Interceptor
-	predicates         []predicate.UserSubscription
-	withUser           *UserQuery
-	withGroup          *GroupQuery
-	withAssignedByUser *UserQuery
-	withUsageLogs      *UsageLogQuery
-	modifiers          []func(*sql.Selector)
+	ctx                   *QueryContext
+	order                 []usersubscription.OrderOption
+	inters                []Interceptor
+	predicates            []predicate.UserSubscription
+	withUser              *UserQuery
+	withGroup             *GroupQuery
+	withAssignedByUser    *UserQuery
+	withUsageLogs         *UsageLogQuery
+	withResetApplications *SubscriptionResetApplicationQuery
+	withUsedByResetCards  *SubscriptionResetCardQuery
+	modifiers             []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -149,6 +153,50 @@ func (_q *UserSubscriptionQuery) QueryUsageLogs() *UsageLogQuery {
 			sqlgraph.From(usersubscription.Table, usersubscription.FieldID, selector),
 			sqlgraph.To(usagelog.Table, usagelog.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, usersubscription.UsageLogsTable, usersubscription.UsageLogsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryResetApplications chains the current query on the "reset_applications" edge.
+func (_q *UserSubscriptionQuery) QueryResetApplications() *SubscriptionResetApplicationQuery {
+	query := (&SubscriptionResetApplicationClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usersubscription.Table, usersubscription.FieldID, selector),
+			sqlgraph.To(subscriptionresetapplication.Table, subscriptionresetapplication.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, usersubscription.ResetApplicationsTable, usersubscription.ResetApplicationsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryUsedByResetCards chains the current query on the "used_by_reset_cards" edge.
+func (_q *UserSubscriptionQuery) QueryUsedByResetCards() *SubscriptionResetCardQuery {
+	query := (&SubscriptionResetCardClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usersubscription.Table, usersubscription.FieldID, selector),
+			sqlgraph.To(subscriptionresetcard.Table, subscriptionresetcard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, usersubscription.UsedByResetCardsTable, usersubscription.UsedByResetCardsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -343,15 +391,17 @@ func (_q *UserSubscriptionQuery) Clone() *UserSubscriptionQuery {
 		return nil
 	}
 	return &UserSubscriptionQuery{
-		config:             _q.config,
-		ctx:                _q.ctx.Clone(),
-		order:              append([]usersubscription.OrderOption{}, _q.order...),
-		inters:             append([]Interceptor{}, _q.inters...),
-		predicates:         append([]predicate.UserSubscription{}, _q.predicates...),
-		withUser:           _q.withUser.Clone(),
-		withGroup:          _q.withGroup.Clone(),
-		withAssignedByUser: _q.withAssignedByUser.Clone(),
-		withUsageLogs:      _q.withUsageLogs.Clone(),
+		config:                _q.config,
+		ctx:                   _q.ctx.Clone(),
+		order:                 append([]usersubscription.OrderOption{}, _q.order...),
+		inters:                append([]Interceptor{}, _q.inters...),
+		predicates:            append([]predicate.UserSubscription{}, _q.predicates...),
+		withUser:              _q.withUser.Clone(),
+		withGroup:             _q.withGroup.Clone(),
+		withAssignedByUser:    _q.withAssignedByUser.Clone(),
+		withUsageLogs:         _q.withUsageLogs.Clone(),
+		withResetApplications: _q.withResetApplications.Clone(),
+		withUsedByResetCards:  _q.withUsedByResetCards.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -399,6 +449,28 @@ func (_q *UserSubscriptionQuery) WithUsageLogs(opts ...func(*UsageLogQuery)) *Us
 		opt(query)
 	}
 	_q.withUsageLogs = query
+	return _q
+}
+
+// WithResetApplications tells the query-builder to eager-load the nodes that are connected to
+// the "reset_applications" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserSubscriptionQuery) WithResetApplications(opts ...func(*SubscriptionResetApplicationQuery)) *UserSubscriptionQuery {
+	query := (&SubscriptionResetApplicationClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withResetApplications = query
+	return _q
+}
+
+// WithUsedByResetCards tells the query-builder to eager-load the nodes that are connected to
+// the "used_by_reset_cards" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserSubscriptionQuery) WithUsedByResetCards(opts ...func(*SubscriptionResetCardQuery)) *UserSubscriptionQuery {
+	query := (&SubscriptionResetCardClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withUsedByResetCards = query
 	return _q
 }
 
@@ -480,11 +552,13 @@ func (_q *UserSubscriptionQuery) sqlAll(ctx context.Context, hooks ...queryHook)
 	var (
 		nodes       = []*UserSubscription{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [6]bool{
 			_q.withUser != nil,
 			_q.withGroup != nil,
 			_q.withAssignedByUser != nil,
 			_q.withUsageLogs != nil,
+			_q.withResetApplications != nil,
+			_q.withUsedByResetCards != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -530,6 +604,24 @@ func (_q *UserSubscriptionQuery) sqlAll(ctx context.Context, hooks ...queryHook)
 		if err := _q.loadUsageLogs(ctx, query, nodes,
 			func(n *UserSubscription) { n.Edges.UsageLogs = []*UsageLog{} },
 			func(n *UserSubscription, e *UsageLog) { n.Edges.UsageLogs = append(n.Edges.UsageLogs, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withResetApplications; query != nil {
+		if err := _q.loadResetApplications(ctx, query, nodes,
+			func(n *UserSubscription) { n.Edges.ResetApplications = []*SubscriptionResetApplication{} },
+			func(n *UserSubscription, e *SubscriptionResetApplication) {
+				n.Edges.ResetApplications = append(n.Edges.ResetApplications, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withUsedByResetCards; query != nil {
+		if err := _q.loadUsedByResetCards(ctx, query, nodes,
+			func(n *UserSubscription) { n.Edges.UsedByResetCards = []*SubscriptionResetCard{} },
+			func(n *UserSubscription, e *SubscriptionResetCard) {
+				n.Edges.UsedByResetCards = append(n.Edges.UsedByResetCards, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -654,6 +746,69 @@ func (_q *UserSubscriptionQuery) loadUsageLogs(ctx context.Context, query *Usage
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "subscription_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserSubscriptionQuery) loadResetApplications(ctx context.Context, query *SubscriptionResetApplicationQuery, nodes []*UserSubscription, init func(*UserSubscription), assign func(*UserSubscription, *SubscriptionResetApplication)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*UserSubscription)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(subscriptionresetapplication.FieldUserSubscriptionID)
+	}
+	query.Where(predicate.SubscriptionResetApplication(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(usersubscription.ResetApplicationsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserSubscriptionID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_subscription_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserSubscriptionQuery) loadUsedByResetCards(ctx context.Context, query *SubscriptionResetCardQuery, nodes []*UserSubscription, init func(*UserSubscription), assign func(*UserSubscription, *SubscriptionResetCard)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*UserSubscription)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(subscriptionresetcard.FieldUsedSubscriptionID)
+	}
+	query.Where(predicate.SubscriptionResetCard(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(usersubscription.UsedByResetCardsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UsedSubscriptionID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "used_subscription_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "used_subscription_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

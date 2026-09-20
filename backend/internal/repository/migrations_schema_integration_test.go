@@ -375,3 +375,55 @@ WHERE table_schema = 'public'
 		require.Equal(t, "NO", row.Nullable, "nullable mismatch for %s.%s", table, column)
 	}
 }
+
+// TestMigrationsRunner_SubscriptionV1SchemaAligned 锁定 migration 239
+// （Subscription V1 Phase 1）的 schema 契约：additive 列默认值、新表、
+// 幂等唯一索引与 FK 删除语义。
+func TestMigrationsRunner_SubscriptionV1SchemaAligned(t *testing.T) {
+	tx := testTx(t)
+
+	// user_subscriptions.auto_payg_fallback：NOT NULL DEFAULT false（旧行为=超限拒绝）
+	requireColumn(t, tx, "user_subscriptions", "auto_payg_fallback", "boolean", 0, false)
+	requireColumnDefaultContains(t, tx, "user_subscriptions", "auto_payg_fallback", "false")
+
+	// groups.concurrency_override：可空（NULL=沿用 users.concurrency）
+	requireColumn(t, tx, "groups", "concurrency_override", "integer", 0, true)
+
+	// 新表存在
+	for _, table := range []string{
+		"subscription_reset_events",
+		"subscription_reset_applications",
+		"subscription_reset_cards",
+	} {
+		var regclass sql.NullString
+		require.NoError(t, tx.QueryRowContext(context.Background(),
+			"SELECT to_regclass($1)", "public."+table).Scan(&regclass))
+		require.True(t, regclass.Valid, "expected %s table to exist", table)
+	}
+
+	// 事件表关键列与默认值
+	requireColumn(t, tx, "subscription_reset_events", "event_type", "character varying", 32, false)
+	requireColumn(t, tx, "subscription_reset_events", "effective_at", "timestamp with time zone", 0, false)
+	requireColumn(t, tx, "subscription_reset_events", "scope", "jsonb", 0, false)
+	requireColumnDefaultContains(t, tx, "subscription_reset_events", "status", "pending")
+
+	// application 唯一约束（worker retry-safe 基石）与 FK 语义
+	requireIndex(t, tx, "subscription_reset_applications", "uq_subscription_reset_applications_event_sub")
+	requireForeignKeyOnDelete(t, tx, "subscription_reset_applications", "reset_event_id", "subscription_reset_events", "RESTRICT")
+	requireForeignKeyOnDelete(t, tx, "subscription_reset_applications", "user_subscription_id", "user_subscriptions", "CASCADE")
+
+	// 卡表关键列、索引与 FK 语义
+	requireColumn(t, tx, "subscription_reset_cards", "grant_index", "integer", 0, false)
+	requireColumnDefaultContains(t, tx, "subscription_reset_cards", "grant_index", "0")
+	requireColumnDefaultContains(t, tx, "subscription_reset_cards", "status", "available")
+	requireColumnDefaultContains(t, tx, "subscription_reset_cards", "scope", "weekly")
+	requireIndex(t, tx, "subscription_reset_cards", "idx_subscription_reset_cards_user_status")
+	requireIndex(t, tx, "subscription_reset_cards", "idx_subscription_reset_cards_expires_at")
+	requireIndex(t, tx, "subscription_reset_cards", "uq_subscription_reset_cards_grant_idempotency")
+	requireForeignKeyOnDelete(t, tx, "subscription_reset_cards", "user_id", "users", "CASCADE")
+	requireForeignKeyOnDelete(t, tx, "subscription_reset_cards", "used_subscription_id", "user_subscriptions", "SET NULL")
+	requireForeignKeyOnDelete(t, tx, "subscription_reset_cards", "grant_event_id", "subscription_reset_events", "RESTRICT")
+
+	// 事件 FK：created_by 随用户 SET NULL（管理员账号删除不丢事件）
+	requireForeignKeyOnDelete(t, tx, "subscription_reset_events", "created_by", "users", "SET NULL")
+}

@@ -369,6 +369,42 @@ func (f SubscriptionPlanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionPlanMutation", m)
 }
 
+// The SubscriptionResetApplicationFunc type is an adapter to allow the use of ordinary
+// function as SubscriptionResetApplication mutator.
+type SubscriptionResetApplicationFunc func(context.Context, *ent.SubscriptionResetApplicationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubscriptionResetApplicationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubscriptionResetApplicationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionResetApplicationMutation", m)
+}
+
+// The SubscriptionResetCardFunc type is an adapter to allow the use of ordinary
+// function as SubscriptionResetCard mutator.
+type SubscriptionResetCardFunc func(context.Context, *ent.SubscriptionResetCardMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubscriptionResetCardFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubscriptionResetCardMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionResetCardMutation", m)
+}
+
+// The SubscriptionResetEventFunc type is an adapter to allow the use of ordinary
+// function as SubscriptionResetEvent mutator.
+type SubscriptionResetEventFunc func(context.Context, *ent.SubscriptionResetEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubscriptionResetEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubscriptionResetEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionResetEventMutation", m)
+}
+
 // The TLSFingerprintProfileFunc type is an adapter to allow the use of ordinary
 // function as TLSFingerprintProfile mutator.
 type TLSFingerprintProfileFunc func(context.Context, *ent.TLSFingerprintProfileMutation) (ent.Value, error)

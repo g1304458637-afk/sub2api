@@ -91,6 +91,12 @@ const (
 	EdgePendingAuthSessions = "pending_auth_sessions"
 	// EdgePlatformQuotas holds the string denoting the platform_quotas edge name in mutations.
 	EdgePlatformQuotas = "platform_quotas"
+	// EdgeResetCards holds the string denoting the reset_cards edge name in mutations.
+	EdgeResetCards = "reset_cards"
+	// EdgeCreatedResetEvents holds the string denoting the created_reset_events edge name in mutations.
+	EdgeCreatedResetEvents = "created_reset_events"
+	// EdgeCreatedResetCards holds the string denoting the created_reset_cards edge name in mutations.
+	EdgeCreatedResetCards = "created_reset_cards"
 	// EdgeUserAllowedGroups holds the string denoting the user_allowed_groups edge name in mutations.
 	EdgeUserAllowedGroups = "user_allowed_groups"
 	// Table holds the table name of the user in the database.
@@ -184,6 +190,27 @@ const (
 	PlatformQuotasInverseTable = "user_platform_quotas"
 	// PlatformQuotasColumn is the table column denoting the platform_quotas relation/edge.
 	PlatformQuotasColumn = "user_id"
+	// ResetCardsTable is the table that holds the reset_cards relation/edge.
+	ResetCardsTable = "subscription_reset_cards"
+	// ResetCardsInverseTable is the table name for the SubscriptionResetCard entity.
+	// It exists in this package in order to avoid circular dependency with the "subscriptionresetcard" package.
+	ResetCardsInverseTable = "subscription_reset_cards"
+	// ResetCardsColumn is the table column denoting the reset_cards relation/edge.
+	ResetCardsColumn = "user_id"
+	// CreatedResetEventsTable is the table that holds the created_reset_events relation/edge.
+	CreatedResetEventsTable = "subscription_reset_events"
+	// CreatedResetEventsInverseTable is the table name for the SubscriptionResetEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "subscriptionresetevent" package.
+	CreatedResetEventsInverseTable = "subscription_reset_events"
+	// CreatedResetEventsColumn is the table column denoting the created_reset_events relation/edge.
+	CreatedResetEventsColumn = "created_by"
+	// CreatedResetCardsTable is the table that holds the created_reset_cards relation/edge.
+	CreatedResetCardsTable = "subscription_reset_cards"
+	// CreatedResetCardsInverseTable is the table name for the SubscriptionResetCard entity.
+	// It exists in this package in order to avoid circular dependency with the "subscriptionresetcard" package.
+	CreatedResetCardsInverseTable = "subscription_reset_cards"
+	// CreatedResetCardsColumn is the table column denoting the created_reset_cards relation/edge.
+	CreatedResetCardsColumn = "created_by"
 	// UserAllowedGroupsTable is the table that holds the user_allowed_groups relation/edge.
 	UserAllowedGroupsTable = "user_allowed_groups"
 	// UserAllowedGroupsInverseTable is the table name for the UserAllowedGroup entity.
@@ -612,6 +639,48 @@ func ByPlatformQuotas(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByResetCardsCount orders the results by reset_cards count.
+func ByResetCardsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newResetCardsStep(), opts...)
+	}
+}
+
+// ByResetCards orders the results by reset_cards terms.
+func ByResetCards(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newResetCardsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCreatedResetEventsCount orders the results by created_reset_events count.
+func ByCreatedResetEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCreatedResetEventsStep(), opts...)
+	}
+}
+
+// ByCreatedResetEvents orders the results by created_reset_events terms.
+func ByCreatedResetEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCreatedResetEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCreatedResetCardsCount orders the results by created_reset_cards count.
+func ByCreatedResetCardsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCreatedResetCardsStep(), opts...)
+	}
+}
+
+// ByCreatedResetCards orders the results by created_reset_cards terms.
+func ByCreatedResetCards(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCreatedResetCardsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByUserAllowedGroupsCount orders the results by user_allowed_groups count.
 func ByUserAllowedGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -714,6 +783,27 @@ func newPlatformQuotasStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PlatformQuotasInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, PlatformQuotasTable, PlatformQuotasColumn),
+	)
+}
+func newResetCardsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ResetCardsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ResetCardsTable, ResetCardsColumn),
+	)
+}
+func newCreatedResetEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CreatedResetEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CreatedResetEventsTable, CreatedResetEventsColumn),
+	)
+}
+func newCreatedResetCardsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CreatedResetCardsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CreatedResetCardsTable, CreatedResetCardsColumn),
 	)
 }
 func newUserAllowedGroupsStep() *sqlgraph.Step {

@@ -101,11 +101,17 @@ type UserEdges struct {
 	PendingAuthSessions []*PendingAuthSession `json:"pending_auth_sessions,omitempty"`
 	// PlatformQuotas holds the value of the platform_quotas edge.
 	PlatformQuotas []*UserPlatformQuota `json:"platform_quotas,omitempty"`
+	// ResetCards holds the value of the reset_cards edge.
+	ResetCards []*SubscriptionResetCard `json:"reset_cards,omitempty"`
+	// CreatedResetEvents holds the value of the created_reset_events edge.
+	CreatedResetEvents []*SubscriptionResetEvent `json:"created_reset_events,omitempty"`
+	// CreatedResetCards holds the value of the created_reset_cards edge.
+	CreatedResetCards []*SubscriptionResetCard `json:"created_reset_cards,omitempty"`
 	// UserAllowedGroups holds the value of the user_allowed_groups edge.
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [14]bool
+	loadedTypes [17]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -225,10 +231,37 @@ func (e UserEdges) PlatformQuotasOrErr() ([]*UserPlatformQuota, error) {
 	return nil, &NotLoadedError{edge: "platform_quotas"}
 }
 
+// ResetCardsOrErr returns the ResetCards value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ResetCardsOrErr() ([]*SubscriptionResetCard, error) {
+	if e.loadedTypes[13] {
+		return e.ResetCards, nil
+	}
+	return nil, &NotLoadedError{edge: "reset_cards"}
+}
+
+// CreatedResetEventsOrErr returns the CreatedResetEvents value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) CreatedResetEventsOrErr() ([]*SubscriptionResetEvent, error) {
+	if e.loadedTypes[14] {
+		return e.CreatedResetEvents, nil
+	}
+	return nil, &NotLoadedError{edge: "created_reset_events"}
+}
+
+// CreatedResetCardsOrErr returns the CreatedResetCards value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) CreatedResetCardsOrErr() ([]*SubscriptionResetCard, error) {
+	if e.loadedTypes[15] {
+		return e.CreatedResetCards, nil
+	}
+	return nil, &NotLoadedError{edge: "created_reset_cards"}
+}
+
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[13] {
+	if e.loadedTypes[16] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -502,6 +535,21 @@ func (_m *User) QueryPendingAuthSessions() *PendingAuthSessionQuery {
 // QueryPlatformQuotas queries the "platform_quotas" edge of the User entity.
 func (_m *User) QueryPlatformQuotas() *UserPlatformQuotaQuery {
 	return NewUserClient(_m.config).QueryPlatformQuotas(_m)
+}
+
+// QueryResetCards queries the "reset_cards" edge of the User entity.
+func (_m *User) QueryResetCards() *SubscriptionResetCardQuery {
+	return NewUserClient(_m.config).QueryResetCards(_m)
+}
+
+// QueryCreatedResetEvents queries the "created_reset_events" edge of the User entity.
+func (_m *User) QueryCreatedResetEvents() *SubscriptionResetEventQuery {
+	return NewUserClient(_m.config).QueryCreatedResetEvents(_m)
+}
+
+// QueryCreatedResetCards queries the "created_reset_cards" edge of the User entity.
+func (_m *User) QueryCreatedResetCards() *SubscriptionResetCardQuery {
+	return NewUserClient(_m.config).QueryCreatedResetCards(_m)
 }
 
 // QueryUserAllowedGroups queries the "user_allowed_groups" edge of the User entity.

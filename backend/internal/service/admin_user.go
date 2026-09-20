@@ -131,13 +131,23 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 		return nil, err
 	}
 
+	// 并发：字段未提供时与注册路径统一，使用 default_concurrency 设置；
+	// 显式 0 = unlimited（Runtime 已锁定语义），显式 N = 上限 N。
+	// 无 settingService 时兜底 1，避免静默发放无限并发。
+	concurrency := 1
+	if input.Concurrency != nil {
+		concurrency = *input.Concurrency
+	} else if s.settingService != nil {
+		concurrency = s.settingService.GetDefaultConcurrency(ctx)
+	}
+
 	user := &User{
 		Email:         input.Email,
 		Username:      input.Username,
 		Notes:         input.Notes,
 		Role:          role,
 		Balance:       balance,
-		Concurrency:   input.Concurrency,
+		Concurrency:   concurrency,
 		RPMLimit:      input.RPMLimit,
 		Status:        StatusActive,
 		AllowedGroups: input.AllowedGroups,

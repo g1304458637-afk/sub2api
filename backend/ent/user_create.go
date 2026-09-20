@@ -19,6 +19,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetevent"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -563,6 +565,51 @@ func (_c *UserCreate) AddPlatformQuotas(v ...*UserPlatformQuota) *UserCreate {
 	return _c.AddPlatformQuotaIDs(ids...)
 }
 
+// AddResetCardIDs adds the "reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_c *UserCreate) AddResetCardIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddResetCardIDs(ids...)
+	return _c
+}
+
+// AddResetCards adds the "reset_cards" edges to the SubscriptionResetCard entity.
+func (_c *UserCreate) AddResetCards(v ...*SubscriptionResetCard) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddResetCardIDs(ids...)
+}
+
+// AddCreatedResetEventIDs adds the "created_reset_events" edge to the SubscriptionResetEvent entity by IDs.
+func (_c *UserCreate) AddCreatedResetEventIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddCreatedResetEventIDs(ids...)
+	return _c
+}
+
+// AddCreatedResetEvents adds the "created_reset_events" edges to the SubscriptionResetEvent entity.
+func (_c *UserCreate) AddCreatedResetEvents(v ...*SubscriptionResetEvent) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCreatedResetEventIDs(ids...)
+}
+
+// AddCreatedResetCardIDs adds the "created_reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_c *UserCreate) AddCreatedResetCardIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddCreatedResetCardIDs(ids...)
+	return _c
+}
+
+// AddCreatedResetCards adds the "created_reset_cards" edges to the SubscriptionResetCard entity.
+func (_c *UserCreate) AddCreatedResetCards(v ...*SubscriptionResetCard) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCreatedResetCardIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_c *UserCreate) Mutation() *UserMutation {
 	return _c.mutation
@@ -1098,6 +1145,54 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userplatformquota.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ResetCardsTable,
+			Columns: []string{user.ResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CreatedResetEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetEventsTable,
+			Columns: []string{user.CreatedResetEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetevent.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CreatedResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetCardsTable,
+			Columns: []string{user.CreatedResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

@@ -53,6 +53,8 @@ type UserSubscription struct {
 	AssignedAt time.Time `json:"assigned_at,omitempty"`
 	// Notes holds the value of the "notes" field.
 	Notes *string `json:"notes,omitempty"`
+	// AutoPaygFallback holds the value of the "auto_payg_fallback" field.
+	AutoPaygFallback bool `json:"auto_payg_fallback,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserSubscriptionQuery when eager-loading is set.
 	Edges        UserSubscriptionEdges `json:"edges"`
@@ -69,9 +71,13 @@ type UserSubscriptionEdges struct {
 	AssignedByUser *User `json:"assigned_by_user,omitempty"`
 	// UsageLogs holds the value of the usage_logs edge.
 	UsageLogs []*UsageLog `json:"usage_logs,omitempty"`
+	// ResetApplications holds the value of the reset_applications edge.
+	ResetApplications []*SubscriptionResetApplication `json:"reset_applications,omitempty"`
+	// UsedByResetCards holds the value of the used_by_reset_cards edge.
+	UsedByResetCards []*SubscriptionResetCard `json:"used_by_reset_cards,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [6]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -116,11 +122,31 @@ func (e UserSubscriptionEdges) UsageLogsOrErr() ([]*UsageLog, error) {
 	return nil, &NotLoadedError{edge: "usage_logs"}
 }
 
+// ResetApplicationsOrErr returns the ResetApplications value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserSubscriptionEdges) ResetApplicationsOrErr() ([]*SubscriptionResetApplication, error) {
+	if e.loadedTypes[4] {
+		return e.ResetApplications, nil
+	}
+	return nil, &NotLoadedError{edge: "reset_applications"}
+}
+
+// UsedByResetCardsOrErr returns the UsedByResetCards value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserSubscriptionEdges) UsedByResetCardsOrErr() ([]*SubscriptionResetCard, error) {
+	if e.loadedTypes[5] {
+		return e.UsedByResetCards, nil
+	}
+	return nil, &NotLoadedError{edge: "used_by_reset_cards"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*UserSubscription) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case usersubscription.FieldAutoPaygFallback:
+			values[i] = new(sql.NullBool)
 		case usersubscription.FieldDailyUsageUsd, usersubscription.FieldWeeklyUsageUsd, usersubscription.FieldMonthlyUsageUsd:
 			values[i] = new(sql.NullFloat64)
 		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldGroupID, usersubscription.FieldAssignedBy:
@@ -258,6 +284,12 @@ func (_m *UserSubscription) assignValues(columns []string, values []any) error {
 				_m.Notes = new(string)
 				*_m.Notes = value.String
 			}
+		case usersubscription.FieldAutoPaygFallback:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_payg_fallback", values[i])
+			} else if value.Valid {
+				_m.AutoPaygFallback = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -289,6 +321,16 @@ func (_m *UserSubscription) QueryAssignedByUser() *UserQuery {
 // QueryUsageLogs queries the "usage_logs" edge of the UserSubscription entity.
 func (_m *UserSubscription) QueryUsageLogs() *UsageLogQuery {
 	return NewUserSubscriptionClient(_m.config).QueryUsageLogs(_m)
+}
+
+// QueryResetApplications queries the "reset_applications" edge of the UserSubscription entity.
+func (_m *UserSubscription) QueryResetApplications() *SubscriptionResetApplicationQuery {
+	return NewUserSubscriptionClient(_m.config).QueryResetApplications(_m)
+}
+
+// QueryUsedByResetCards queries the "used_by_reset_cards" edge of the UserSubscription entity.
+func (_m *UserSubscription) QueryUsedByResetCards() *SubscriptionResetCardQuery {
+	return NewUserSubscriptionClient(_m.config).QueryUsedByResetCards(_m)
 }
 
 // Update returns a builder for updating this UserSubscription.
@@ -376,6 +418,9 @@ func (_m *UserSubscription) String() string {
 		builder.WriteString("notes=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("auto_payg_fallback=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoPaygFallback))
 	builder.WriteByte(')')
 	return builder.String()
 }

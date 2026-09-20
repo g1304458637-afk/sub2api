@@ -104,6 +104,20 @@ func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.
 		UserID:  user.ID,
 		GroupID: group.ID,
 	})
+	// 该行数据会被同包 TestUserSubscriptionRepoSuite/TestList_* 的无过滤断言扫到，
+	// 必须随测试结束清理（Phase 0 基线联跑要求）。
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(ctx,
+			"DELETE FROM usage_billing_dedup WHERE api_key_id = $1", apiKey.ID)
+		_, _ = integrationDB.ExecContext(ctx,
+			"DELETE FROM user_subscriptions WHERE user_id = $1", user.ID)
+		_, _ = integrationDB.ExecContext(ctx,
+			"DELETE FROM api_keys WHERE user_id = $1", user.ID)
+		_, _ = integrationDB.ExecContext(ctx,
+			"DELETE FROM users WHERE id = $1", user.ID)
+		_, _ = integrationDB.ExecContext(ctx,
+			"DELETE FROM groups WHERE id = $1", group.ID)
+	})
 
 	requestID := uuid.NewString()
 	cmd := &service.UsageBillingCommand{

@@ -22,6 +22,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetevent"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
@@ -50,6 +52,9 @@ type UserQuery struct {
 	withAuthIdentities        *AuthIdentityQuery
 	withPendingAuthSessions   *PendingAuthSessionQuery
 	withPlatformQuotas        *UserPlatformQuotaQuery
+	withResetCards            *SubscriptionResetCardQuery
+	withCreatedResetEvents    *SubscriptionResetEventQuery
+	withCreatedResetCards     *SubscriptionResetCardQuery
 	withUserAllowedGroups     *UserAllowedGroupQuery
 	modifiers                 []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
@@ -374,6 +379,72 @@ func (_q *UserQuery) QueryPlatformQuotas() *UserPlatformQuotaQuery {
 	return query
 }
 
+// QueryResetCards chains the current query on the "reset_cards" edge.
+func (_q *UserQuery) QueryResetCards() *SubscriptionResetCardQuery {
+	query := (&SubscriptionResetCardClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(subscriptionresetcard.Table, subscriptionresetcard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ResetCardsTable, user.ResetCardsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCreatedResetEvents chains the current query on the "created_reset_events" edge.
+func (_q *UserQuery) QueryCreatedResetEvents() *SubscriptionResetEventQuery {
+	query := (&SubscriptionResetEventClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(subscriptionresetevent.Table, subscriptionresetevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CreatedResetEventsTable, user.CreatedResetEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCreatedResetCards chains the current query on the "created_reset_cards" edge.
+func (_q *UserQuery) QueryCreatedResetCards() *SubscriptionResetCardQuery {
+	query := (&SubscriptionResetCardClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(subscriptionresetcard.Table, subscriptionresetcard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CreatedResetCardsTable, user.CreatedResetCardsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryUserAllowedGroups chains the current query on the "user_allowed_groups" edge.
 func (_q *UserQuery) QueryUserAllowedGroups() *UserAllowedGroupQuery {
 	query := (&UserAllowedGroupClient{config: _q.config}).Query()
@@ -601,6 +672,9 @@ func (_q *UserQuery) Clone() *UserQuery {
 		withAuthIdentities:        _q.withAuthIdentities.Clone(),
 		withPendingAuthSessions:   _q.withPendingAuthSessions.Clone(),
 		withPlatformQuotas:        _q.withPlatformQuotas.Clone(),
+		withResetCards:            _q.withResetCards.Clone(),
+		withCreatedResetEvents:    _q.withCreatedResetEvents.Clone(),
+		withCreatedResetCards:     _q.withCreatedResetCards.Clone(),
 		withUserAllowedGroups:     _q.withUserAllowedGroups.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -751,6 +825,39 @@ func (_q *UserQuery) WithPlatformQuotas(opts ...func(*UserPlatformQuotaQuery)) *
 	return _q
 }
 
+// WithResetCards tells the query-builder to eager-load the nodes that are connected to
+// the "reset_cards" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithResetCards(opts ...func(*SubscriptionResetCardQuery)) *UserQuery {
+	query := (&SubscriptionResetCardClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withResetCards = query
+	return _q
+}
+
+// WithCreatedResetEvents tells the query-builder to eager-load the nodes that are connected to
+// the "created_reset_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithCreatedResetEvents(opts ...func(*SubscriptionResetEventQuery)) *UserQuery {
+	query := (&SubscriptionResetEventClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCreatedResetEvents = query
+	return _q
+}
+
+// WithCreatedResetCards tells the query-builder to eager-load the nodes that are connected to
+// the "created_reset_cards" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithCreatedResetCards(opts ...func(*SubscriptionResetCardQuery)) *UserQuery {
+	query := (&SubscriptionResetCardClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCreatedResetCards = query
+	return _q
+}
+
 // WithUserAllowedGroups tells the query-builder to eager-load the nodes that are connected to
 // the "user_allowed_groups" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *UserQuery) WithUserAllowedGroups(opts ...func(*UserAllowedGroupQuery)) *UserQuery {
@@ -840,7 +947,7 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [14]bool{
+		loadedTypes = [17]bool{
 			_q.withAPIKeys != nil,
 			_q.withRedeemCodes != nil,
 			_q.withSubscriptions != nil,
@@ -854,6 +961,9 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			_q.withAuthIdentities != nil,
 			_q.withPendingAuthSessions != nil,
 			_q.withPlatformQuotas != nil,
+			_q.withResetCards != nil,
+			_q.withCreatedResetEvents != nil,
+			_q.withCreatedResetCards != nil,
 			_q.withUserAllowedGroups != nil,
 		}
 	)
@@ -970,6 +1080,31 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadPlatformQuotas(ctx, query, nodes,
 			func(n *User) { n.Edges.PlatformQuotas = []*UserPlatformQuota{} },
 			func(n *User, e *UserPlatformQuota) { n.Edges.PlatformQuotas = append(n.Edges.PlatformQuotas, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withResetCards; query != nil {
+		if err := _q.loadResetCards(ctx, query, nodes,
+			func(n *User) { n.Edges.ResetCards = []*SubscriptionResetCard{} },
+			func(n *User, e *SubscriptionResetCard) { n.Edges.ResetCards = append(n.Edges.ResetCards, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCreatedResetEvents; query != nil {
+		if err := _q.loadCreatedResetEvents(ctx, query, nodes,
+			func(n *User) { n.Edges.CreatedResetEvents = []*SubscriptionResetEvent{} },
+			func(n *User, e *SubscriptionResetEvent) {
+				n.Edges.CreatedResetEvents = append(n.Edges.CreatedResetEvents, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCreatedResetCards; query != nil {
+		if err := _q.loadCreatedResetCards(ctx, query, nodes,
+			func(n *User) { n.Edges.CreatedResetCards = []*SubscriptionResetCard{} },
+			func(n *User, e *SubscriptionResetCard) {
+				n.Edges.CreatedResetCards = append(n.Edges.CreatedResetCards, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -1408,6 +1543,102 @@ func (_q *UserQuery) loadPlatformQuotas(ctx context.Context, query *UserPlatform
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadResetCards(ctx context.Context, query *SubscriptionResetCardQuery, nodes []*User, init func(*User), assign func(*User, *SubscriptionResetCard)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(subscriptionresetcard.FieldUserID)
+	}
+	query.Where(predicate.SubscriptionResetCard(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ResetCardsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadCreatedResetEvents(ctx context.Context, query *SubscriptionResetEventQuery, nodes []*User, init func(*User), assign func(*User, *SubscriptionResetEvent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(subscriptionresetevent.FieldCreatedBy)
+	}
+	query.Where(predicate.SubscriptionResetEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.CreatedResetEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.CreatedBy
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "created_by" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "created_by" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadCreatedResetCards(ctx context.Context, query *SubscriptionResetCardQuery, nodes []*User, init func(*User), assign func(*User, *SubscriptionResetCard)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(subscriptionresetcard.FieldCreatedBy)
+	}
+	query.Where(predicate.SubscriptionResetCard(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.CreatedResetCardsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.CreatedBy
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "created_by" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "created_by" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

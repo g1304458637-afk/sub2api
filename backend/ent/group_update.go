@@ -339,6 +339,33 @@ func (_u *GroupUpdate) AddDefaultValidityDays(v int) *GroupUpdate {
 	return _u
 }
 
+// SetConcurrencyOverride sets the "concurrency_override" field.
+func (_u *GroupUpdate) SetConcurrencyOverride(v int) *GroupUpdate {
+	_u.mutation.ResetConcurrencyOverride()
+	_u.mutation.SetConcurrencyOverride(v)
+	return _u
+}
+
+// SetNillableConcurrencyOverride sets the "concurrency_override" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableConcurrencyOverride(v *int) *GroupUpdate {
+	if v != nil {
+		_u.SetConcurrencyOverride(*v)
+	}
+	return _u
+}
+
+// AddConcurrencyOverride adds value to the "concurrency_override" field.
+func (_u *GroupUpdate) AddConcurrencyOverride(v int) *GroupUpdate {
+	_u.mutation.AddConcurrencyOverride(v)
+	return _u
+}
+
+// ClearConcurrencyOverride clears the value of the "concurrency_override" field.
+func (_u *GroupUpdate) ClearConcurrencyOverride() *GroupUpdate {
+	_u.mutation.ClearConcurrencyOverride()
+	return _u
+}
+
 // SetAllowImageGeneration sets the "allow_image_generation" field.
 func (_u *GroupUpdate) SetAllowImageGeneration(v bool) *GroupUpdate {
 	_u.mutation.SetAllowImageGeneration(v)
@@ -1513,6 +1540,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "subscription_type", err: fmt.Errorf(`ent: validator failed for field "Group.subscription_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ConcurrencyOverride(); ok {
+		if err := group.ConcurrencyOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "concurrency_override", err: fmt.Errorf(`ent: validator failed for field "Group.concurrency_override": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SearchPricePer1k(); ok {
 		if err := group.SearchPricePer1kValidator(v); err != nil {
 			return &ValidationError{Name: "search_price_per_1k", err: fmt.Errorf(`ent: validator failed for field "Group.search_price_per_1k": %w`, err)}
@@ -1649,6 +1681,15 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedDefaultValidityDays(); ok {
 		_spec.AddField(group.FieldDefaultValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ConcurrencyOverride(); ok {
+		_spec.SetField(group.FieldConcurrencyOverride, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedConcurrencyOverride(); ok {
+		_spec.AddField(group.FieldConcurrencyOverride, field.TypeInt, value)
+	}
+	if _u.mutation.ConcurrencyOverrideCleared() {
+		_spec.ClearField(group.FieldConcurrencyOverride, field.TypeInt)
 	}
 	if value, ok := _u.mutation.AllowImageGeneration(); ok {
 		_spec.SetField(group.FieldAllowImageGeneration, field.TypeBool, value)
@@ -2530,6 +2571,33 @@ func (_u *GroupUpdateOne) SetNillableDefaultValidityDays(v *int) *GroupUpdateOne
 // AddDefaultValidityDays adds value to the "default_validity_days" field.
 func (_u *GroupUpdateOne) AddDefaultValidityDays(v int) *GroupUpdateOne {
 	_u.mutation.AddDefaultValidityDays(v)
+	return _u
+}
+
+// SetConcurrencyOverride sets the "concurrency_override" field.
+func (_u *GroupUpdateOne) SetConcurrencyOverride(v int) *GroupUpdateOne {
+	_u.mutation.ResetConcurrencyOverride()
+	_u.mutation.SetConcurrencyOverride(v)
+	return _u
+}
+
+// SetNillableConcurrencyOverride sets the "concurrency_override" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableConcurrencyOverride(v *int) *GroupUpdateOne {
+	if v != nil {
+		_u.SetConcurrencyOverride(*v)
+	}
+	return _u
+}
+
+// AddConcurrencyOverride adds value to the "concurrency_override" field.
+func (_u *GroupUpdateOne) AddConcurrencyOverride(v int) *GroupUpdateOne {
+	_u.mutation.AddConcurrencyOverride(v)
+	return _u
+}
+
+// ClearConcurrencyOverride clears the value of the "concurrency_override" field.
+func (_u *GroupUpdateOne) ClearConcurrencyOverride() *GroupUpdateOne {
+	_u.mutation.ClearConcurrencyOverride()
 	return _u
 }
 
@@ -3720,6 +3788,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "subscription_type", err: fmt.Errorf(`ent: validator failed for field "Group.subscription_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ConcurrencyOverride(); ok {
+		if err := group.ConcurrencyOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "concurrency_override", err: fmt.Errorf(`ent: validator failed for field "Group.concurrency_override": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SearchPricePer1k(); ok {
 		if err := group.SearchPricePer1kValidator(v); err != nil {
 			return &ValidationError{Name: "search_price_per_1k", err: fmt.Errorf(`ent: validator failed for field "Group.search_price_per_1k": %w`, err)}
@@ -3873,6 +3946,15 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.AddedDefaultValidityDays(); ok {
 		_spec.AddField(group.FieldDefaultValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ConcurrencyOverride(); ok {
+		_spec.SetField(group.FieldConcurrencyOverride, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedConcurrencyOverride(); ok {
+		_spec.AddField(group.FieldConcurrencyOverride, field.TypeInt, value)
+	}
+	if _u.mutation.ConcurrencyOverrideCleared() {
+		_spec.ClearField(group.FieldConcurrencyOverride, field.TypeInt)
 	}
 	if value, ok := _u.mutation.AllowImageGeneration(); ok {
 		_spec.SetField(group.FieldAllowImageGeneration, field.TypeBool, value)
