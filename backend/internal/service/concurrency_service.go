@@ -378,6 +378,15 @@ func (s *ConcurrencyService) AcquireAccountSlot(ctx context.Context, accountID i
 // AcquireUserSlot attempts to acquire a concurrency slot for a user.
 // If the user is at max concurrency, it waits until a slot is available or timeout.
 // Returns a release function that MUST be called when the request completes.
+// AcquireUserSlot 用户级并发槽获取。
+//
+// 语义（Phase 3D 锁定，GitHub 上游 Issue #5977 同义）：maxConcurrency <= 0 =
+// 不限并发——在 Go 层直接放行（no-op release），不触 Redis；与 live lease Lua 的
+// `userMax > 0` 守卫一致。调用方传入的是 users.concurrency（api_key_auth → handler）。
+//
+// Phase 7 concurrency_override 生效时的唯一合法公式：
+//   users.concurrency <= 0 → effective = unlimited（订阅 override 只能抬底，不得封顶）
+//   否则                    → effective = max(users.concurrency, max(active group overrides))
 func (s *ConcurrencyService) AcquireUserSlot(ctx context.Context, userID int64, maxConcurrency int) (*AcquireResult, error) {
 	// If maxConcurrency is 0 or negative, no limit
 	if maxConcurrency <= 0 {

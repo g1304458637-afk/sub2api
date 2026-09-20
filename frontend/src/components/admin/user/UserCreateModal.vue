@@ -39,7 +39,8 @@
         </div>
         <div>
           <label class="input-label">{{ t('admin.users.columns.concurrency') }}</label>
-          <input v-model.number="form.concurrency" type="number" class="input" />
+          <input v-model.number="form.concurrency" type="number" min="0" step="1" class="input" />
+          <p class="input-hint">{{ t('admin.users.form.concurrencyHint') }}</p>
         </div>
       </div>
       <div>
@@ -76,13 +77,29 @@ import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useStepUp, isStepUpBlocked, isStepUpCancelled, stepUpBlockReason } from '@/composables/useStepUp'
+import { getSettings } from '@/api/admin/settings'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits(['close', 'success']); const { t } = useI18n()
 const appStore = useAppStore()
 
-const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user' as 'user' | 'admin', balance: '', concurrency: 1, rpm_limit: 0 })
+const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user' as 'user' | 'admin', balance: '', concurrency: 5, rpm_limit: 0 })
+
+// 并发默认值取后台 default_concurrency 设置（与注册路径统一）；取不到时回退 5。
+let defaultConcurrencyLoaded = false
+const applyDefaultConcurrency = async () => {
+  if (defaultConcurrencyLoaded) return
+  try {
+    const settings = await getSettings()
+    if (typeof settings.default_concurrency === 'number' && settings.default_concurrency > 0) {
+      form.concurrency = settings.default_concurrency
+      defaultConcurrencyLoaded = true
+    }
+  } catch {
+    // 保持回退默认 5
+  }
+}
 
 const stepUp = useStepUp()
 const loading = ref(false)
@@ -116,7 +133,7 @@ const submit = async () => {
   } finally { loading.value = false }
 }
 
-watch(() => props.show, (v) => { if(v) Object.assign(form, { email: '', password: '', username: '', notes: '', role: 'user', balance: '', concurrency: 1, rpm_limit: 0 }) })
+watch(() => props.show, (v) => { if(v) { Object.assign(form, { email: '', password: '', username: '', notes: '', role: 'user', balance: '', concurrency: 5, rpm_limit: 0 }); void applyDefaultConcurrency() } })
 
 const generateRandomPassword = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*'

@@ -101,7 +101,8 @@ func (Group) Fields() []ent.Field {
 		// NULL = 不提供额外并发权益（现状，全部存量分组为 NULL）；
 		// N>0 = 订阅该分组提供 N 的并发权益。
 		// 运行时（Phase 7 实现）按用户级聚合：
-		//   effective_concurrency = max(users.concurrency, 该用户全部有效订阅分组的 override)
+		//   users.concurrency <= 0 → effective = unlimited（0 = unlimited，override 不得封顶）
+		//   否则 → effective = max(users.concurrency, 该用户全部有效订阅分组的 override)
 		// 因为 Phase 0 已证明并发池是每用户一个 Redis ZSET，所有 API Key 共用。
 		field.Int("concurrency_override").
 			Optional().
