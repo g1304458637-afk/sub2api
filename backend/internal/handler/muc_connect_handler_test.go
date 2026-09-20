@@ -85,6 +85,23 @@ func (s *stubKeyManager) SearchAPIKeys(ctx context.Context, userID int64, keywor
 	return out, nil
 }
 
+type stubGroupLookup struct {
+	groups []*int64
+}
+
+func (s stubGroupLookup) DefaultGroupIDWithAccounts(ctx context.Context) (*int64, error) {
+	if len(s.groups) == 0 {
+		return nil, nil
+	}
+	smallest := *s.groups[0]
+	for _, g := range s.groups[1:] {
+		if g != nil && *g < smallest {
+			smallest = *g
+		}
+	}
+	return &smallest, nil
+}
+
 type stubUserLookup struct {
 	user *service.User
 }
@@ -127,7 +144,7 @@ var errMucCodeNotFound = muccode.ErrCodeNotFound
 func newMucTestEnv(t *testing.T) (*MucConnectHandler, *miniredis.Miniredis, *stubKeyManager) {
 	t.Helper()
 	mr := miniredis.RunT(t)
-	h := NewMucConnectHandler(nil, nil, nil)
+	h := NewMucConnectHandler(nil, nil, nil, nil)
 	h.codes = &stubCodeStore{mr: mr}
 	creator := newStubKeyManager()
 	creator.key = &service.APIKey{Key: "sk-muc-test-key", Name: "MUC test"}
@@ -193,6 +210,31 @@ func TestMucConnectCode_IssuesCode(t *testing.T) {
 	}
 	if len(resp.Data.Code) < 16 {
 		t.Fatalf("code too short: %s", resp.Data.Code)
+	}
+}
+
+// 未限定分组用户（管理员测试号）：自动绑定挂有可调度账号的最小分组。
+func TestMucExchange_UnrestrictedUserBindsGroupWithAccounts(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+	g14 := int64(14)
+	g99 := int64(99)
+	h.groupLookup = stubGroupLookup{groups: []*int64{&g99, &g14}} // 返回顺序不应影响结果
+
+	issue := func(code string, userID int64) {
+		sum := sha256Hex(code)
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
+	}
+	issue("unres-code-11111111111111111", 42)
+
+	c, w := mucCtxWithBody(t, `{"code":"unres-code-11111111111111111","device_name":"admin测试"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	got := creator.lastReq.GroupID
+	if got == nil || *got != 14 {
+		t.Fatalf("expected group 14 (smallest with accounts), got %v", got)
 	}
 }
 

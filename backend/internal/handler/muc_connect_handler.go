@@ -60,17 +60,24 @@ type mucKeyManager interface {
 	GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error)
 }
 
-type MucConnectHandler struct {
-	codes      mucCodeStore
-	keys       mucKeyManager
-	userLookup mucUserLookup
+// 未限定分组用户（如管理员测试号）的默认分组来源：取挂有可调度账号的最小分组
+type mucGroupLookup interface {
+	DefaultGroupIDWithAccounts(ctx context.Context) (*int64, error)
 }
 
-func NewMucConnectHandler(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService) *MucConnectHandler {
+type MucConnectHandler struct {
+	codes       mucCodeStore
+	keys        mucKeyManager
+	userLookup  mucUserLookup
+	groupLookup mucGroupLookup
+}
+
+func NewMucConnectHandler(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, gatewayService *service.GatewayService) *MucConnectHandler {
 	return &MucConnectHandler{
-		codes:      codeStore,
-		keys:       apiKeyService,
-		userLookup: userService,
+		codes:       codeStore,
+		keys:        apiKeyService,
+		userLookup:  userService,
+		groupLookup: gatewayService,
 	}
 }
 
@@ -158,9 +165,10 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 	// 先建后删：创建失败时旧 Key 仍然有效，设备不致凭据全失。
 	//
 	// MUC Harness: 自动绑定分组。生产 allow_ungrouped_key_scheduling=false，
-	// 无分组 Key 无法调用网关；mucode 是免配置产品，Key 必须开箱可用：
+	// 无分组 Key 虽可列出模型但无法被调度对话；mucode 是免配置产品，Key 必须开箱可用：
 	// - 用户被限定分组（RestrictPublicGroups）时绑其允许分组（多个取最小 ID，稳定可预期）；
-	// - 管理员等未限定用户保持 NULL，沿用站点的未分组调度策略。
+	// - 未限定用户（管理员测试号等）绑挂有可调度账号的最小分组；
+	// - 两者都取不到时保持 NULL，沿用站点的未分组调度策略。
 	var keyGroupID *int64
 	if allowed, restrict, err := h.keys.GetUserGroupVisibility(c.Request.Context(), payloadData.UserID); err == nil && restrict {
 		ids := make([]int64, 0, len(allowed))
@@ -170,6 +178,10 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		if len(ids) > 0 {
 			sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 			keyGroupID = &ids[0]
+		}
+	} else if h.groupLookup != nil {
+		if gid, err := h.groupLookup.DefaultGroupIDWithAccounts(c.Request.Context()); err == nil && gid != nil {
+			keyGroupID = gid
 		}
 	}
 	key, err := h.keys.Create(c.Request.Context(), payloadData.UserID, service.CreateAPIKeyRequest{
