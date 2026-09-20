@@ -79,6 +79,13 @@ func (UserSubscription) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "text"}),
+
+		// 用户级 PAYG fallback 开关（个人选择，非分组属性）：
+		// false（默认）= 订阅额度耗尽 → 拒绝；
+		// true = 订阅额度耗尽 → 后续请求可转余额计费（V1 后续 Phase 实现，仅建字段）。
+		// 默认值即现行为：迁移后存量订阅零变化。
+		field.Bool("auto_payg_fallback").
+			Default(false),
 	}
 }
 
@@ -99,6 +106,10 @@ func (UserSubscription) Edges() []ent.Edge {
 			Field("assigned_by").
 			Unique(),
 		edge.To("usage_logs", UsageLog.Type),
+		// Reset 应用记录：订阅硬删时随订阅级联清除（事件主记录经 RESTRICT 保留）
+		edge.To("reset_applications", SubscriptionResetApplication.Type),
+		// 使用本订阅消费的 Reset Card：订阅硬删时 used_subscription_id 置 NULL（卡历史保留）
+		edge.To("used_by_reset_cards", SubscriptionResetCard.Type),
 	}
 }
 

@@ -74,6 +74,12 @@ type Tx struct {
 	Setting *SettingClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
+	// SubscriptionResetApplication is the client for interacting with the SubscriptionResetApplication builders.
+	SubscriptionResetApplication *SubscriptionResetApplicationClient
+	// SubscriptionResetCard is the client for interacting with the SubscriptionResetCard builders.
+	SubscriptionResetCard *SubscriptionResetCardClient
+	// SubscriptionResetEvent is the client for interacting with the SubscriptionResetEvent builders.
+	SubscriptionResetEvent *SubscriptionResetEventClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
 	TLSFingerprintProfile *TLSFingerprintProfileClient
 	// UsageCleanupTask is the client for interacting with the UsageCleanupTask builders.
@@ -253,6 +259,9 @@ func (tx *Tx) init() {
 	tx.SecuritySecret = NewSecuritySecretClient(tx.config)
 	tx.Setting = NewSettingClient(tx.config)
 	tx.SubscriptionPlan = NewSubscriptionPlanClient(tx.config)
+	tx.SubscriptionResetApplication = NewSubscriptionResetApplicationClient(tx.config)
+	tx.SubscriptionResetCard = NewSubscriptionResetCardClient(tx.config)
+	tx.SubscriptionResetEvent = NewSubscriptionResetEventClient(tx.config)
 	tx.TLSFingerprintProfile = NewTLSFingerprintProfileClient(tx.config)
 	tx.UsageCleanupTask = NewUsageCleanupTaskClient(tx.config)
 	tx.UsageLog = NewUsageLogClient(tx.config)

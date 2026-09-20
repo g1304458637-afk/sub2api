@@ -54,6 +54,8 @@ const (
 	FieldMonthlyLimitUsd = "monthly_limit_usd"
 	// FieldDefaultValidityDays holds the string denoting the default_validity_days field in the database.
 	FieldDefaultValidityDays = "default_validity_days"
+	// FieldConcurrencyOverride holds the string denoting the concurrency_override field in the database.
+	FieldConcurrencyOverride = "concurrency_override"
 	// FieldAllowImageGeneration holds the string denoting the allow_image_generation field in the database.
 	FieldAllowImageGeneration = "allow_image_generation"
 	// FieldAllowBatchImageGeneration holds the string denoting the allow_batch_image_generation field in the database.
@@ -242,6 +244,7 @@ var Columns = []string{
 	FieldWeeklyLimitUsd,
 	FieldMonthlyLimitUsd,
 	FieldDefaultValidityDays,
+	FieldConcurrencyOverride,
 	FieldAllowImageGeneration,
 	FieldAllowBatchImageGeneration,
 	FieldImageRateIndependent,
@@ -358,6 +361,8 @@ var (
 	SubscriptionTypeValidator func(string) error
 	// DefaultDefaultValidityDays holds the default value on creation for the "default_validity_days" field.
 	DefaultDefaultValidityDays int
+	// ConcurrencyOverrideValidator is a validator for the "concurrency_override" field. It is called by the builders before save.
+	ConcurrencyOverrideValidator func(int) error
 	// DefaultAllowImageGeneration holds the default value on creation for the "allow_image_generation" field.
 	DefaultAllowImageGeneration bool
 	// DefaultAllowBatchImageGeneration holds the default value on creation for the "allow_batch_image_generation" field.
@@ -537,6 +542,11 @@ func ByMonthlyLimitUsd(opts ...sql.OrderTermOption) OrderOption {
 // ByDefaultValidityDays orders the results by the default_validity_days field.
 func ByDefaultValidityDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDefaultValidityDays, opts...).ToFunc()
+}
+
+// ByConcurrencyOverride orders the results by the concurrency_override field.
+func ByConcurrencyOverride(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConcurrencyOverride, opts...).ToFunc()
 }
 
 // ByAllowImageGeneration orders the results by the allow_image_generation field.

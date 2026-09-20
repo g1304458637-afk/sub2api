@@ -43,6 +43,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetevent"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
@@ -94,6 +97,9 @@ const (
 	TypeSecuritySecret                = "SecuritySecret"
 	TypeSetting                       = "Setting"
 	TypeSubscriptionPlan              = "SubscriptionPlan"
+	TypeSubscriptionResetApplication  = "SubscriptionResetApplication"
+	TypeSubscriptionResetCard         = "SubscriptionResetCard"
+	TypeSubscriptionResetEvent        = "SubscriptionResetEvent"
 	TypeTLSFingerprintProfile         = "TLSFingerprintProfile"
 	TypeUsageCleanupTask              = "UsageCleanupTask"
 	TypeUsageLog                      = "UsageLog"
@@ -22106,6 +22112,8 @@ type GroupMutation struct {
 	addmonthly_limit_usd                    *float64
 	default_validity_days                   *int
 	adddefault_validity_days                *int
+	concurrency_override                    *int
+	addconcurrency_override                 *int
 	allow_image_generation                  *bool
 	allow_batch_image_generation            *bool
 	image_rate_independent                  *bool
@@ -23182,6 +23190,76 @@ func (m *GroupMutation) AddedDefaultValidityDays() (r int, exists bool) {
 func (m *GroupMutation) ResetDefaultValidityDays() {
 	m.default_validity_days = nil
 	m.adddefault_validity_days = nil
+}
+
+// SetConcurrencyOverride sets the "concurrency_override" field.
+func (m *GroupMutation) SetConcurrencyOverride(i int) {
+	m.concurrency_override = &i
+	m.addconcurrency_override = nil
+}
+
+// ConcurrencyOverride returns the value of the "concurrency_override" field in the mutation.
+func (m *GroupMutation) ConcurrencyOverride() (r int, exists bool) {
+	v := m.concurrency_override
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConcurrencyOverride returns the old "concurrency_override" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldConcurrencyOverride(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConcurrencyOverride is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConcurrencyOverride requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConcurrencyOverride: %w", err)
+	}
+	return oldValue.ConcurrencyOverride, nil
+}
+
+// AddConcurrencyOverride adds i to the "concurrency_override" field.
+func (m *GroupMutation) AddConcurrencyOverride(i int) {
+	if m.addconcurrency_override != nil {
+		*m.addconcurrency_override += i
+	} else {
+		m.addconcurrency_override = &i
+	}
+}
+
+// AddedConcurrencyOverride returns the value that was added to the "concurrency_override" field in this mutation.
+func (m *GroupMutation) AddedConcurrencyOverride() (r int, exists bool) {
+	v := m.addconcurrency_override
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearConcurrencyOverride clears the value of the "concurrency_override" field.
+func (m *GroupMutation) ClearConcurrencyOverride() {
+	m.concurrency_override = nil
+	m.addconcurrency_override = nil
+	m.clearedFields[group.FieldConcurrencyOverride] = struct{}{}
+}
+
+// ConcurrencyOverrideCleared returns if the "concurrency_override" field was cleared in this mutation.
+func (m *GroupMutation) ConcurrencyOverrideCleared() bool {
+	_, ok := m.clearedFields[group.FieldConcurrencyOverride]
+	return ok
+}
+
+// ResetConcurrencyOverride resets all changes to the "concurrency_override" field.
+func (m *GroupMutation) ResetConcurrencyOverride() {
+	m.concurrency_override = nil
+	m.addconcurrency_override = nil
+	delete(m.clearedFields, group.FieldConcurrencyOverride)
 }
 
 // SetAllowImageGeneration sets the "allow_image_generation" field.
@@ -25921,7 +25999,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 66)
+	fields := make([]string, 0, 67)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -25978,6 +26056,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.default_validity_days != nil {
 		fields = append(fields, group.FieldDefaultValidityDays)
+	}
+	if m.concurrency_override != nil {
+		fields = append(fields, group.FieldConcurrencyOverride)
 	}
 	if m.allow_image_generation != nil {
 		fields = append(fields, group.FieldAllowImageGeneration)
@@ -26166,6 +26247,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.MonthlyLimitUsd()
 	case group.FieldDefaultValidityDays:
 		return m.DefaultValidityDays()
+	case group.FieldConcurrencyOverride:
+		return m.ConcurrencyOverride()
 	case group.FieldAllowImageGeneration:
 		return m.AllowImageGeneration()
 	case group.FieldAllowBatchImageGeneration:
@@ -26307,6 +26390,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldMonthlyLimitUsd(ctx)
 	case group.FieldDefaultValidityDays:
 		return m.OldDefaultValidityDays(ctx)
+	case group.FieldConcurrencyOverride:
+		return m.OldConcurrencyOverride(ctx)
 	case group.FieldAllowImageGeneration:
 		return m.OldAllowImageGeneration(ctx)
 	case group.FieldAllowBatchImageGeneration:
@@ -26542,6 +26627,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDefaultValidityDays(v)
+		return nil
+	case group.FieldConcurrencyOverride:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConcurrencyOverride(v)
 		return nil
 	case group.FieldAllowImageGeneration:
 		v, ok := value.(bool)
@@ -26898,6 +26990,9 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.adddefault_validity_days != nil {
 		fields = append(fields, group.FieldDefaultValidityDays)
 	}
+	if m.addconcurrency_override != nil {
+		fields = append(fields, group.FieldConcurrencyOverride)
+	}
 	if m.addimage_rate_multiplier != nil {
 		fields = append(fields, group.FieldImageRateMultiplier)
 	}
@@ -26981,6 +27076,8 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedMonthlyLimitUsd()
 	case group.FieldDefaultValidityDays:
 		return m.AddedDefaultValidityDays()
+	case group.FieldConcurrencyOverride:
+		return m.AddedConcurrencyOverride()
 	case group.FieldImageRateMultiplier:
 		return m.AddedImageRateMultiplier()
 	case group.FieldImagePrice1k:
@@ -27073,6 +27170,13 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDefaultValidityDays(v)
+		return nil
+	case group.FieldConcurrencyOverride:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddConcurrencyOverride(v)
 		return nil
 	case group.FieldImageRateMultiplier:
 		v, ok := value.(float64)
@@ -27247,6 +27351,9 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldMonthlyLimitUsd) {
 		fields = append(fields, group.FieldMonthlyLimitUsd)
 	}
+	if m.FieldCleared(group.FieldConcurrencyOverride) {
+		fields = append(fields, group.FieldConcurrencyOverride)
+	}
 	if m.FieldCleared(group.FieldImagePrice1k) {
 		fields = append(fields, group.FieldImagePrice1k)
 	}
@@ -27326,6 +27433,9 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldMonthlyLimitUsd:
 		m.ClearMonthlyLimitUsd()
+		return nil
+	case group.FieldConcurrencyOverride:
+		m.ClearConcurrencyOverride()
 		return nil
 	case group.FieldImagePrice1k:
 		m.ClearImagePrice1k()
@@ -27439,6 +27549,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldDefaultValidityDays:
 		m.ResetDefaultValidityDays()
+		return nil
+	case group.FieldConcurrencyOverride:
+		m.ResetConcurrencyOverride()
 		return nil
 	case group.FieldAllowImageGeneration:
 		m.ResetAllowImageGeneration()
@@ -42067,6 +42180,3746 @@ func (m *SubscriptionPlanMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown SubscriptionPlan edge %s", name)
 }
 
+// SubscriptionResetApplicationMutation represents an operation that mutates the SubscriptionResetApplication nodes in the graph.
+type SubscriptionResetApplicationMutation struct {
+	config
+	op                           Op
+	typ                          string
+	id                           *int64
+	effective_at                 *time.Time
+	previous_weekly_window_start *time.Time
+	previous_weekly_usage_usd    *float64
+	addprevious_weekly_usage_usd *float64
+	applied_at                   *time.Time
+	status                       *string
+	metadata                     *map[string]interface{}
+	clearedFields                map[string]struct{}
+	reset_event                  *int64
+	clearedreset_event           bool
+	user_subscription            *int64
+	cleareduser_subscription     bool
+	done                         bool
+	oldValue                     func(context.Context) (*SubscriptionResetApplication, error)
+	predicates                   []predicate.SubscriptionResetApplication
+}
+
+var _ ent.Mutation = (*SubscriptionResetApplicationMutation)(nil)
+
+// subscriptionresetapplicationOption allows management of the mutation configuration using functional options.
+type subscriptionresetapplicationOption func(*SubscriptionResetApplicationMutation)
+
+// newSubscriptionResetApplicationMutation creates new mutation for the SubscriptionResetApplication entity.
+func newSubscriptionResetApplicationMutation(c config, op Op, opts ...subscriptionresetapplicationOption) *SubscriptionResetApplicationMutation {
+	m := &SubscriptionResetApplicationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSubscriptionResetApplication,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSubscriptionResetApplicationID sets the ID field of the mutation.
+func withSubscriptionResetApplicationID(id int64) subscriptionresetapplicationOption {
+	return func(m *SubscriptionResetApplicationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SubscriptionResetApplication
+		)
+		m.oldValue = func(ctx context.Context) (*SubscriptionResetApplication, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SubscriptionResetApplication.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSubscriptionResetApplication sets the old SubscriptionResetApplication of the mutation.
+func withSubscriptionResetApplication(node *SubscriptionResetApplication) subscriptionresetapplicationOption {
+	return func(m *SubscriptionResetApplicationMutation) {
+		m.oldValue = func(context.Context) (*SubscriptionResetApplication, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SubscriptionResetApplicationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SubscriptionResetApplicationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SubscriptionResetApplicationMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SubscriptionResetApplicationMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SubscriptionResetApplication.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetResetEventID sets the "reset_event_id" field.
+func (m *SubscriptionResetApplicationMutation) SetResetEventID(i int64) {
+	m.reset_event = &i
+}
+
+// ResetEventID returns the value of the "reset_event_id" field in the mutation.
+func (m *SubscriptionResetApplicationMutation) ResetEventID() (r int64, exists bool) {
+	v := m.reset_event
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResetEventID returns the old "reset_event_id" field's value of the SubscriptionResetApplication entity.
+// If the SubscriptionResetApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetApplicationMutation) OldResetEventID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResetEventID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResetEventID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResetEventID: %w", err)
+	}
+	return oldValue.ResetEventID, nil
+}
+
+// ResetResetEventID resets all changes to the "reset_event_id" field.
+func (m *SubscriptionResetApplicationMutation) ResetResetEventID() {
+	m.reset_event = nil
+}
+
+// SetUserSubscriptionID sets the "user_subscription_id" field.
+func (m *SubscriptionResetApplicationMutation) SetUserSubscriptionID(i int64) {
+	m.user_subscription = &i
+}
+
+// UserSubscriptionID returns the value of the "user_subscription_id" field in the mutation.
+func (m *SubscriptionResetApplicationMutation) UserSubscriptionID() (r int64, exists bool) {
+	v := m.user_subscription
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserSubscriptionID returns the old "user_subscription_id" field's value of the SubscriptionResetApplication entity.
+// If the SubscriptionResetApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetApplicationMutation) OldUserSubscriptionID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserSubscriptionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserSubscriptionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserSubscriptionID: %w", err)
+	}
+	return oldValue.UserSubscriptionID, nil
+}
+
+// ResetUserSubscriptionID resets all changes to the "user_subscription_id" field.
+func (m *SubscriptionResetApplicationMutation) ResetUserSubscriptionID() {
+	m.user_subscription = nil
+}
+
+// SetEffectiveAt sets the "effective_at" field.
+func (m *SubscriptionResetApplicationMutation) SetEffectiveAt(t time.Time) {
+	m.effective_at = &t
+}
+
+// EffectiveAt returns the value of the "effective_at" field in the mutation.
+func (m *SubscriptionResetApplicationMutation) EffectiveAt() (r time.Time, exists bool) {
+	v := m.effective_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEffectiveAt returns the old "effective_at" field's value of the SubscriptionResetApplication entity.
+// If the SubscriptionResetApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetApplicationMutation) OldEffectiveAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEffectiveAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEffectiveAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEffectiveAt: %w", err)
+	}
+	return oldValue.EffectiveAt, nil
+}
+
+// ResetEffectiveAt resets all changes to the "effective_at" field.
+func (m *SubscriptionResetApplicationMutation) ResetEffectiveAt() {
+	m.effective_at = nil
+}
+
+// SetPreviousWeeklyWindowStart sets the "previous_weekly_window_start" field.
+func (m *SubscriptionResetApplicationMutation) SetPreviousWeeklyWindowStart(t time.Time) {
+	m.previous_weekly_window_start = &t
+}
+
+// PreviousWeeklyWindowStart returns the value of the "previous_weekly_window_start" field in the mutation.
+func (m *SubscriptionResetApplicationMutation) PreviousWeeklyWindowStart() (r time.Time, exists bool) {
+	v := m.previous_weekly_window_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPreviousWeeklyWindowStart returns the old "previous_weekly_window_start" field's value of the SubscriptionResetApplication entity.
+// If the SubscriptionResetApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetApplicationMutation) OldPreviousWeeklyWindowStart(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPreviousWeeklyWindowStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPreviousWeeklyWindowStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPreviousWeeklyWindowStart: %w", err)
+	}
+	return oldValue.PreviousWeeklyWindowStart, nil
+}
+
+// ClearPreviousWeeklyWindowStart clears the value of the "previous_weekly_window_start" field.
+func (m *SubscriptionResetApplicationMutation) ClearPreviousWeeklyWindowStart() {
+	m.previous_weekly_window_start = nil
+	m.clearedFields[subscriptionresetapplication.FieldPreviousWeeklyWindowStart] = struct{}{}
+}
+
+// PreviousWeeklyWindowStartCleared returns if the "previous_weekly_window_start" field was cleared in this mutation.
+func (m *SubscriptionResetApplicationMutation) PreviousWeeklyWindowStartCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetapplication.FieldPreviousWeeklyWindowStart]
+	return ok
+}
+
+// ResetPreviousWeeklyWindowStart resets all changes to the "previous_weekly_window_start" field.
+func (m *SubscriptionResetApplicationMutation) ResetPreviousWeeklyWindowStart() {
+	m.previous_weekly_window_start = nil
+	delete(m.clearedFields, subscriptionresetapplication.FieldPreviousWeeklyWindowStart)
+}
+
+// SetPreviousWeeklyUsageUsd sets the "previous_weekly_usage_usd" field.
+func (m *SubscriptionResetApplicationMutation) SetPreviousWeeklyUsageUsd(f float64) {
+	m.previous_weekly_usage_usd = &f
+	m.addprevious_weekly_usage_usd = nil
+}
+
+// PreviousWeeklyUsageUsd returns the value of the "previous_weekly_usage_usd" field in the mutation.
+func (m *SubscriptionResetApplicationMutation) PreviousWeeklyUsageUsd() (r float64, exists bool) {
+	v := m.previous_weekly_usage_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPreviousWeeklyUsageUsd returns the old "previous_weekly_usage_usd" field's value of the SubscriptionResetApplication entity.
+// If the SubscriptionResetApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetApplicationMutation) OldPreviousWeeklyUsageUsd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPreviousWeeklyUsageUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPreviousWeeklyUsageUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPreviousWeeklyUsageUsd: %w", err)
+	}
+	return oldValue.PreviousWeeklyUsageUsd, nil
+}
+
+// AddPreviousWeeklyUsageUsd adds f to the "previous_weekly_usage_usd" field.
+func (m *SubscriptionResetApplicationMutation) AddPreviousWeeklyUsageUsd(f float64) {
+	if m.addprevious_weekly_usage_usd != nil {
+		*m.addprevious_weekly_usage_usd += f
+	} else {
+		m.addprevious_weekly_usage_usd = &f
+	}
+}
+
+// AddedPreviousWeeklyUsageUsd returns the value that was added to the "previous_weekly_usage_usd" field in this mutation.
+func (m *SubscriptionResetApplicationMutation) AddedPreviousWeeklyUsageUsd() (r float64, exists bool) {
+	v := m.addprevious_weekly_usage_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearPreviousWeeklyUsageUsd clears the value of the "previous_weekly_usage_usd" field.
+func (m *SubscriptionResetApplicationMutation) ClearPreviousWeeklyUsageUsd() {
+	m.previous_weekly_usage_usd = nil
+	m.addprevious_weekly_usage_usd = nil
+	m.clearedFields[subscriptionresetapplication.FieldPreviousWeeklyUsageUsd] = struct{}{}
+}
+
+// PreviousWeeklyUsageUsdCleared returns if the "previous_weekly_usage_usd" field was cleared in this mutation.
+func (m *SubscriptionResetApplicationMutation) PreviousWeeklyUsageUsdCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetapplication.FieldPreviousWeeklyUsageUsd]
+	return ok
+}
+
+// ResetPreviousWeeklyUsageUsd resets all changes to the "previous_weekly_usage_usd" field.
+func (m *SubscriptionResetApplicationMutation) ResetPreviousWeeklyUsageUsd() {
+	m.previous_weekly_usage_usd = nil
+	m.addprevious_weekly_usage_usd = nil
+	delete(m.clearedFields, subscriptionresetapplication.FieldPreviousWeeklyUsageUsd)
+}
+
+// SetAppliedAt sets the "applied_at" field.
+func (m *SubscriptionResetApplicationMutation) SetAppliedAt(t time.Time) {
+	m.applied_at = &t
+}
+
+// AppliedAt returns the value of the "applied_at" field in the mutation.
+func (m *SubscriptionResetApplicationMutation) AppliedAt() (r time.Time, exists bool) {
+	v := m.applied_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppliedAt returns the old "applied_at" field's value of the SubscriptionResetApplication entity.
+// If the SubscriptionResetApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetApplicationMutation) OldAppliedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppliedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppliedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppliedAt: %w", err)
+	}
+	return oldValue.AppliedAt, nil
+}
+
+// ResetAppliedAt resets all changes to the "applied_at" field.
+func (m *SubscriptionResetApplicationMutation) ResetAppliedAt() {
+	m.applied_at = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SubscriptionResetApplicationMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SubscriptionResetApplicationMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SubscriptionResetApplication entity.
+// If the SubscriptionResetApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetApplicationMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SubscriptionResetApplicationMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *SubscriptionResetApplicationMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *SubscriptionResetApplicationMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the SubscriptionResetApplication entity.
+// If the SubscriptionResetApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetApplicationMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *SubscriptionResetApplicationMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// ClearResetEvent clears the "reset_event" edge to the SubscriptionResetEvent entity.
+func (m *SubscriptionResetApplicationMutation) ClearResetEvent() {
+	m.clearedreset_event = true
+	m.clearedFields[subscriptionresetapplication.FieldResetEventID] = struct{}{}
+}
+
+// ResetEventCleared reports if the "reset_event" edge to the SubscriptionResetEvent entity was cleared.
+func (m *SubscriptionResetApplicationMutation) ResetEventCleared() bool {
+	return m.clearedreset_event
+}
+
+// ResetEventIDs returns the "reset_event" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ResetEventID instead. It exists only for internal usage by the builders.
+func (m *SubscriptionResetApplicationMutation) ResetEventIDs() (ids []int64) {
+	if id := m.reset_event; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetResetEvent resets all changes to the "reset_event" edge.
+func (m *SubscriptionResetApplicationMutation) ResetResetEvent() {
+	m.reset_event = nil
+	m.clearedreset_event = false
+}
+
+// ClearUserSubscription clears the "user_subscription" edge to the UserSubscription entity.
+func (m *SubscriptionResetApplicationMutation) ClearUserSubscription() {
+	m.cleareduser_subscription = true
+	m.clearedFields[subscriptionresetapplication.FieldUserSubscriptionID] = struct{}{}
+}
+
+// UserSubscriptionCleared reports if the "user_subscription" edge to the UserSubscription entity was cleared.
+func (m *SubscriptionResetApplicationMutation) UserSubscriptionCleared() bool {
+	return m.cleareduser_subscription
+}
+
+// UserSubscriptionIDs returns the "user_subscription" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserSubscriptionID instead. It exists only for internal usage by the builders.
+func (m *SubscriptionResetApplicationMutation) UserSubscriptionIDs() (ids []int64) {
+	if id := m.user_subscription; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUserSubscription resets all changes to the "user_subscription" edge.
+func (m *SubscriptionResetApplicationMutation) ResetUserSubscription() {
+	m.user_subscription = nil
+	m.cleareduser_subscription = false
+}
+
+// Where appends a list predicates to the SubscriptionResetApplicationMutation builder.
+func (m *SubscriptionResetApplicationMutation) Where(ps ...predicate.SubscriptionResetApplication) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SubscriptionResetApplicationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SubscriptionResetApplicationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SubscriptionResetApplication, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SubscriptionResetApplicationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SubscriptionResetApplicationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SubscriptionResetApplication).
+func (m *SubscriptionResetApplicationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SubscriptionResetApplicationMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.reset_event != nil {
+		fields = append(fields, subscriptionresetapplication.FieldResetEventID)
+	}
+	if m.user_subscription != nil {
+		fields = append(fields, subscriptionresetapplication.FieldUserSubscriptionID)
+	}
+	if m.effective_at != nil {
+		fields = append(fields, subscriptionresetapplication.FieldEffectiveAt)
+	}
+	if m.previous_weekly_window_start != nil {
+		fields = append(fields, subscriptionresetapplication.FieldPreviousWeeklyWindowStart)
+	}
+	if m.previous_weekly_usage_usd != nil {
+		fields = append(fields, subscriptionresetapplication.FieldPreviousWeeklyUsageUsd)
+	}
+	if m.applied_at != nil {
+		fields = append(fields, subscriptionresetapplication.FieldAppliedAt)
+	}
+	if m.status != nil {
+		fields = append(fields, subscriptionresetapplication.FieldStatus)
+	}
+	if m.metadata != nil {
+		fields = append(fields, subscriptionresetapplication.FieldMetadata)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SubscriptionResetApplicationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case subscriptionresetapplication.FieldResetEventID:
+		return m.ResetEventID()
+	case subscriptionresetapplication.FieldUserSubscriptionID:
+		return m.UserSubscriptionID()
+	case subscriptionresetapplication.FieldEffectiveAt:
+		return m.EffectiveAt()
+	case subscriptionresetapplication.FieldPreviousWeeklyWindowStart:
+		return m.PreviousWeeklyWindowStart()
+	case subscriptionresetapplication.FieldPreviousWeeklyUsageUsd:
+		return m.PreviousWeeklyUsageUsd()
+	case subscriptionresetapplication.FieldAppliedAt:
+		return m.AppliedAt()
+	case subscriptionresetapplication.FieldStatus:
+		return m.Status()
+	case subscriptionresetapplication.FieldMetadata:
+		return m.Metadata()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SubscriptionResetApplicationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case subscriptionresetapplication.FieldResetEventID:
+		return m.OldResetEventID(ctx)
+	case subscriptionresetapplication.FieldUserSubscriptionID:
+		return m.OldUserSubscriptionID(ctx)
+	case subscriptionresetapplication.FieldEffectiveAt:
+		return m.OldEffectiveAt(ctx)
+	case subscriptionresetapplication.FieldPreviousWeeklyWindowStart:
+		return m.OldPreviousWeeklyWindowStart(ctx)
+	case subscriptionresetapplication.FieldPreviousWeeklyUsageUsd:
+		return m.OldPreviousWeeklyUsageUsd(ctx)
+	case subscriptionresetapplication.FieldAppliedAt:
+		return m.OldAppliedAt(ctx)
+	case subscriptionresetapplication.FieldStatus:
+		return m.OldStatus(ctx)
+	case subscriptionresetapplication.FieldMetadata:
+		return m.OldMetadata(ctx)
+	}
+	return nil, fmt.Errorf("unknown SubscriptionResetApplication field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubscriptionResetApplicationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case subscriptionresetapplication.FieldResetEventID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResetEventID(v)
+		return nil
+	case subscriptionresetapplication.FieldUserSubscriptionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserSubscriptionID(v)
+		return nil
+	case subscriptionresetapplication.FieldEffectiveAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEffectiveAt(v)
+		return nil
+	case subscriptionresetapplication.FieldPreviousWeeklyWindowStart:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPreviousWeeklyWindowStart(v)
+		return nil
+	case subscriptionresetapplication.FieldPreviousWeeklyUsageUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPreviousWeeklyUsageUsd(v)
+		return nil
+	case subscriptionresetapplication.FieldAppliedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppliedAt(v)
+		return nil
+	case subscriptionresetapplication.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case subscriptionresetapplication.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetApplication field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SubscriptionResetApplicationMutation) AddedFields() []string {
+	var fields []string
+	if m.addprevious_weekly_usage_usd != nil {
+		fields = append(fields, subscriptionresetapplication.FieldPreviousWeeklyUsageUsd)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SubscriptionResetApplicationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case subscriptionresetapplication.FieldPreviousWeeklyUsageUsd:
+		return m.AddedPreviousWeeklyUsageUsd()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubscriptionResetApplicationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case subscriptionresetapplication.FieldPreviousWeeklyUsageUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPreviousWeeklyUsageUsd(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetApplication numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SubscriptionResetApplicationMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(subscriptionresetapplication.FieldPreviousWeeklyWindowStart) {
+		fields = append(fields, subscriptionresetapplication.FieldPreviousWeeklyWindowStart)
+	}
+	if m.FieldCleared(subscriptionresetapplication.FieldPreviousWeeklyUsageUsd) {
+		fields = append(fields, subscriptionresetapplication.FieldPreviousWeeklyUsageUsd)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SubscriptionResetApplicationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SubscriptionResetApplicationMutation) ClearField(name string) error {
+	switch name {
+	case subscriptionresetapplication.FieldPreviousWeeklyWindowStart:
+		m.ClearPreviousWeeklyWindowStart()
+		return nil
+	case subscriptionresetapplication.FieldPreviousWeeklyUsageUsd:
+		m.ClearPreviousWeeklyUsageUsd()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetApplication nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SubscriptionResetApplicationMutation) ResetField(name string) error {
+	switch name {
+	case subscriptionresetapplication.FieldResetEventID:
+		m.ResetResetEventID()
+		return nil
+	case subscriptionresetapplication.FieldUserSubscriptionID:
+		m.ResetUserSubscriptionID()
+		return nil
+	case subscriptionresetapplication.FieldEffectiveAt:
+		m.ResetEffectiveAt()
+		return nil
+	case subscriptionresetapplication.FieldPreviousWeeklyWindowStart:
+		m.ResetPreviousWeeklyWindowStart()
+		return nil
+	case subscriptionresetapplication.FieldPreviousWeeklyUsageUsd:
+		m.ResetPreviousWeeklyUsageUsd()
+		return nil
+	case subscriptionresetapplication.FieldAppliedAt:
+		m.ResetAppliedAt()
+		return nil
+	case subscriptionresetapplication.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case subscriptionresetapplication.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetApplication field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SubscriptionResetApplicationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.reset_event != nil {
+		edges = append(edges, subscriptionresetapplication.EdgeResetEvent)
+	}
+	if m.user_subscription != nil {
+		edges = append(edges, subscriptionresetapplication.EdgeUserSubscription)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SubscriptionResetApplicationMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case subscriptionresetapplication.EdgeResetEvent:
+		if id := m.reset_event; id != nil {
+			return []ent.Value{*id}
+		}
+	case subscriptionresetapplication.EdgeUserSubscription:
+		if id := m.user_subscription; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SubscriptionResetApplicationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SubscriptionResetApplicationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SubscriptionResetApplicationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedreset_event {
+		edges = append(edges, subscriptionresetapplication.EdgeResetEvent)
+	}
+	if m.cleareduser_subscription {
+		edges = append(edges, subscriptionresetapplication.EdgeUserSubscription)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SubscriptionResetApplicationMutation) EdgeCleared(name string) bool {
+	switch name {
+	case subscriptionresetapplication.EdgeResetEvent:
+		return m.clearedreset_event
+	case subscriptionresetapplication.EdgeUserSubscription:
+		return m.cleareduser_subscription
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SubscriptionResetApplicationMutation) ClearEdge(name string) error {
+	switch name {
+	case subscriptionresetapplication.EdgeResetEvent:
+		m.ClearResetEvent()
+		return nil
+	case subscriptionresetapplication.EdgeUserSubscription:
+		m.ClearUserSubscription()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetApplication unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SubscriptionResetApplicationMutation) ResetEdge(name string) error {
+	switch name {
+	case subscriptionresetapplication.EdgeResetEvent:
+		m.ResetResetEvent()
+		return nil
+	case subscriptionresetapplication.EdgeUserSubscription:
+		m.ResetUserSubscription()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetApplication edge %s", name)
+}
+
+// SubscriptionResetCardMutation represents an operation that mutates the SubscriptionResetCard nodes in the graph.
+type SubscriptionResetCardMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int64
+	created_at               *time.Time
+	updated_at               *time.Time
+	deleted_at               *time.Time
+	status                   *string
+	scope                    *string
+	source_type              *string
+	campaign                 *string
+	grant_index              *int
+	addgrant_index           *int
+	granted_at               *time.Time
+	expires_at               *time.Time
+	used_at                  *time.Time
+	notes                    *string
+	metadata                 *map[string]interface{}
+	clearedFields            map[string]struct{}
+	user                     *int64
+	cleareduser              bool
+	created_by_user          *int64
+	clearedcreated_by_user   bool
+	used_subscription        *int64
+	clearedused_subscription bool
+	grant_event              *int64
+	clearedgrant_event       bool
+	done                     bool
+	oldValue                 func(context.Context) (*SubscriptionResetCard, error)
+	predicates               []predicate.SubscriptionResetCard
+}
+
+var _ ent.Mutation = (*SubscriptionResetCardMutation)(nil)
+
+// subscriptionresetcardOption allows management of the mutation configuration using functional options.
+type subscriptionresetcardOption func(*SubscriptionResetCardMutation)
+
+// newSubscriptionResetCardMutation creates new mutation for the SubscriptionResetCard entity.
+func newSubscriptionResetCardMutation(c config, op Op, opts ...subscriptionresetcardOption) *SubscriptionResetCardMutation {
+	m := &SubscriptionResetCardMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSubscriptionResetCard,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSubscriptionResetCardID sets the ID field of the mutation.
+func withSubscriptionResetCardID(id int64) subscriptionresetcardOption {
+	return func(m *SubscriptionResetCardMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SubscriptionResetCard
+		)
+		m.oldValue = func(ctx context.Context) (*SubscriptionResetCard, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SubscriptionResetCard.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSubscriptionResetCard sets the old SubscriptionResetCard of the mutation.
+func withSubscriptionResetCard(node *SubscriptionResetCard) subscriptionresetcardOption {
+	return func(m *SubscriptionResetCardMutation) {
+		m.oldValue = func(context.Context) (*SubscriptionResetCard, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SubscriptionResetCardMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SubscriptionResetCardMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SubscriptionResetCardMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SubscriptionResetCardMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SubscriptionResetCard.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SubscriptionResetCardMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SubscriptionResetCardMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SubscriptionResetCardMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SubscriptionResetCardMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SubscriptionResetCardMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SubscriptionResetCardMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *SubscriptionResetCardMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *SubscriptionResetCardMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *SubscriptionResetCardMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[subscriptionresetcard.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *SubscriptionResetCardMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetcard.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *SubscriptionResetCardMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, subscriptionresetcard.FieldDeletedAt)
+}
+
+// SetUserID sets the "user_id" field.
+func (m *SubscriptionResetCardMutation) SetUserID(i int64) {
+	m.user = &i
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *SubscriptionResetCardMutation) UserID() (r int64, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *SubscriptionResetCardMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SubscriptionResetCardMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SubscriptionResetCardMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SubscriptionResetCardMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *SubscriptionResetCardMutation) SetScope(s string) {
+	m.scope = &s
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *SubscriptionResetCardMutation) Scope() (r string, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *SubscriptionResetCardMutation) ResetScope() {
+	m.scope = nil
+}
+
+// SetSourceType sets the "source_type" field.
+func (m *SubscriptionResetCardMutation) SetSourceType(s string) {
+	m.source_type = &s
+}
+
+// SourceType returns the value of the "source_type" field in the mutation.
+func (m *SubscriptionResetCardMutation) SourceType() (r string, exists bool) {
+	v := m.source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceType returns the old "source_type" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldSourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
+	}
+	return oldValue.SourceType, nil
+}
+
+// ResetSourceType resets all changes to the "source_type" field.
+func (m *SubscriptionResetCardMutation) ResetSourceType() {
+	m.source_type = nil
+}
+
+// SetCampaign sets the "campaign" field.
+func (m *SubscriptionResetCardMutation) SetCampaign(s string) {
+	m.campaign = &s
+}
+
+// Campaign returns the value of the "campaign" field in the mutation.
+func (m *SubscriptionResetCardMutation) Campaign() (r string, exists bool) {
+	v := m.campaign
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCampaign returns the old "campaign" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldCampaign(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCampaign is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCampaign requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCampaign: %w", err)
+	}
+	return oldValue.Campaign, nil
+}
+
+// ClearCampaign clears the value of the "campaign" field.
+func (m *SubscriptionResetCardMutation) ClearCampaign() {
+	m.campaign = nil
+	m.clearedFields[subscriptionresetcard.FieldCampaign] = struct{}{}
+}
+
+// CampaignCleared returns if the "campaign" field was cleared in this mutation.
+func (m *SubscriptionResetCardMutation) CampaignCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetcard.FieldCampaign]
+	return ok
+}
+
+// ResetCampaign resets all changes to the "campaign" field.
+func (m *SubscriptionResetCardMutation) ResetCampaign() {
+	m.campaign = nil
+	delete(m.clearedFields, subscriptionresetcard.FieldCampaign)
+}
+
+// SetGrantEventID sets the "grant_event_id" field.
+func (m *SubscriptionResetCardMutation) SetGrantEventID(i int64) {
+	m.grant_event = &i
+}
+
+// GrantEventID returns the value of the "grant_event_id" field in the mutation.
+func (m *SubscriptionResetCardMutation) GrantEventID() (r int64, exists bool) {
+	v := m.grant_event
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrantEventID returns the old "grant_event_id" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldGrantEventID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrantEventID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrantEventID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrantEventID: %w", err)
+	}
+	return oldValue.GrantEventID, nil
+}
+
+// ClearGrantEventID clears the value of the "grant_event_id" field.
+func (m *SubscriptionResetCardMutation) ClearGrantEventID() {
+	m.grant_event = nil
+	m.clearedFields[subscriptionresetcard.FieldGrantEventID] = struct{}{}
+}
+
+// GrantEventIDCleared returns if the "grant_event_id" field was cleared in this mutation.
+func (m *SubscriptionResetCardMutation) GrantEventIDCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetcard.FieldGrantEventID]
+	return ok
+}
+
+// ResetGrantEventID resets all changes to the "grant_event_id" field.
+func (m *SubscriptionResetCardMutation) ResetGrantEventID() {
+	m.grant_event = nil
+	delete(m.clearedFields, subscriptionresetcard.FieldGrantEventID)
+}
+
+// SetGrantIndex sets the "grant_index" field.
+func (m *SubscriptionResetCardMutation) SetGrantIndex(i int) {
+	m.grant_index = &i
+	m.addgrant_index = nil
+}
+
+// GrantIndex returns the value of the "grant_index" field in the mutation.
+func (m *SubscriptionResetCardMutation) GrantIndex() (r int, exists bool) {
+	v := m.grant_index
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrantIndex returns the old "grant_index" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldGrantIndex(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrantIndex is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrantIndex requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrantIndex: %w", err)
+	}
+	return oldValue.GrantIndex, nil
+}
+
+// AddGrantIndex adds i to the "grant_index" field.
+func (m *SubscriptionResetCardMutation) AddGrantIndex(i int) {
+	if m.addgrant_index != nil {
+		*m.addgrant_index += i
+	} else {
+		m.addgrant_index = &i
+	}
+}
+
+// AddedGrantIndex returns the value that was added to the "grant_index" field in this mutation.
+func (m *SubscriptionResetCardMutation) AddedGrantIndex() (r int, exists bool) {
+	v := m.addgrant_index
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGrantIndex resets all changes to the "grant_index" field.
+func (m *SubscriptionResetCardMutation) ResetGrantIndex() {
+	m.grant_index = nil
+	m.addgrant_index = nil
+}
+
+// SetGrantedAt sets the "granted_at" field.
+func (m *SubscriptionResetCardMutation) SetGrantedAt(t time.Time) {
+	m.granted_at = &t
+}
+
+// GrantedAt returns the value of the "granted_at" field in the mutation.
+func (m *SubscriptionResetCardMutation) GrantedAt() (r time.Time, exists bool) {
+	v := m.granted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrantedAt returns the old "granted_at" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldGrantedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrantedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrantedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrantedAt: %w", err)
+	}
+	return oldValue.GrantedAt, nil
+}
+
+// ResetGrantedAt resets all changes to the "granted_at" field.
+func (m *SubscriptionResetCardMutation) ResetGrantedAt() {
+	m.granted_at = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *SubscriptionResetCardMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *SubscriptionResetCardMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *SubscriptionResetCardMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[subscriptionresetcard.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *SubscriptionResetCardMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetcard.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *SubscriptionResetCardMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, subscriptionresetcard.FieldExpiresAt)
+}
+
+// SetUsedAt sets the "used_at" field.
+func (m *SubscriptionResetCardMutation) SetUsedAt(t time.Time) {
+	m.used_at = &t
+}
+
+// UsedAt returns the value of the "used_at" field in the mutation.
+func (m *SubscriptionResetCardMutation) UsedAt() (r time.Time, exists bool) {
+	v := m.used_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsedAt returns the old "used_at" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldUsedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsedAt: %w", err)
+	}
+	return oldValue.UsedAt, nil
+}
+
+// ClearUsedAt clears the value of the "used_at" field.
+func (m *SubscriptionResetCardMutation) ClearUsedAt() {
+	m.used_at = nil
+	m.clearedFields[subscriptionresetcard.FieldUsedAt] = struct{}{}
+}
+
+// UsedAtCleared returns if the "used_at" field was cleared in this mutation.
+func (m *SubscriptionResetCardMutation) UsedAtCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetcard.FieldUsedAt]
+	return ok
+}
+
+// ResetUsedAt resets all changes to the "used_at" field.
+func (m *SubscriptionResetCardMutation) ResetUsedAt() {
+	m.used_at = nil
+	delete(m.clearedFields, subscriptionresetcard.FieldUsedAt)
+}
+
+// SetUsedSubscriptionID sets the "used_subscription_id" field.
+func (m *SubscriptionResetCardMutation) SetUsedSubscriptionID(i int64) {
+	m.used_subscription = &i
+}
+
+// UsedSubscriptionID returns the value of the "used_subscription_id" field in the mutation.
+func (m *SubscriptionResetCardMutation) UsedSubscriptionID() (r int64, exists bool) {
+	v := m.used_subscription
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsedSubscriptionID returns the old "used_subscription_id" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldUsedSubscriptionID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsedSubscriptionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsedSubscriptionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsedSubscriptionID: %w", err)
+	}
+	return oldValue.UsedSubscriptionID, nil
+}
+
+// ClearUsedSubscriptionID clears the value of the "used_subscription_id" field.
+func (m *SubscriptionResetCardMutation) ClearUsedSubscriptionID() {
+	m.used_subscription = nil
+	m.clearedFields[subscriptionresetcard.FieldUsedSubscriptionID] = struct{}{}
+}
+
+// UsedSubscriptionIDCleared returns if the "used_subscription_id" field was cleared in this mutation.
+func (m *SubscriptionResetCardMutation) UsedSubscriptionIDCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetcard.FieldUsedSubscriptionID]
+	return ok
+}
+
+// ResetUsedSubscriptionID resets all changes to the "used_subscription_id" field.
+func (m *SubscriptionResetCardMutation) ResetUsedSubscriptionID() {
+	m.used_subscription = nil
+	delete(m.clearedFields, subscriptionresetcard.FieldUsedSubscriptionID)
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *SubscriptionResetCardMutation) SetCreatedBy(i int64) {
+	m.created_by_user = &i
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *SubscriptionResetCardMutation) CreatedBy() (r int64, exists bool) {
+	v := m.created_by_user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldCreatedBy(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (m *SubscriptionResetCardMutation) ClearCreatedBy() {
+	m.created_by_user = nil
+	m.clearedFields[subscriptionresetcard.FieldCreatedBy] = struct{}{}
+}
+
+// CreatedByCleared returns if the "created_by" field was cleared in this mutation.
+func (m *SubscriptionResetCardMutation) CreatedByCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetcard.FieldCreatedBy]
+	return ok
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *SubscriptionResetCardMutation) ResetCreatedBy() {
+	m.created_by_user = nil
+	delete(m.clearedFields, subscriptionresetcard.FieldCreatedBy)
+}
+
+// SetNotes sets the "notes" field.
+func (m *SubscriptionResetCardMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *SubscriptionResetCardMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *SubscriptionResetCardMutation) ResetNotes() {
+	m.notes = nil
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *SubscriptionResetCardMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *SubscriptionResetCardMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the SubscriptionResetCard entity.
+// If the SubscriptionResetCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetCardMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *SubscriptionResetCardMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *SubscriptionResetCardMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[subscriptionresetcard.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *SubscriptionResetCardMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *SubscriptionResetCardMutation) UserIDs() (ids []int64) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *SubscriptionResetCardMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// SetCreatedByUserID sets the "created_by_user" edge to the User entity by id.
+func (m *SubscriptionResetCardMutation) SetCreatedByUserID(id int64) {
+	m.created_by_user = &id
+}
+
+// ClearCreatedByUser clears the "created_by_user" edge to the User entity.
+func (m *SubscriptionResetCardMutation) ClearCreatedByUser() {
+	m.clearedcreated_by_user = true
+	m.clearedFields[subscriptionresetcard.FieldCreatedBy] = struct{}{}
+}
+
+// CreatedByUserCleared reports if the "created_by_user" edge to the User entity was cleared.
+func (m *SubscriptionResetCardMutation) CreatedByUserCleared() bool {
+	return m.CreatedByCleared() || m.clearedcreated_by_user
+}
+
+// CreatedByUserID returns the "created_by_user" edge ID in the mutation.
+func (m *SubscriptionResetCardMutation) CreatedByUserID() (id int64, exists bool) {
+	if m.created_by_user != nil {
+		return *m.created_by_user, true
+	}
+	return
+}
+
+// CreatedByUserIDs returns the "created_by_user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// CreatedByUserID instead. It exists only for internal usage by the builders.
+func (m *SubscriptionResetCardMutation) CreatedByUserIDs() (ids []int64) {
+	if id := m.created_by_user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetCreatedByUser resets all changes to the "created_by_user" edge.
+func (m *SubscriptionResetCardMutation) ResetCreatedByUser() {
+	m.created_by_user = nil
+	m.clearedcreated_by_user = false
+}
+
+// ClearUsedSubscription clears the "used_subscription" edge to the UserSubscription entity.
+func (m *SubscriptionResetCardMutation) ClearUsedSubscription() {
+	m.clearedused_subscription = true
+	m.clearedFields[subscriptionresetcard.FieldUsedSubscriptionID] = struct{}{}
+}
+
+// UsedSubscriptionCleared reports if the "used_subscription" edge to the UserSubscription entity was cleared.
+func (m *SubscriptionResetCardMutation) UsedSubscriptionCleared() bool {
+	return m.UsedSubscriptionIDCleared() || m.clearedused_subscription
+}
+
+// UsedSubscriptionIDs returns the "used_subscription" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UsedSubscriptionID instead. It exists only for internal usage by the builders.
+func (m *SubscriptionResetCardMutation) UsedSubscriptionIDs() (ids []int64) {
+	if id := m.used_subscription; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUsedSubscription resets all changes to the "used_subscription" edge.
+func (m *SubscriptionResetCardMutation) ResetUsedSubscription() {
+	m.used_subscription = nil
+	m.clearedused_subscription = false
+}
+
+// ClearGrantEvent clears the "grant_event" edge to the SubscriptionResetEvent entity.
+func (m *SubscriptionResetCardMutation) ClearGrantEvent() {
+	m.clearedgrant_event = true
+	m.clearedFields[subscriptionresetcard.FieldGrantEventID] = struct{}{}
+}
+
+// GrantEventCleared reports if the "grant_event" edge to the SubscriptionResetEvent entity was cleared.
+func (m *SubscriptionResetCardMutation) GrantEventCleared() bool {
+	return m.GrantEventIDCleared() || m.clearedgrant_event
+}
+
+// GrantEventIDs returns the "grant_event" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GrantEventID instead. It exists only for internal usage by the builders.
+func (m *SubscriptionResetCardMutation) GrantEventIDs() (ids []int64) {
+	if id := m.grant_event; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGrantEvent resets all changes to the "grant_event" edge.
+func (m *SubscriptionResetCardMutation) ResetGrantEvent() {
+	m.grant_event = nil
+	m.clearedgrant_event = false
+}
+
+// Where appends a list predicates to the SubscriptionResetCardMutation builder.
+func (m *SubscriptionResetCardMutation) Where(ps ...predicate.SubscriptionResetCard) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SubscriptionResetCardMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SubscriptionResetCardMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SubscriptionResetCard, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SubscriptionResetCardMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SubscriptionResetCardMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SubscriptionResetCard).
+func (m *SubscriptionResetCardMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SubscriptionResetCardMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.created_at != nil {
+		fields = append(fields, subscriptionresetcard.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, subscriptionresetcard.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, subscriptionresetcard.FieldDeletedAt)
+	}
+	if m.user != nil {
+		fields = append(fields, subscriptionresetcard.FieldUserID)
+	}
+	if m.status != nil {
+		fields = append(fields, subscriptionresetcard.FieldStatus)
+	}
+	if m.scope != nil {
+		fields = append(fields, subscriptionresetcard.FieldScope)
+	}
+	if m.source_type != nil {
+		fields = append(fields, subscriptionresetcard.FieldSourceType)
+	}
+	if m.campaign != nil {
+		fields = append(fields, subscriptionresetcard.FieldCampaign)
+	}
+	if m.grant_event != nil {
+		fields = append(fields, subscriptionresetcard.FieldGrantEventID)
+	}
+	if m.grant_index != nil {
+		fields = append(fields, subscriptionresetcard.FieldGrantIndex)
+	}
+	if m.granted_at != nil {
+		fields = append(fields, subscriptionresetcard.FieldGrantedAt)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, subscriptionresetcard.FieldExpiresAt)
+	}
+	if m.used_at != nil {
+		fields = append(fields, subscriptionresetcard.FieldUsedAt)
+	}
+	if m.used_subscription != nil {
+		fields = append(fields, subscriptionresetcard.FieldUsedSubscriptionID)
+	}
+	if m.created_by_user != nil {
+		fields = append(fields, subscriptionresetcard.FieldCreatedBy)
+	}
+	if m.notes != nil {
+		fields = append(fields, subscriptionresetcard.FieldNotes)
+	}
+	if m.metadata != nil {
+		fields = append(fields, subscriptionresetcard.FieldMetadata)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SubscriptionResetCardMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case subscriptionresetcard.FieldCreatedAt:
+		return m.CreatedAt()
+	case subscriptionresetcard.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case subscriptionresetcard.FieldDeletedAt:
+		return m.DeletedAt()
+	case subscriptionresetcard.FieldUserID:
+		return m.UserID()
+	case subscriptionresetcard.FieldStatus:
+		return m.Status()
+	case subscriptionresetcard.FieldScope:
+		return m.Scope()
+	case subscriptionresetcard.FieldSourceType:
+		return m.SourceType()
+	case subscriptionresetcard.FieldCampaign:
+		return m.Campaign()
+	case subscriptionresetcard.FieldGrantEventID:
+		return m.GrantEventID()
+	case subscriptionresetcard.FieldGrantIndex:
+		return m.GrantIndex()
+	case subscriptionresetcard.FieldGrantedAt:
+		return m.GrantedAt()
+	case subscriptionresetcard.FieldExpiresAt:
+		return m.ExpiresAt()
+	case subscriptionresetcard.FieldUsedAt:
+		return m.UsedAt()
+	case subscriptionresetcard.FieldUsedSubscriptionID:
+		return m.UsedSubscriptionID()
+	case subscriptionresetcard.FieldCreatedBy:
+		return m.CreatedBy()
+	case subscriptionresetcard.FieldNotes:
+		return m.Notes()
+	case subscriptionresetcard.FieldMetadata:
+		return m.Metadata()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SubscriptionResetCardMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case subscriptionresetcard.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case subscriptionresetcard.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case subscriptionresetcard.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case subscriptionresetcard.FieldUserID:
+		return m.OldUserID(ctx)
+	case subscriptionresetcard.FieldStatus:
+		return m.OldStatus(ctx)
+	case subscriptionresetcard.FieldScope:
+		return m.OldScope(ctx)
+	case subscriptionresetcard.FieldSourceType:
+		return m.OldSourceType(ctx)
+	case subscriptionresetcard.FieldCampaign:
+		return m.OldCampaign(ctx)
+	case subscriptionresetcard.FieldGrantEventID:
+		return m.OldGrantEventID(ctx)
+	case subscriptionresetcard.FieldGrantIndex:
+		return m.OldGrantIndex(ctx)
+	case subscriptionresetcard.FieldGrantedAt:
+		return m.OldGrantedAt(ctx)
+	case subscriptionresetcard.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case subscriptionresetcard.FieldUsedAt:
+		return m.OldUsedAt(ctx)
+	case subscriptionresetcard.FieldUsedSubscriptionID:
+		return m.OldUsedSubscriptionID(ctx)
+	case subscriptionresetcard.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case subscriptionresetcard.FieldNotes:
+		return m.OldNotes(ctx)
+	case subscriptionresetcard.FieldMetadata:
+		return m.OldMetadata(ctx)
+	}
+	return nil, fmt.Errorf("unknown SubscriptionResetCard field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubscriptionResetCardMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case subscriptionresetcard.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case subscriptionresetcard.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case subscriptionresetcard.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case subscriptionresetcard.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case subscriptionresetcard.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case subscriptionresetcard.FieldScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
+		return nil
+	case subscriptionresetcard.FieldSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceType(v)
+		return nil
+	case subscriptionresetcard.FieldCampaign:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCampaign(v)
+		return nil
+	case subscriptionresetcard.FieldGrantEventID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrantEventID(v)
+		return nil
+	case subscriptionresetcard.FieldGrantIndex:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrantIndex(v)
+		return nil
+	case subscriptionresetcard.FieldGrantedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrantedAt(v)
+		return nil
+	case subscriptionresetcard.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case subscriptionresetcard.FieldUsedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsedAt(v)
+		return nil
+	case subscriptionresetcard.FieldUsedSubscriptionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsedSubscriptionID(v)
+		return nil
+	case subscriptionresetcard.FieldCreatedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case subscriptionresetcard.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	case subscriptionresetcard.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetCard field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SubscriptionResetCardMutation) AddedFields() []string {
+	var fields []string
+	if m.addgrant_index != nil {
+		fields = append(fields, subscriptionresetcard.FieldGrantIndex)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SubscriptionResetCardMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case subscriptionresetcard.FieldGrantIndex:
+		return m.AddedGrantIndex()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubscriptionResetCardMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case subscriptionresetcard.FieldGrantIndex:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGrantIndex(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetCard numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SubscriptionResetCardMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(subscriptionresetcard.FieldDeletedAt) {
+		fields = append(fields, subscriptionresetcard.FieldDeletedAt)
+	}
+	if m.FieldCleared(subscriptionresetcard.FieldCampaign) {
+		fields = append(fields, subscriptionresetcard.FieldCampaign)
+	}
+	if m.FieldCleared(subscriptionresetcard.FieldGrantEventID) {
+		fields = append(fields, subscriptionresetcard.FieldGrantEventID)
+	}
+	if m.FieldCleared(subscriptionresetcard.FieldExpiresAt) {
+		fields = append(fields, subscriptionresetcard.FieldExpiresAt)
+	}
+	if m.FieldCleared(subscriptionresetcard.FieldUsedAt) {
+		fields = append(fields, subscriptionresetcard.FieldUsedAt)
+	}
+	if m.FieldCleared(subscriptionresetcard.FieldUsedSubscriptionID) {
+		fields = append(fields, subscriptionresetcard.FieldUsedSubscriptionID)
+	}
+	if m.FieldCleared(subscriptionresetcard.FieldCreatedBy) {
+		fields = append(fields, subscriptionresetcard.FieldCreatedBy)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SubscriptionResetCardMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SubscriptionResetCardMutation) ClearField(name string) error {
+	switch name {
+	case subscriptionresetcard.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case subscriptionresetcard.FieldCampaign:
+		m.ClearCampaign()
+		return nil
+	case subscriptionresetcard.FieldGrantEventID:
+		m.ClearGrantEventID()
+		return nil
+	case subscriptionresetcard.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	case subscriptionresetcard.FieldUsedAt:
+		m.ClearUsedAt()
+		return nil
+	case subscriptionresetcard.FieldUsedSubscriptionID:
+		m.ClearUsedSubscriptionID()
+		return nil
+	case subscriptionresetcard.FieldCreatedBy:
+		m.ClearCreatedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetCard nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SubscriptionResetCardMutation) ResetField(name string) error {
+	switch name {
+	case subscriptionresetcard.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case subscriptionresetcard.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case subscriptionresetcard.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case subscriptionresetcard.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case subscriptionresetcard.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case subscriptionresetcard.FieldScope:
+		m.ResetScope()
+		return nil
+	case subscriptionresetcard.FieldSourceType:
+		m.ResetSourceType()
+		return nil
+	case subscriptionresetcard.FieldCampaign:
+		m.ResetCampaign()
+		return nil
+	case subscriptionresetcard.FieldGrantEventID:
+		m.ResetGrantEventID()
+		return nil
+	case subscriptionresetcard.FieldGrantIndex:
+		m.ResetGrantIndex()
+		return nil
+	case subscriptionresetcard.FieldGrantedAt:
+		m.ResetGrantedAt()
+		return nil
+	case subscriptionresetcard.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case subscriptionresetcard.FieldUsedAt:
+		m.ResetUsedAt()
+		return nil
+	case subscriptionresetcard.FieldUsedSubscriptionID:
+		m.ResetUsedSubscriptionID()
+		return nil
+	case subscriptionresetcard.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case subscriptionresetcard.FieldNotes:
+		m.ResetNotes()
+		return nil
+	case subscriptionresetcard.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetCard field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SubscriptionResetCardMutation) AddedEdges() []string {
+	edges := make([]string, 0, 4)
+	if m.user != nil {
+		edges = append(edges, subscriptionresetcard.EdgeUser)
+	}
+	if m.created_by_user != nil {
+		edges = append(edges, subscriptionresetcard.EdgeCreatedByUser)
+	}
+	if m.used_subscription != nil {
+		edges = append(edges, subscriptionresetcard.EdgeUsedSubscription)
+	}
+	if m.grant_event != nil {
+		edges = append(edges, subscriptionresetcard.EdgeGrantEvent)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SubscriptionResetCardMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case subscriptionresetcard.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case subscriptionresetcard.EdgeCreatedByUser:
+		if id := m.created_by_user; id != nil {
+			return []ent.Value{*id}
+		}
+	case subscriptionresetcard.EdgeUsedSubscription:
+		if id := m.used_subscription; id != nil {
+			return []ent.Value{*id}
+		}
+	case subscriptionresetcard.EdgeGrantEvent:
+		if id := m.grant_event; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SubscriptionResetCardMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 4)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SubscriptionResetCardMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SubscriptionResetCardMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 4)
+	if m.cleareduser {
+		edges = append(edges, subscriptionresetcard.EdgeUser)
+	}
+	if m.clearedcreated_by_user {
+		edges = append(edges, subscriptionresetcard.EdgeCreatedByUser)
+	}
+	if m.clearedused_subscription {
+		edges = append(edges, subscriptionresetcard.EdgeUsedSubscription)
+	}
+	if m.clearedgrant_event {
+		edges = append(edges, subscriptionresetcard.EdgeGrantEvent)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SubscriptionResetCardMutation) EdgeCleared(name string) bool {
+	switch name {
+	case subscriptionresetcard.EdgeUser:
+		return m.cleareduser
+	case subscriptionresetcard.EdgeCreatedByUser:
+		return m.clearedcreated_by_user
+	case subscriptionresetcard.EdgeUsedSubscription:
+		return m.clearedused_subscription
+	case subscriptionresetcard.EdgeGrantEvent:
+		return m.clearedgrant_event
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SubscriptionResetCardMutation) ClearEdge(name string) error {
+	switch name {
+	case subscriptionresetcard.EdgeUser:
+		m.ClearUser()
+		return nil
+	case subscriptionresetcard.EdgeCreatedByUser:
+		m.ClearCreatedByUser()
+		return nil
+	case subscriptionresetcard.EdgeUsedSubscription:
+		m.ClearUsedSubscription()
+		return nil
+	case subscriptionresetcard.EdgeGrantEvent:
+		m.ClearGrantEvent()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetCard unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SubscriptionResetCardMutation) ResetEdge(name string) error {
+	switch name {
+	case subscriptionresetcard.EdgeUser:
+		m.ResetUser()
+		return nil
+	case subscriptionresetcard.EdgeCreatedByUser:
+		m.ResetCreatedByUser()
+		return nil
+	case subscriptionresetcard.EdgeUsedSubscription:
+		m.ResetUsedSubscription()
+		return nil
+	case subscriptionresetcard.EdgeGrantEvent:
+		m.ResetGrantEvent()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetCard edge %s", name)
+}
+
+// SubscriptionResetEventMutation represents an operation that mutates the SubscriptionResetEvent nodes in the graph.
+type SubscriptionResetEventMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *int64
+	created_at             *time.Time
+	updated_at             *time.Time
+	event_type             *string
+	status                 *string
+	effective_at           *time.Time
+	scope_type             *string
+	scope                  *map[string]interface{}
+	reason                 *string
+	campaign               *string
+	started_at             *time.Time
+	completed_at           *time.Time
+	metadata               *map[string]interface{}
+	clearedFields          map[string]struct{}
+	created_by_user        *int64
+	clearedcreated_by_user bool
+	applications           map[int64]struct{}
+	removedapplications    map[int64]struct{}
+	clearedapplications    bool
+	granted_cards          map[int64]struct{}
+	removedgranted_cards   map[int64]struct{}
+	clearedgranted_cards   bool
+	done                   bool
+	oldValue               func(context.Context) (*SubscriptionResetEvent, error)
+	predicates             []predicate.SubscriptionResetEvent
+}
+
+var _ ent.Mutation = (*SubscriptionResetEventMutation)(nil)
+
+// subscriptionreseteventOption allows management of the mutation configuration using functional options.
+type subscriptionreseteventOption func(*SubscriptionResetEventMutation)
+
+// newSubscriptionResetEventMutation creates new mutation for the SubscriptionResetEvent entity.
+func newSubscriptionResetEventMutation(c config, op Op, opts ...subscriptionreseteventOption) *SubscriptionResetEventMutation {
+	m := &SubscriptionResetEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSubscriptionResetEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSubscriptionResetEventID sets the ID field of the mutation.
+func withSubscriptionResetEventID(id int64) subscriptionreseteventOption {
+	return func(m *SubscriptionResetEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SubscriptionResetEvent
+		)
+		m.oldValue = func(ctx context.Context) (*SubscriptionResetEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SubscriptionResetEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSubscriptionResetEvent sets the old SubscriptionResetEvent of the mutation.
+func withSubscriptionResetEvent(node *SubscriptionResetEvent) subscriptionreseteventOption {
+	return func(m *SubscriptionResetEventMutation) {
+		m.oldValue = func(context.Context) (*SubscriptionResetEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SubscriptionResetEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SubscriptionResetEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SubscriptionResetEventMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SubscriptionResetEventMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SubscriptionResetEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SubscriptionResetEventMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SubscriptionResetEventMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SubscriptionResetEventMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SubscriptionResetEventMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SubscriptionResetEventMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SubscriptionResetEventMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetEventType sets the "event_type" field.
+func (m *SubscriptionResetEventMutation) SetEventType(s string) {
+	m.event_type = &s
+}
+
+// EventType returns the value of the "event_type" field in the mutation.
+func (m *SubscriptionResetEventMutation) EventType() (r string, exists bool) {
+	v := m.event_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventType returns the old "event_type" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldEventType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventType: %w", err)
+	}
+	return oldValue.EventType, nil
+}
+
+// ResetEventType resets all changes to the "event_type" field.
+func (m *SubscriptionResetEventMutation) ResetEventType() {
+	m.event_type = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SubscriptionResetEventMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SubscriptionResetEventMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SubscriptionResetEventMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetEffectiveAt sets the "effective_at" field.
+func (m *SubscriptionResetEventMutation) SetEffectiveAt(t time.Time) {
+	m.effective_at = &t
+}
+
+// EffectiveAt returns the value of the "effective_at" field in the mutation.
+func (m *SubscriptionResetEventMutation) EffectiveAt() (r time.Time, exists bool) {
+	v := m.effective_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEffectiveAt returns the old "effective_at" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldEffectiveAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEffectiveAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEffectiveAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEffectiveAt: %w", err)
+	}
+	return oldValue.EffectiveAt, nil
+}
+
+// ResetEffectiveAt resets all changes to the "effective_at" field.
+func (m *SubscriptionResetEventMutation) ResetEffectiveAt() {
+	m.effective_at = nil
+}
+
+// SetScopeType sets the "scope_type" field.
+func (m *SubscriptionResetEventMutation) SetScopeType(s string) {
+	m.scope_type = &s
+}
+
+// ScopeType returns the value of the "scope_type" field in the mutation.
+func (m *SubscriptionResetEventMutation) ScopeType() (r string, exists bool) {
+	v := m.scope_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopeType returns the old "scope_type" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldScopeType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopeType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopeType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopeType: %w", err)
+	}
+	return oldValue.ScopeType, nil
+}
+
+// ResetScopeType resets all changes to the "scope_type" field.
+func (m *SubscriptionResetEventMutation) ResetScopeType() {
+	m.scope_type = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *SubscriptionResetEventMutation) SetScope(value map[string]interface{}) {
+	m.scope = &value
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *SubscriptionResetEventMutation) Scope() (r map[string]interface{}, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldScope(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *SubscriptionResetEventMutation) ResetScope() {
+	m.scope = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *SubscriptionResetEventMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *SubscriptionResetEventMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *SubscriptionResetEventMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetCampaign sets the "campaign" field.
+func (m *SubscriptionResetEventMutation) SetCampaign(s string) {
+	m.campaign = &s
+}
+
+// Campaign returns the value of the "campaign" field in the mutation.
+func (m *SubscriptionResetEventMutation) Campaign() (r string, exists bool) {
+	v := m.campaign
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCampaign returns the old "campaign" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldCampaign(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCampaign is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCampaign requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCampaign: %w", err)
+	}
+	return oldValue.Campaign, nil
+}
+
+// ClearCampaign clears the value of the "campaign" field.
+func (m *SubscriptionResetEventMutation) ClearCampaign() {
+	m.campaign = nil
+	m.clearedFields[subscriptionresetevent.FieldCampaign] = struct{}{}
+}
+
+// CampaignCleared returns if the "campaign" field was cleared in this mutation.
+func (m *SubscriptionResetEventMutation) CampaignCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetevent.FieldCampaign]
+	return ok
+}
+
+// ResetCampaign resets all changes to the "campaign" field.
+func (m *SubscriptionResetEventMutation) ResetCampaign() {
+	m.campaign = nil
+	delete(m.clearedFields, subscriptionresetevent.FieldCampaign)
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *SubscriptionResetEventMutation) SetCreatedBy(i int64) {
+	m.created_by_user = &i
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *SubscriptionResetEventMutation) CreatedBy() (r int64, exists bool) {
+	v := m.created_by_user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldCreatedBy(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (m *SubscriptionResetEventMutation) ClearCreatedBy() {
+	m.created_by_user = nil
+	m.clearedFields[subscriptionresetevent.FieldCreatedBy] = struct{}{}
+}
+
+// CreatedByCleared returns if the "created_by" field was cleared in this mutation.
+func (m *SubscriptionResetEventMutation) CreatedByCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetevent.FieldCreatedBy]
+	return ok
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *SubscriptionResetEventMutation) ResetCreatedBy() {
+	m.created_by_user = nil
+	delete(m.clearedFields, subscriptionresetevent.FieldCreatedBy)
+}
+
+// SetStartedAt sets the "started_at" field.
+func (m *SubscriptionResetEventMutation) SetStartedAt(t time.Time) {
+	m.started_at = &t
+}
+
+// StartedAt returns the value of the "started_at" field in the mutation.
+func (m *SubscriptionResetEventMutation) StartedAt() (r time.Time, exists bool) {
+	v := m.started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartedAt returns the old "started_at" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldStartedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartedAt: %w", err)
+	}
+	return oldValue.StartedAt, nil
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (m *SubscriptionResetEventMutation) ClearStartedAt() {
+	m.started_at = nil
+	m.clearedFields[subscriptionresetevent.FieldStartedAt] = struct{}{}
+}
+
+// StartedAtCleared returns if the "started_at" field was cleared in this mutation.
+func (m *SubscriptionResetEventMutation) StartedAtCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetevent.FieldStartedAt]
+	return ok
+}
+
+// ResetStartedAt resets all changes to the "started_at" field.
+func (m *SubscriptionResetEventMutation) ResetStartedAt() {
+	m.started_at = nil
+	delete(m.clearedFields, subscriptionresetevent.FieldStartedAt)
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (m *SubscriptionResetEventMutation) SetCompletedAt(t time.Time) {
+	m.completed_at = &t
+}
+
+// CompletedAt returns the value of the "completed_at" field in the mutation.
+func (m *SubscriptionResetEventMutation) CompletedAt() (r time.Time, exists bool) {
+	v := m.completed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletedAt returns the old "completed_at" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldCompletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletedAt: %w", err)
+	}
+	return oldValue.CompletedAt, nil
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (m *SubscriptionResetEventMutation) ClearCompletedAt() {
+	m.completed_at = nil
+	m.clearedFields[subscriptionresetevent.FieldCompletedAt] = struct{}{}
+}
+
+// CompletedAtCleared returns if the "completed_at" field was cleared in this mutation.
+func (m *SubscriptionResetEventMutation) CompletedAtCleared() bool {
+	_, ok := m.clearedFields[subscriptionresetevent.FieldCompletedAt]
+	return ok
+}
+
+// ResetCompletedAt resets all changes to the "completed_at" field.
+func (m *SubscriptionResetEventMutation) ResetCompletedAt() {
+	m.completed_at = nil
+	delete(m.clearedFields, subscriptionresetevent.FieldCompletedAt)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *SubscriptionResetEventMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *SubscriptionResetEventMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the SubscriptionResetEvent entity.
+// If the SubscriptionResetEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionResetEventMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *SubscriptionResetEventMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetCreatedByUserID sets the "created_by_user" edge to the User entity by id.
+func (m *SubscriptionResetEventMutation) SetCreatedByUserID(id int64) {
+	m.created_by_user = &id
+}
+
+// ClearCreatedByUser clears the "created_by_user" edge to the User entity.
+func (m *SubscriptionResetEventMutation) ClearCreatedByUser() {
+	m.clearedcreated_by_user = true
+	m.clearedFields[subscriptionresetevent.FieldCreatedBy] = struct{}{}
+}
+
+// CreatedByUserCleared reports if the "created_by_user" edge to the User entity was cleared.
+func (m *SubscriptionResetEventMutation) CreatedByUserCleared() bool {
+	return m.CreatedByCleared() || m.clearedcreated_by_user
+}
+
+// CreatedByUserID returns the "created_by_user" edge ID in the mutation.
+func (m *SubscriptionResetEventMutation) CreatedByUserID() (id int64, exists bool) {
+	if m.created_by_user != nil {
+		return *m.created_by_user, true
+	}
+	return
+}
+
+// CreatedByUserIDs returns the "created_by_user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// CreatedByUserID instead. It exists only for internal usage by the builders.
+func (m *SubscriptionResetEventMutation) CreatedByUserIDs() (ids []int64) {
+	if id := m.created_by_user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetCreatedByUser resets all changes to the "created_by_user" edge.
+func (m *SubscriptionResetEventMutation) ResetCreatedByUser() {
+	m.created_by_user = nil
+	m.clearedcreated_by_user = false
+}
+
+// AddApplicationIDs adds the "applications" edge to the SubscriptionResetApplication entity by ids.
+func (m *SubscriptionResetEventMutation) AddApplicationIDs(ids ...int64) {
+	if m.applications == nil {
+		m.applications = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.applications[ids[i]] = struct{}{}
+	}
+}
+
+// ClearApplications clears the "applications" edge to the SubscriptionResetApplication entity.
+func (m *SubscriptionResetEventMutation) ClearApplications() {
+	m.clearedapplications = true
+}
+
+// ApplicationsCleared reports if the "applications" edge to the SubscriptionResetApplication entity was cleared.
+func (m *SubscriptionResetEventMutation) ApplicationsCleared() bool {
+	return m.clearedapplications
+}
+
+// RemoveApplicationIDs removes the "applications" edge to the SubscriptionResetApplication entity by IDs.
+func (m *SubscriptionResetEventMutation) RemoveApplicationIDs(ids ...int64) {
+	if m.removedapplications == nil {
+		m.removedapplications = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.applications, ids[i])
+		m.removedapplications[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedApplications returns the removed IDs of the "applications" edge to the SubscriptionResetApplication entity.
+func (m *SubscriptionResetEventMutation) RemovedApplicationsIDs() (ids []int64) {
+	for id := range m.removedapplications {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ApplicationsIDs returns the "applications" edge IDs in the mutation.
+func (m *SubscriptionResetEventMutation) ApplicationsIDs() (ids []int64) {
+	for id := range m.applications {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetApplications resets all changes to the "applications" edge.
+func (m *SubscriptionResetEventMutation) ResetApplications() {
+	m.applications = nil
+	m.clearedapplications = false
+	m.removedapplications = nil
+}
+
+// AddGrantedCardIDs adds the "granted_cards" edge to the SubscriptionResetCard entity by ids.
+func (m *SubscriptionResetEventMutation) AddGrantedCardIDs(ids ...int64) {
+	if m.granted_cards == nil {
+		m.granted_cards = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.granted_cards[ids[i]] = struct{}{}
+	}
+}
+
+// ClearGrantedCards clears the "granted_cards" edge to the SubscriptionResetCard entity.
+func (m *SubscriptionResetEventMutation) ClearGrantedCards() {
+	m.clearedgranted_cards = true
+}
+
+// GrantedCardsCleared reports if the "granted_cards" edge to the SubscriptionResetCard entity was cleared.
+func (m *SubscriptionResetEventMutation) GrantedCardsCleared() bool {
+	return m.clearedgranted_cards
+}
+
+// RemoveGrantedCardIDs removes the "granted_cards" edge to the SubscriptionResetCard entity by IDs.
+func (m *SubscriptionResetEventMutation) RemoveGrantedCardIDs(ids ...int64) {
+	if m.removedgranted_cards == nil {
+		m.removedgranted_cards = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.granted_cards, ids[i])
+		m.removedgranted_cards[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedGrantedCards returns the removed IDs of the "granted_cards" edge to the SubscriptionResetCard entity.
+func (m *SubscriptionResetEventMutation) RemovedGrantedCardsIDs() (ids []int64) {
+	for id := range m.removedgranted_cards {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// GrantedCardsIDs returns the "granted_cards" edge IDs in the mutation.
+func (m *SubscriptionResetEventMutation) GrantedCardsIDs() (ids []int64) {
+	for id := range m.granted_cards {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetGrantedCards resets all changes to the "granted_cards" edge.
+func (m *SubscriptionResetEventMutation) ResetGrantedCards() {
+	m.granted_cards = nil
+	m.clearedgranted_cards = false
+	m.removedgranted_cards = nil
+}
+
+// Where appends a list predicates to the SubscriptionResetEventMutation builder.
+func (m *SubscriptionResetEventMutation) Where(ps ...predicate.SubscriptionResetEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SubscriptionResetEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SubscriptionResetEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SubscriptionResetEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SubscriptionResetEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SubscriptionResetEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SubscriptionResetEvent).
+func (m *SubscriptionResetEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SubscriptionResetEventMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, subscriptionresetevent.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, subscriptionresetevent.FieldUpdatedAt)
+	}
+	if m.event_type != nil {
+		fields = append(fields, subscriptionresetevent.FieldEventType)
+	}
+	if m.status != nil {
+		fields = append(fields, subscriptionresetevent.FieldStatus)
+	}
+	if m.effective_at != nil {
+		fields = append(fields, subscriptionresetevent.FieldEffectiveAt)
+	}
+	if m.scope_type != nil {
+		fields = append(fields, subscriptionresetevent.FieldScopeType)
+	}
+	if m.scope != nil {
+		fields = append(fields, subscriptionresetevent.FieldScope)
+	}
+	if m.reason != nil {
+		fields = append(fields, subscriptionresetevent.FieldReason)
+	}
+	if m.campaign != nil {
+		fields = append(fields, subscriptionresetevent.FieldCampaign)
+	}
+	if m.created_by_user != nil {
+		fields = append(fields, subscriptionresetevent.FieldCreatedBy)
+	}
+	if m.started_at != nil {
+		fields = append(fields, subscriptionresetevent.FieldStartedAt)
+	}
+	if m.completed_at != nil {
+		fields = append(fields, subscriptionresetevent.FieldCompletedAt)
+	}
+	if m.metadata != nil {
+		fields = append(fields, subscriptionresetevent.FieldMetadata)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SubscriptionResetEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case subscriptionresetevent.FieldCreatedAt:
+		return m.CreatedAt()
+	case subscriptionresetevent.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case subscriptionresetevent.FieldEventType:
+		return m.EventType()
+	case subscriptionresetevent.FieldStatus:
+		return m.Status()
+	case subscriptionresetevent.FieldEffectiveAt:
+		return m.EffectiveAt()
+	case subscriptionresetevent.FieldScopeType:
+		return m.ScopeType()
+	case subscriptionresetevent.FieldScope:
+		return m.Scope()
+	case subscriptionresetevent.FieldReason:
+		return m.Reason()
+	case subscriptionresetevent.FieldCampaign:
+		return m.Campaign()
+	case subscriptionresetevent.FieldCreatedBy:
+		return m.CreatedBy()
+	case subscriptionresetevent.FieldStartedAt:
+		return m.StartedAt()
+	case subscriptionresetevent.FieldCompletedAt:
+		return m.CompletedAt()
+	case subscriptionresetevent.FieldMetadata:
+		return m.Metadata()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SubscriptionResetEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case subscriptionresetevent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case subscriptionresetevent.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case subscriptionresetevent.FieldEventType:
+		return m.OldEventType(ctx)
+	case subscriptionresetevent.FieldStatus:
+		return m.OldStatus(ctx)
+	case subscriptionresetevent.FieldEffectiveAt:
+		return m.OldEffectiveAt(ctx)
+	case subscriptionresetevent.FieldScopeType:
+		return m.OldScopeType(ctx)
+	case subscriptionresetevent.FieldScope:
+		return m.OldScope(ctx)
+	case subscriptionresetevent.FieldReason:
+		return m.OldReason(ctx)
+	case subscriptionresetevent.FieldCampaign:
+		return m.OldCampaign(ctx)
+	case subscriptionresetevent.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case subscriptionresetevent.FieldStartedAt:
+		return m.OldStartedAt(ctx)
+	case subscriptionresetevent.FieldCompletedAt:
+		return m.OldCompletedAt(ctx)
+	case subscriptionresetevent.FieldMetadata:
+		return m.OldMetadata(ctx)
+	}
+	return nil, fmt.Errorf("unknown SubscriptionResetEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubscriptionResetEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case subscriptionresetevent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case subscriptionresetevent.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case subscriptionresetevent.FieldEventType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventType(v)
+		return nil
+	case subscriptionresetevent.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case subscriptionresetevent.FieldEffectiveAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEffectiveAt(v)
+		return nil
+	case subscriptionresetevent.FieldScopeType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopeType(v)
+		return nil
+	case subscriptionresetevent.FieldScope:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
+		return nil
+	case subscriptionresetevent.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case subscriptionresetevent.FieldCampaign:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCampaign(v)
+		return nil
+	case subscriptionresetevent.FieldCreatedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case subscriptionresetevent.FieldStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartedAt(v)
+		return nil
+	case subscriptionresetevent.FieldCompletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletedAt(v)
+		return nil
+	case subscriptionresetevent.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SubscriptionResetEventMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SubscriptionResetEventMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubscriptionResetEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SubscriptionResetEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SubscriptionResetEventMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(subscriptionresetevent.FieldCampaign) {
+		fields = append(fields, subscriptionresetevent.FieldCampaign)
+	}
+	if m.FieldCleared(subscriptionresetevent.FieldCreatedBy) {
+		fields = append(fields, subscriptionresetevent.FieldCreatedBy)
+	}
+	if m.FieldCleared(subscriptionresetevent.FieldStartedAt) {
+		fields = append(fields, subscriptionresetevent.FieldStartedAt)
+	}
+	if m.FieldCleared(subscriptionresetevent.FieldCompletedAt) {
+		fields = append(fields, subscriptionresetevent.FieldCompletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SubscriptionResetEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SubscriptionResetEventMutation) ClearField(name string) error {
+	switch name {
+	case subscriptionresetevent.FieldCampaign:
+		m.ClearCampaign()
+		return nil
+	case subscriptionresetevent.FieldCreatedBy:
+		m.ClearCreatedBy()
+		return nil
+	case subscriptionresetevent.FieldStartedAt:
+		m.ClearStartedAt()
+		return nil
+	case subscriptionresetevent.FieldCompletedAt:
+		m.ClearCompletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SubscriptionResetEventMutation) ResetField(name string) error {
+	switch name {
+	case subscriptionresetevent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case subscriptionresetevent.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case subscriptionresetevent.FieldEventType:
+		m.ResetEventType()
+		return nil
+	case subscriptionresetevent.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case subscriptionresetevent.FieldEffectiveAt:
+		m.ResetEffectiveAt()
+		return nil
+	case subscriptionresetevent.FieldScopeType:
+		m.ResetScopeType()
+		return nil
+	case subscriptionresetevent.FieldScope:
+		m.ResetScope()
+		return nil
+	case subscriptionresetevent.FieldReason:
+		m.ResetReason()
+		return nil
+	case subscriptionresetevent.FieldCampaign:
+		m.ResetCampaign()
+		return nil
+	case subscriptionresetevent.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case subscriptionresetevent.FieldStartedAt:
+		m.ResetStartedAt()
+		return nil
+	case subscriptionresetevent.FieldCompletedAt:
+		m.ResetCompletedAt()
+		return nil
+	case subscriptionresetevent.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SubscriptionResetEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.created_by_user != nil {
+		edges = append(edges, subscriptionresetevent.EdgeCreatedByUser)
+	}
+	if m.applications != nil {
+		edges = append(edges, subscriptionresetevent.EdgeApplications)
+	}
+	if m.granted_cards != nil {
+		edges = append(edges, subscriptionresetevent.EdgeGrantedCards)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SubscriptionResetEventMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case subscriptionresetevent.EdgeCreatedByUser:
+		if id := m.created_by_user; id != nil {
+			return []ent.Value{*id}
+		}
+	case subscriptionresetevent.EdgeApplications:
+		ids := make([]ent.Value, 0, len(m.applications))
+		for id := range m.applications {
+			ids = append(ids, id)
+		}
+		return ids
+	case subscriptionresetevent.EdgeGrantedCards:
+		ids := make([]ent.Value, 0, len(m.granted_cards))
+		for id := range m.granted_cards {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SubscriptionResetEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.removedapplications != nil {
+		edges = append(edges, subscriptionresetevent.EdgeApplications)
+	}
+	if m.removedgranted_cards != nil {
+		edges = append(edges, subscriptionresetevent.EdgeGrantedCards)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SubscriptionResetEventMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case subscriptionresetevent.EdgeApplications:
+		ids := make([]ent.Value, 0, len(m.removedapplications))
+		for id := range m.removedapplications {
+			ids = append(ids, id)
+		}
+		return ids
+	case subscriptionresetevent.EdgeGrantedCards:
+		ids := make([]ent.Value, 0, len(m.removedgranted_cards))
+		for id := range m.removedgranted_cards {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SubscriptionResetEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedcreated_by_user {
+		edges = append(edges, subscriptionresetevent.EdgeCreatedByUser)
+	}
+	if m.clearedapplications {
+		edges = append(edges, subscriptionresetevent.EdgeApplications)
+	}
+	if m.clearedgranted_cards {
+		edges = append(edges, subscriptionresetevent.EdgeGrantedCards)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SubscriptionResetEventMutation) EdgeCleared(name string) bool {
+	switch name {
+	case subscriptionresetevent.EdgeCreatedByUser:
+		return m.clearedcreated_by_user
+	case subscriptionresetevent.EdgeApplications:
+		return m.clearedapplications
+	case subscriptionresetevent.EdgeGrantedCards:
+		return m.clearedgranted_cards
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SubscriptionResetEventMutation) ClearEdge(name string) error {
+	switch name {
+	case subscriptionresetevent.EdgeCreatedByUser:
+		m.ClearCreatedByUser()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SubscriptionResetEventMutation) ResetEdge(name string) error {
+	switch name {
+	case subscriptionresetevent.EdgeCreatedByUser:
+		m.ResetCreatedByUser()
+		return nil
+	case subscriptionresetevent.EdgeApplications:
+		m.ResetApplications()
+		return nil
+	case subscriptionresetevent.EdgeGrantedCards:
+		m.ResetGrantedCards()
+		return nil
+	}
+	return fmt.Errorf("unknown SubscriptionResetEvent edge %s", name)
+}
+
 // TLSFingerprintProfileMutation represents an operation that mutates the TLSFingerprintProfile nodes in the graph.
 type TLSFingerprintProfileMutation struct {
 	config
@@ -48771,6 +52624,15 @@ type UserMutation struct {
 	platform_quotas               map[int64]struct{}
 	removedplatform_quotas        map[int64]struct{}
 	clearedplatform_quotas        bool
+	reset_cards                   map[int64]struct{}
+	removedreset_cards            map[int64]struct{}
+	clearedreset_cards            bool
+	created_reset_events          map[int64]struct{}
+	removedcreated_reset_events   map[int64]struct{}
+	clearedcreated_reset_events   bool
+	created_reset_cards           map[int64]struct{}
+	removedcreated_reset_cards    map[int64]struct{}
+	clearedcreated_reset_cards    bool
 	done                          bool
 	oldValue                      func(context.Context) (*User, error)
 	predicates                    []predicate.User
@@ -50675,6 +54537,168 @@ func (m *UserMutation) ResetPlatformQuotas() {
 	m.removedplatform_quotas = nil
 }
 
+// AddResetCardIDs adds the "reset_cards" edge to the SubscriptionResetCard entity by ids.
+func (m *UserMutation) AddResetCardIDs(ids ...int64) {
+	if m.reset_cards == nil {
+		m.reset_cards = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.reset_cards[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResetCards clears the "reset_cards" edge to the SubscriptionResetCard entity.
+func (m *UserMutation) ClearResetCards() {
+	m.clearedreset_cards = true
+}
+
+// ResetCardsCleared reports if the "reset_cards" edge to the SubscriptionResetCard entity was cleared.
+func (m *UserMutation) ResetCardsCleared() bool {
+	return m.clearedreset_cards
+}
+
+// RemoveResetCardIDs removes the "reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (m *UserMutation) RemoveResetCardIDs(ids ...int64) {
+	if m.removedreset_cards == nil {
+		m.removedreset_cards = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.reset_cards, ids[i])
+		m.removedreset_cards[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResetCards returns the removed IDs of the "reset_cards" edge to the SubscriptionResetCard entity.
+func (m *UserMutation) RemovedResetCardsIDs() (ids []int64) {
+	for id := range m.removedreset_cards {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCardsIDs returns the "reset_cards" edge IDs in the mutation.
+func (m *UserMutation) ResetCardsIDs() (ids []int64) {
+	for id := range m.reset_cards {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResetCards resets all changes to the "reset_cards" edge.
+func (m *UserMutation) ResetResetCards() {
+	m.reset_cards = nil
+	m.clearedreset_cards = false
+	m.removedreset_cards = nil
+}
+
+// AddCreatedResetEventIDs adds the "created_reset_events" edge to the SubscriptionResetEvent entity by ids.
+func (m *UserMutation) AddCreatedResetEventIDs(ids ...int64) {
+	if m.created_reset_events == nil {
+		m.created_reset_events = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.created_reset_events[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCreatedResetEvents clears the "created_reset_events" edge to the SubscriptionResetEvent entity.
+func (m *UserMutation) ClearCreatedResetEvents() {
+	m.clearedcreated_reset_events = true
+}
+
+// CreatedResetEventsCleared reports if the "created_reset_events" edge to the SubscriptionResetEvent entity was cleared.
+func (m *UserMutation) CreatedResetEventsCleared() bool {
+	return m.clearedcreated_reset_events
+}
+
+// RemoveCreatedResetEventIDs removes the "created_reset_events" edge to the SubscriptionResetEvent entity by IDs.
+func (m *UserMutation) RemoveCreatedResetEventIDs(ids ...int64) {
+	if m.removedcreated_reset_events == nil {
+		m.removedcreated_reset_events = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.created_reset_events, ids[i])
+		m.removedcreated_reset_events[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCreatedResetEvents returns the removed IDs of the "created_reset_events" edge to the SubscriptionResetEvent entity.
+func (m *UserMutation) RemovedCreatedResetEventsIDs() (ids []int64) {
+	for id := range m.removedcreated_reset_events {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CreatedResetEventsIDs returns the "created_reset_events" edge IDs in the mutation.
+func (m *UserMutation) CreatedResetEventsIDs() (ids []int64) {
+	for id := range m.created_reset_events {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCreatedResetEvents resets all changes to the "created_reset_events" edge.
+func (m *UserMutation) ResetCreatedResetEvents() {
+	m.created_reset_events = nil
+	m.clearedcreated_reset_events = false
+	m.removedcreated_reset_events = nil
+}
+
+// AddCreatedResetCardIDs adds the "created_reset_cards" edge to the SubscriptionResetCard entity by ids.
+func (m *UserMutation) AddCreatedResetCardIDs(ids ...int64) {
+	if m.created_reset_cards == nil {
+		m.created_reset_cards = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.created_reset_cards[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCreatedResetCards clears the "created_reset_cards" edge to the SubscriptionResetCard entity.
+func (m *UserMutation) ClearCreatedResetCards() {
+	m.clearedcreated_reset_cards = true
+}
+
+// CreatedResetCardsCleared reports if the "created_reset_cards" edge to the SubscriptionResetCard entity was cleared.
+func (m *UserMutation) CreatedResetCardsCleared() bool {
+	return m.clearedcreated_reset_cards
+}
+
+// RemoveCreatedResetCardIDs removes the "created_reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (m *UserMutation) RemoveCreatedResetCardIDs(ids ...int64) {
+	if m.removedcreated_reset_cards == nil {
+		m.removedcreated_reset_cards = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.created_reset_cards, ids[i])
+		m.removedcreated_reset_cards[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCreatedResetCards returns the removed IDs of the "created_reset_cards" edge to the SubscriptionResetCard entity.
+func (m *UserMutation) RemovedCreatedResetCardsIDs() (ids []int64) {
+	for id := range m.removedcreated_reset_cards {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CreatedResetCardsIDs returns the "created_reset_cards" edge IDs in the mutation.
+func (m *UserMutation) CreatedResetCardsIDs() (ids []int64) {
+	for id := range m.created_reset_cards {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCreatedResetCards resets all changes to the "created_reset_cards" edge.
+func (m *UserMutation) ResetCreatedResetCards() {
+	m.created_reset_cards = nil
+	m.clearedcreated_reset_cards = false
+	m.removedcreated_reset_cards = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -51330,7 +55354,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 16)
 	if m.api_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -51369,6 +55393,15 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.platform_quotas != nil {
 		edges = append(edges, user.EdgePlatformQuotas)
+	}
+	if m.reset_cards != nil {
+		edges = append(edges, user.EdgeResetCards)
+	}
+	if m.created_reset_events != nil {
+		edges = append(edges, user.EdgeCreatedResetEvents)
+	}
+	if m.created_reset_cards != nil {
+		edges = append(edges, user.EdgeCreatedResetCards)
 	}
 	return edges
 }
@@ -51455,13 +55488,31 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeResetCards:
+		ids := make([]ent.Value, 0, len(m.reset_cards))
+		for id := range m.reset_cards {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeCreatedResetEvents:
+		ids := make([]ent.Value, 0, len(m.created_reset_events))
+		for id := range m.created_reset_events {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeCreatedResetCards:
+		ids := make([]ent.Value, 0, len(m.created_reset_cards))
+		for id := range m.created_reset_cards {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 16)
 	if m.removedapi_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -51500,6 +55551,15 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedplatform_quotas != nil {
 		edges = append(edges, user.EdgePlatformQuotas)
+	}
+	if m.removedreset_cards != nil {
+		edges = append(edges, user.EdgeResetCards)
+	}
+	if m.removedcreated_reset_events != nil {
+		edges = append(edges, user.EdgeCreatedResetEvents)
+	}
+	if m.removedcreated_reset_cards != nil {
+		edges = append(edges, user.EdgeCreatedResetCards)
 	}
 	return edges
 }
@@ -51586,13 +55646,31 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeResetCards:
+		ids := make([]ent.Value, 0, len(m.removedreset_cards))
+		for id := range m.removedreset_cards {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeCreatedResetEvents:
+		ids := make([]ent.Value, 0, len(m.removedcreated_reset_events))
+		for id := range m.removedcreated_reset_events {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeCreatedResetCards:
+		ids := make([]ent.Value, 0, len(m.removedcreated_reset_cards))
+		for id := range m.removedcreated_reset_cards {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 16)
 	if m.clearedapi_keys {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -51632,6 +55710,15 @@ func (m *UserMutation) ClearedEdges() []string {
 	if m.clearedplatform_quotas {
 		edges = append(edges, user.EdgePlatformQuotas)
 	}
+	if m.clearedreset_cards {
+		edges = append(edges, user.EdgeResetCards)
+	}
+	if m.clearedcreated_reset_events {
+		edges = append(edges, user.EdgeCreatedResetEvents)
+	}
+	if m.clearedcreated_reset_cards {
+		edges = append(edges, user.EdgeCreatedResetCards)
+	}
 	return edges
 }
 
@@ -51665,6 +55752,12 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedpending_auth_sessions
 	case user.EdgePlatformQuotas:
 		return m.clearedplatform_quotas
+	case user.EdgeResetCards:
+		return m.clearedreset_cards
+	case user.EdgeCreatedResetEvents:
+		return m.clearedcreated_reset_events
+	case user.EdgeCreatedResetCards:
+		return m.clearedcreated_reset_cards
 	}
 	return false
 }
@@ -51719,6 +55812,15 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgePlatformQuotas:
 		m.ResetPlatformQuotas()
+		return nil
+	case user.EdgeResetCards:
+		m.ResetResetCards()
+		return nil
+	case user.EdgeCreatedResetEvents:
+		m.ResetCreatedResetEvents()
+		return nil
+	case user.EdgeCreatedResetCards:
+		m.ResetCreatedResetCards()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)
@@ -55365,39 +59467,46 @@ func (m *UserPlatformQuotaMutation) ResetEdge(name string) error {
 // UserSubscriptionMutation represents an operation that mutates the UserSubscription nodes in the graph.
 type UserSubscriptionMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *int64
-	created_at              *time.Time
-	updated_at              *time.Time
-	deleted_at              *time.Time
-	starts_at               *time.Time
-	expires_at              *time.Time
-	status                  *string
-	daily_window_start      *time.Time
-	weekly_window_start     *time.Time
-	monthly_window_start    *time.Time
-	daily_usage_usd         *float64
-	adddaily_usage_usd      *float64
-	weekly_usage_usd        *float64
-	addweekly_usage_usd     *float64
-	monthly_usage_usd       *float64
-	addmonthly_usage_usd    *float64
-	assigned_at             *time.Time
-	notes                   *string
-	clearedFields           map[string]struct{}
-	user                    *int64
-	cleareduser             bool
-	group                   *int64
-	clearedgroup            bool
-	assigned_by_user        *int64
-	clearedassigned_by_user bool
-	usage_logs              map[int64]struct{}
-	removedusage_logs       map[int64]struct{}
-	clearedusage_logs       bool
-	done                    bool
-	oldValue                func(context.Context) (*UserSubscription, error)
-	predicates              []predicate.UserSubscription
+	op                         Op
+	typ                        string
+	id                         *int64
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	deleted_at                 *time.Time
+	starts_at                  *time.Time
+	expires_at                 *time.Time
+	status                     *string
+	daily_window_start         *time.Time
+	weekly_window_start        *time.Time
+	monthly_window_start       *time.Time
+	daily_usage_usd            *float64
+	adddaily_usage_usd         *float64
+	weekly_usage_usd           *float64
+	addweekly_usage_usd        *float64
+	monthly_usage_usd          *float64
+	addmonthly_usage_usd       *float64
+	assigned_at                *time.Time
+	notes                      *string
+	auto_payg_fallback         *bool
+	clearedFields              map[string]struct{}
+	user                       *int64
+	cleareduser                bool
+	group                      *int64
+	clearedgroup               bool
+	assigned_by_user           *int64
+	clearedassigned_by_user    bool
+	usage_logs                 map[int64]struct{}
+	removedusage_logs          map[int64]struct{}
+	clearedusage_logs          bool
+	reset_applications         map[int64]struct{}
+	removedreset_applications  map[int64]struct{}
+	clearedreset_applications  bool
+	used_by_reset_cards        map[int64]struct{}
+	removedused_by_reset_cards map[int64]struct{}
+	clearedused_by_reset_cards bool
+	done                       bool
+	oldValue                   func(context.Context) (*UserSubscription, error)
+	predicates                 []predicate.UserSubscription
 }
 
 var _ ent.Mutation = (*UserSubscriptionMutation)(nil)
@@ -56248,6 +60357,42 @@ func (m *UserSubscriptionMutation) ResetNotes() {
 	delete(m.clearedFields, usersubscription.FieldNotes)
 }
 
+// SetAutoPaygFallback sets the "auto_payg_fallback" field.
+func (m *UserSubscriptionMutation) SetAutoPaygFallback(b bool) {
+	m.auto_payg_fallback = &b
+}
+
+// AutoPaygFallback returns the value of the "auto_payg_fallback" field in the mutation.
+func (m *UserSubscriptionMutation) AutoPaygFallback() (r bool, exists bool) {
+	v := m.auto_payg_fallback
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoPaygFallback returns the old "auto_payg_fallback" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldAutoPaygFallback(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoPaygFallback is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoPaygFallback requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoPaygFallback: %w", err)
+	}
+	return oldValue.AutoPaygFallback, nil
+}
+
+// ResetAutoPaygFallback resets all changes to the "auto_payg_fallback" field.
+func (m *UserSubscriptionMutation) ResetAutoPaygFallback() {
+	m.auto_payg_fallback = nil
+}
+
 // ClearUser clears the "user" edge to the User entity.
 func (m *UserSubscriptionMutation) ClearUser() {
 	m.cleareduser = true
@@ -56396,6 +60541,114 @@ func (m *UserSubscriptionMutation) ResetUsageLogs() {
 	m.removedusage_logs = nil
 }
 
+// AddResetApplicationIDs adds the "reset_applications" edge to the SubscriptionResetApplication entity by ids.
+func (m *UserSubscriptionMutation) AddResetApplicationIDs(ids ...int64) {
+	if m.reset_applications == nil {
+		m.reset_applications = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.reset_applications[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResetApplications clears the "reset_applications" edge to the SubscriptionResetApplication entity.
+func (m *UserSubscriptionMutation) ClearResetApplications() {
+	m.clearedreset_applications = true
+}
+
+// ResetApplicationsCleared reports if the "reset_applications" edge to the SubscriptionResetApplication entity was cleared.
+func (m *UserSubscriptionMutation) ResetApplicationsCleared() bool {
+	return m.clearedreset_applications
+}
+
+// RemoveResetApplicationIDs removes the "reset_applications" edge to the SubscriptionResetApplication entity by IDs.
+func (m *UserSubscriptionMutation) RemoveResetApplicationIDs(ids ...int64) {
+	if m.removedreset_applications == nil {
+		m.removedreset_applications = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.reset_applications, ids[i])
+		m.removedreset_applications[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResetApplications returns the removed IDs of the "reset_applications" edge to the SubscriptionResetApplication entity.
+func (m *UserSubscriptionMutation) RemovedResetApplicationsIDs() (ids []int64) {
+	for id := range m.removedreset_applications {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetApplicationsIDs returns the "reset_applications" edge IDs in the mutation.
+func (m *UserSubscriptionMutation) ResetApplicationsIDs() (ids []int64) {
+	for id := range m.reset_applications {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResetApplications resets all changes to the "reset_applications" edge.
+func (m *UserSubscriptionMutation) ResetResetApplications() {
+	m.reset_applications = nil
+	m.clearedreset_applications = false
+	m.removedreset_applications = nil
+}
+
+// AddUsedByResetCardIDs adds the "used_by_reset_cards" edge to the SubscriptionResetCard entity by ids.
+func (m *UserSubscriptionMutation) AddUsedByResetCardIDs(ids ...int64) {
+	if m.used_by_reset_cards == nil {
+		m.used_by_reset_cards = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.used_by_reset_cards[ids[i]] = struct{}{}
+	}
+}
+
+// ClearUsedByResetCards clears the "used_by_reset_cards" edge to the SubscriptionResetCard entity.
+func (m *UserSubscriptionMutation) ClearUsedByResetCards() {
+	m.clearedused_by_reset_cards = true
+}
+
+// UsedByResetCardsCleared reports if the "used_by_reset_cards" edge to the SubscriptionResetCard entity was cleared.
+func (m *UserSubscriptionMutation) UsedByResetCardsCleared() bool {
+	return m.clearedused_by_reset_cards
+}
+
+// RemoveUsedByResetCardIDs removes the "used_by_reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (m *UserSubscriptionMutation) RemoveUsedByResetCardIDs(ids ...int64) {
+	if m.removedused_by_reset_cards == nil {
+		m.removedused_by_reset_cards = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.used_by_reset_cards, ids[i])
+		m.removedused_by_reset_cards[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedUsedByResetCards returns the removed IDs of the "used_by_reset_cards" edge to the SubscriptionResetCard entity.
+func (m *UserSubscriptionMutation) RemovedUsedByResetCardsIDs() (ids []int64) {
+	for id := range m.removedused_by_reset_cards {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// UsedByResetCardsIDs returns the "used_by_reset_cards" edge IDs in the mutation.
+func (m *UserSubscriptionMutation) UsedByResetCardsIDs() (ids []int64) {
+	for id := range m.used_by_reset_cards {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetUsedByResetCards resets all changes to the "used_by_reset_cards" edge.
+func (m *UserSubscriptionMutation) ResetUsedByResetCards() {
+	m.used_by_reset_cards = nil
+	m.clearedused_by_reset_cards = false
+	m.removedused_by_reset_cards = nil
+}
+
 // Where appends a list predicates to the UserSubscriptionMutation builder.
 func (m *UserSubscriptionMutation) Where(ps ...predicate.UserSubscription) {
 	m.predicates = append(m.predicates, ps...)
@@ -56430,7 +60683,7 @@ func (m *UserSubscriptionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSubscriptionMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 18)
 	if m.created_at != nil {
 		fields = append(fields, usersubscription.FieldCreatedAt)
 	}
@@ -56482,6 +60735,9 @@ func (m *UserSubscriptionMutation) Fields() []string {
 	if m.notes != nil {
 		fields = append(fields, usersubscription.FieldNotes)
 	}
+	if m.auto_payg_fallback != nil {
+		fields = append(fields, usersubscription.FieldAutoPaygFallback)
+	}
 	return fields
 }
 
@@ -56524,6 +60780,8 @@ func (m *UserSubscriptionMutation) Field(name string) (ent.Value, bool) {
 		return m.AssignedAt()
 	case usersubscription.FieldNotes:
 		return m.Notes()
+	case usersubscription.FieldAutoPaygFallback:
+		return m.AutoPaygFallback()
 	}
 	return nil, false
 }
@@ -56567,6 +60825,8 @@ func (m *UserSubscriptionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldAssignedAt(ctx)
 	case usersubscription.FieldNotes:
 		return m.OldNotes(ctx)
+	case usersubscription.FieldAutoPaygFallback:
+		return m.OldAutoPaygFallback(ctx)
 	}
 	return nil, fmt.Errorf("unknown UserSubscription field %s", name)
 }
@@ -56694,6 +60954,13 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetNotes(v)
+		return nil
+	case usersubscription.FieldAutoPaygFallback:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoPaygFallback(v)
 		return nil
 	}
 	return fmt.Errorf("unknown UserSubscription field %s", name)
@@ -56873,13 +61140,16 @@ func (m *UserSubscriptionMutation) ResetField(name string) error {
 	case usersubscription.FieldNotes:
 		m.ResetNotes()
 		return nil
+	case usersubscription.FieldAutoPaygFallback:
+		m.ResetAutoPaygFallback()
+		return nil
 	}
 	return fmt.Errorf("unknown UserSubscription field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserSubscriptionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 6)
 	if m.user != nil {
 		edges = append(edges, usersubscription.EdgeUser)
 	}
@@ -56891,6 +61161,12 @@ func (m *UserSubscriptionMutation) AddedEdges() []string {
 	}
 	if m.usage_logs != nil {
 		edges = append(edges, usersubscription.EdgeUsageLogs)
+	}
+	if m.reset_applications != nil {
+		edges = append(edges, usersubscription.EdgeResetApplications)
+	}
+	if m.used_by_reset_cards != nil {
+		edges = append(edges, usersubscription.EdgeUsedByResetCards)
 	}
 	return edges
 }
@@ -56917,15 +61193,33 @@ func (m *UserSubscriptionMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case usersubscription.EdgeResetApplications:
+		ids := make([]ent.Value, 0, len(m.reset_applications))
+		for id := range m.reset_applications {
+			ids = append(ids, id)
+		}
+		return ids
+	case usersubscription.EdgeUsedByResetCards:
+		ids := make([]ent.Value, 0, len(m.used_by_reset_cards))
+		for id := range m.used_by_reset_cards {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserSubscriptionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 6)
 	if m.removedusage_logs != nil {
 		edges = append(edges, usersubscription.EdgeUsageLogs)
+	}
+	if m.removedreset_applications != nil {
+		edges = append(edges, usersubscription.EdgeResetApplications)
+	}
+	if m.removedused_by_reset_cards != nil {
+		edges = append(edges, usersubscription.EdgeUsedByResetCards)
 	}
 	return edges
 }
@@ -56940,13 +61234,25 @@ func (m *UserSubscriptionMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case usersubscription.EdgeResetApplications:
+		ids := make([]ent.Value, 0, len(m.removedreset_applications))
+		for id := range m.removedreset_applications {
+			ids = append(ids, id)
+		}
+		return ids
+	case usersubscription.EdgeUsedByResetCards:
+		ids := make([]ent.Value, 0, len(m.removedused_by_reset_cards))
+		for id := range m.removedused_by_reset_cards {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserSubscriptionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 6)
 	if m.cleareduser {
 		edges = append(edges, usersubscription.EdgeUser)
 	}
@@ -56958,6 +61264,12 @@ func (m *UserSubscriptionMutation) ClearedEdges() []string {
 	}
 	if m.clearedusage_logs {
 		edges = append(edges, usersubscription.EdgeUsageLogs)
+	}
+	if m.clearedreset_applications {
+		edges = append(edges, usersubscription.EdgeResetApplications)
+	}
+	if m.clearedused_by_reset_cards {
+		edges = append(edges, usersubscription.EdgeUsedByResetCards)
 	}
 	return edges
 }
@@ -56974,6 +61286,10 @@ func (m *UserSubscriptionMutation) EdgeCleared(name string) bool {
 		return m.clearedassigned_by_user
 	case usersubscription.EdgeUsageLogs:
 		return m.clearedusage_logs
+	case usersubscription.EdgeResetApplications:
+		return m.clearedreset_applications
+	case usersubscription.EdgeUsedByResetCards:
+		return m.clearedused_by_reset_cards
 	}
 	return false
 }
@@ -57010,6 +61326,12 @@ func (m *UserSubscriptionMutation) ResetEdge(name string) error {
 		return nil
 	case usersubscription.EdgeUsageLogs:
 		m.ResetUsageLogs()
+		return nil
+	case usersubscription.EdgeResetApplications:
+		m.ResetResetApplications()
+		return nil
+	case usersubscription.EdgeUsedByResetCards:
+		m.ResetUsedByResetCards()
 		return nil
 	}
 	return fmt.Errorf("unknown UserSubscription edge %s", name)

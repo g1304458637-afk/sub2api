@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -304,6 +306,20 @@ func (_u *UserSubscriptionUpdate) ClearNotes() *UserSubscriptionUpdate {
 	return _u
 }
 
+// SetAutoPaygFallback sets the "auto_payg_fallback" field.
+func (_u *UserSubscriptionUpdate) SetAutoPaygFallback(v bool) *UserSubscriptionUpdate {
+	_u.mutation.SetAutoPaygFallback(v)
+	return _u
+}
+
+// SetNillableAutoPaygFallback sets the "auto_payg_fallback" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableAutoPaygFallback(v *bool) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetAutoPaygFallback(*v)
+	}
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *UserSubscriptionUpdate) SetUser(v *User) *UserSubscriptionUpdate {
 	return _u.SetUserID(v.ID)
@@ -348,6 +364,36 @@ func (_u *UserSubscriptionUpdate) AddUsageLogs(v ...*UsageLog) *UserSubscription
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// AddResetApplicationIDs adds the "reset_applications" edge to the SubscriptionResetApplication entity by IDs.
+func (_u *UserSubscriptionUpdate) AddResetApplicationIDs(ids ...int64) *UserSubscriptionUpdate {
+	_u.mutation.AddResetApplicationIDs(ids...)
+	return _u
+}
+
+// AddResetApplications adds the "reset_applications" edges to the SubscriptionResetApplication entity.
+func (_u *UserSubscriptionUpdate) AddResetApplications(v ...*SubscriptionResetApplication) *UserSubscriptionUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResetApplicationIDs(ids...)
+}
+
+// AddUsedByResetCardIDs adds the "used_by_reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_u *UserSubscriptionUpdate) AddUsedByResetCardIDs(ids ...int64) *UserSubscriptionUpdate {
+	_u.mutation.AddUsedByResetCardIDs(ids...)
+	return _u
+}
+
+// AddUsedByResetCards adds the "used_by_reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserSubscriptionUpdate) AddUsedByResetCards(v ...*SubscriptionResetCard) *UserSubscriptionUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUsedByResetCardIDs(ids...)
+}
+
 // Mutation returns the UserSubscriptionMutation object of the builder.
 func (_u *UserSubscriptionUpdate) Mutation() *UserSubscriptionMutation {
 	return _u.mutation
@@ -390,6 +436,48 @@ func (_u *UserSubscriptionUpdate) RemoveUsageLogs(v ...*UsageLog) *UserSubscript
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearResetApplications clears all "reset_applications" edges to the SubscriptionResetApplication entity.
+func (_u *UserSubscriptionUpdate) ClearResetApplications() *UserSubscriptionUpdate {
+	_u.mutation.ClearResetApplications()
+	return _u
+}
+
+// RemoveResetApplicationIDs removes the "reset_applications" edge to SubscriptionResetApplication entities by IDs.
+func (_u *UserSubscriptionUpdate) RemoveResetApplicationIDs(ids ...int64) *UserSubscriptionUpdate {
+	_u.mutation.RemoveResetApplicationIDs(ids...)
+	return _u
+}
+
+// RemoveResetApplications removes "reset_applications" edges to SubscriptionResetApplication entities.
+func (_u *UserSubscriptionUpdate) RemoveResetApplications(v ...*SubscriptionResetApplication) *UserSubscriptionUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResetApplicationIDs(ids...)
+}
+
+// ClearUsedByResetCards clears all "used_by_reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserSubscriptionUpdate) ClearUsedByResetCards() *UserSubscriptionUpdate {
+	_u.mutation.ClearUsedByResetCards()
+	return _u
+}
+
+// RemoveUsedByResetCardIDs removes the "used_by_reset_cards" edge to SubscriptionResetCard entities by IDs.
+func (_u *UserSubscriptionUpdate) RemoveUsedByResetCardIDs(ids ...int64) *UserSubscriptionUpdate {
+	_u.mutation.RemoveUsedByResetCardIDs(ids...)
+	return _u
+}
+
+// RemoveUsedByResetCards removes "used_by_reset_cards" edges to SubscriptionResetCard entities.
+func (_u *UserSubscriptionUpdate) RemoveUsedByResetCards(v ...*SubscriptionResetCard) *UserSubscriptionUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUsedByResetCardIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -525,6 +613,9 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(usersubscription.FieldNotes, field.TypeString)
 	}
+	if value, ok := _u.mutation.AutoPaygFallback(); ok {
+		_spec.SetField(usersubscription.FieldAutoPaygFallback, field.TypeBool, value)
+	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -650,6 +741,96 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResetApplicationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.ResetApplicationsTable,
+			Columns: []string{usersubscription.ResetApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetapplication.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResetApplicationsIDs(); len(nodes) > 0 && !_u.mutation.ResetApplicationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.ResetApplicationsTable,
+			Columns: []string{usersubscription.ResetApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetapplication.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResetApplicationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.ResetApplicationsTable,
+			Columns: []string{usersubscription.ResetApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetapplication.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UsedByResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.UsedByResetCardsTable,
+			Columns: []string{usersubscription.UsedByResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUsedByResetCardsIDs(); len(nodes) > 0 && !_u.mutation.UsedByResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.UsedByResetCardsTable,
+			Columns: []string{usersubscription.UsedByResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UsedByResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.UsedByResetCardsTable,
+			Columns: []string{usersubscription.UsedByResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -950,6 +1131,20 @@ func (_u *UserSubscriptionUpdateOne) ClearNotes() *UserSubscriptionUpdateOne {
 	return _u
 }
 
+// SetAutoPaygFallback sets the "auto_payg_fallback" field.
+func (_u *UserSubscriptionUpdateOne) SetAutoPaygFallback(v bool) *UserSubscriptionUpdateOne {
+	_u.mutation.SetAutoPaygFallback(v)
+	return _u
+}
+
+// SetNillableAutoPaygFallback sets the "auto_payg_fallback" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableAutoPaygFallback(v *bool) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetAutoPaygFallback(*v)
+	}
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *UserSubscriptionUpdateOne) SetUser(v *User) *UserSubscriptionUpdateOne {
 	return _u.SetUserID(v.ID)
@@ -994,6 +1189,36 @@ func (_u *UserSubscriptionUpdateOne) AddUsageLogs(v ...*UsageLog) *UserSubscript
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// AddResetApplicationIDs adds the "reset_applications" edge to the SubscriptionResetApplication entity by IDs.
+func (_u *UserSubscriptionUpdateOne) AddResetApplicationIDs(ids ...int64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddResetApplicationIDs(ids...)
+	return _u
+}
+
+// AddResetApplications adds the "reset_applications" edges to the SubscriptionResetApplication entity.
+func (_u *UserSubscriptionUpdateOne) AddResetApplications(v ...*SubscriptionResetApplication) *UserSubscriptionUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResetApplicationIDs(ids...)
+}
+
+// AddUsedByResetCardIDs adds the "used_by_reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_u *UserSubscriptionUpdateOne) AddUsedByResetCardIDs(ids ...int64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddUsedByResetCardIDs(ids...)
+	return _u
+}
+
+// AddUsedByResetCards adds the "used_by_reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserSubscriptionUpdateOne) AddUsedByResetCards(v ...*SubscriptionResetCard) *UserSubscriptionUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUsedByResetCardIDs(ids...)
+}
+
 // Mutation returns the UserSubscriptionMutation object of the builder.
 func (_u *UserSubscriptionUpdateOne) Mutation() *UserSubscriptionMutation {
 	return _u.mutation
@@ -1036,6 +1261,48 @@ func (_u *UserSubscriptionUpdateOne) RemoveUsageLogs(v ...*UsageLog) *UserSubscr
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearResetApplications clears all "reset_applications" edges to the SubscriptionResetApplication entity.
+func (_u *UserSubscriptionUpdateOne) ClearResetApplications() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearResetApplications()
+	return _u
+}
+
+// RemoveResetApplicationIDs removes the "reset_applications" edge to SubscriptionResetApplication entities by IDs.
+func (_u *UserSubscriptionUpdateOne) RemoveResetApplicationIDs(ids ...int64) *UserSubscriptionUpdateOne {
+	_u.mutation.RemoveResetApplicationIDs(ids...)
+	return _u
+}
+
+// RemoveResetApplications removes "reset_applications" edges to SubscriptionResetApplication entities.
+func (_u *UserSubscriptionUpdateOne) RemoveResetApplications(v ...*SubscriptionResetApplication) *UserSubscriptionUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResetApplicationIDs(ids...)
+}
+
+// ClearUsedByResetCards clears all "used_by_reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserSubscriptionUpdateOne) ClearUsedByResetCards() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearUsedByResetCards()
+	return _u
+}
+
+// RemoveUsedByResetCardIDs removes the "used_by_reset_cards" edge to SubscriptionResetCard entities by IDs.
+func (_u *UserSubscriptionUpdateOne) RemoveUsedByResetCardIDs(ids ...int64) *UserSubscriptionUpdateOne {
+	_u.mutation.RemoveUsedByResetCardIDs(ids...)
+	return _u
+}
+
+// RemoveUsedByResetCards removes "used_by_reset_cards" edges to SubscriptionResetCard entities.
+func (_u *UserSubscriptionUpdateOne) RemoveUsedByResetCards(v ...*SubscriptionResetCard) *UserSubscriptionUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUsedByResetCardIDs(ids...)
 }
 
 // Where appends a list predicates to the UserSubscriptionUpdate builder.
@@ -1201,6 +1468,9 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(usersubscription.FieldNotes, field.TypeString)
 	}
+	if value, ok := _u.mutation.AutoPaygFallback(); ok {
+		_spec.SetField(usersubscription.FieldAutoPaygFallback, field.TypeBool, value)
+	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -1326,6 +1596,96 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResetApplicationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.ResetApplicationsTable,
+			Columns: []string{usersubscription.ResetApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetapplication.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResetApplicationsIDs(); len(nodes) > 0 && !_u.mutation.ResetApplicationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.ResetApplicationsTable,
+			Columns: []string{usersubscription.ResetApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetapplication.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResetApplicationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.ResetApplicationsTable,
+			Columns: []string{usersubscription.ResetApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetapplication.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UsedByResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.UsedByResetCardsTable,
+			Columns: []string{usersubscription.UsedByResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUsedByResetCardsIDs(); len(nodes) > 0 && !_u.mutation.UsedByResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.UsedByResetCardsTable,
+			Columns: []string{usersubscription.UsedByResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UsedByResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.UsedByResetCardsTable,
+			Columns: []string{usersubscription.UsedByResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

@@ -96,6 +96,57 @@ const (
 	SubscriptionStatusSuspended = "suspended"
 )
 
+// Reset event type constants（批量 Reset / 发卡事件的唯一事实源，Phase 1 仅 schema）
+const (
+	ResetEventTypeGlobalReset    = "global_reset"     // 批量重置周周期锚点
+	ResetEventTypeResetCardGrant = "reset_card_grant" // 批量发放 Reset Card
+)
+
+// Reset event status constants
+const (
+	ResetEventStatusPending   = "pending"
+	ResetEventStatusRunning   = "running"
+	ResetEventStatusCompleted = "completed"
+	ResetEventStatusFailed    = "failed"
+	ResetEventStatusCanceled  = "canceled"
+)
+
+// Reset event scope type constants（scope 过滤条件存 JSONB，见 migration 239 注释）
+const (
+	ResetEventScopeTypeAll           = "all"
+	ResetEventScopeTypeGroup         = "group"
+	ResetEventScopeTypePlan          = "plan"
+	ResetEventScopeTypeUser          = "user"
+	ResetEventScopeTypeSubscription  = "subscription"
+)
+
+// Reset application status constants
+const (
+	ResetApplicationStatusApplied = "applied"
+	ResetApplicationStatusSkipped = "skipped" // 守卫跳过（如用户锚点已晚于事件 effective_at）
+	ResetApplicationStatusFailed  = "failed"
+)
+
+// Reset card constants（一次性可消费的周期重置权益）
+const (
+	ResetCardStatusAvailable = "available"
+	ResetCardStatusUsed      = "used"
+	ResetCardStatusExpired   = "expired"
+	ResetCardStatusRevoked   = "revoked"
+
+	ResetCardScopeWeekly = "weekly"
+)
+
+// Reset card source type constants
+const (
+	ResetCardSourceAdminGrant         = "admin_grant"
+	ResetCardSourceGlobalGift         = "global_gift"
+	ResetCardSourceCampaign           = "campaign"
+	ResetCardSourceOutageCompensation = "outage_compensation"
+	ResetCardSourcePromotion          = "promotion"
+	ResetCardSourceStudentReward      = "student_reward"
+)
+
 // AntigravityGemini31ProAgentModel is the upstream route for Gemini 3.1 Pro High.
 const AntigravityGemini31ProAgentModel = "gemini-pro-agent"
 

@@ -140,6 +140,11 @@ func Notes(v string) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldNotes, v))
 }
 
+// AutoPaygFallback applies equality check predicate on the "auto_payg_fallback" field. It's identical to AutoPaygFallbackEQ.
+func AutoPaygFallback(v bool) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldAutoPaygFallback, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldCreatedAt, v))
@@ -870,6 +875,16 @@ func NotesContainsFold(v string) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldContainsFold(FieldNotes, v))
 }
 
+// AutoPaygFallbackEQ applies the EQ predicate on the "auto_payg_fallback" field.
+func AutoPaygFallbackEQ(v bool) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldAutoPaygFallback, v))
+}
+
+// AutoPaygFallbackNEQ applies the NEQ predicate on the "auto_payg_fallback" field.
+func AutoPaygFallbackNEQ(v bool) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldAutoPaygFallback, v))
+}
+
 // HasUser applies the HasEdge predicate on the "user" edge.
 func HasUser() predicate.UserSubscription {
 	return predicate.UserSubscription(func(s *sql.Selector) {
@@ -954,6 +969,52 @@ func HasUsageLogs() predicate.UserSubscription {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.UserSubscription {
 	return predicate.UserSubscription(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasResetApplications applies the HasEdge predicate on the "reset_applications" edge.
+func HasResetApplications() predicate.UserSubscription {
+	return predicate.UserSubscription(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ResetApplicationsTable, ResetApplicationsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasResetApplicationsWith applies the HasEdge predicate on the "reset_applications" edge with a given conditions (other predicates).
+func HasResetApplicationsWith(preds ...predicate.SubscriptionResetApplication) predicate.UserSubscription {
+	return predicate.UserSubscription(func(s *sql.Selector) {
+		step := newResetApplicationsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasUsedByResetCards applies the HasEdge predicate on the "used_by_reset_cards" edge.
+func HasUsedByResetCards() predicate.UserSubscription {
+	return predicate.UserSubscription(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, UsedByResetCardsTable, UsedByResetCardsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUsedByResetCardsWith applies the HasEdge predicate on the "used_by_reset_cards" edge with a given conditions (other predicates).
+func HasUsedByResetCardsWith(preds ...predicate.SubscriptionResetCard) predicate.UserSubscription {
+	return predicate.UserSubscription(func(s *sql.Selector) {
+		step := newUsedByResetCardsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

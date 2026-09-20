@@ -45,6 +45,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetevent"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
@@ -123,6 +126,12 @@ type Client struct {
 	Setting *SettingClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
+	// SubscriptionResetApplication is the client for interacting with the SubscriptionResetApplication builders.
+	SubscriptionResetApplication *SubscriptionResetApplicationClient
+	// SubscriptionResetCard is the client for interacting with the SubscriptionResetCard builders.
+	SubscriptionResetCard *SubscriptionResetCardClient
+	// SubscriptionResetEvent is the client for interacting with the SubscriptionResetEvent builders.
+	SubscriptionResetEvent *SubscriptionResetEventClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
 	TLSFingerprintProfile *TLSFingerprintProfileClient
 	// UsageCleanupTask is the client for interacting with the UsageCleanupTask builders.
@@ -182,6 +191,9 @@ func (c *Client) init() {
 	c.SecuritySecret = NewSecuritySecretClient(c.config)
 	c.Setting = NewSettingClient(c.config)
 	c.SubscriptionPlan = NewSubscriptionPlanClient(c.config)
+	c.SubscriptionResetApplication = NewSubscriptionResetApplicationClient(c.config)
+	c.SubscriptionResetCard = NewSubscriptionResetCardClient(c.config)
+	c.SubscriptionResetEvent = NewSubscriptionResetEventClient(c.config)
 	c.TLSFingerprintProfile = NewTLSFingerprintProfileClient(c.config)
 	c.UsageCleanupTask = NewUsageCleanupTaskClient(c.config)
 	c.UsageLog = NewUsageLogClient(c.config)
@@ -313,6 +325,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
+		SubscriptionResetApplication:  NewSubscriptionResetApplicationClient(cfg),
+		SubscriptionResetCard:         NewSubscriptionResetCardClient(cfg),
+		SubscriptionResetEvent:        NewSubscriptionResetEventClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
@@ -371,6 +386,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
+		SubscriptionResetApplication:  NewSubscriptionResetApplicationClient(cfg),
+		SubscriptionResetCard:         NewSubscriptionResetCardClient(cfg),
+		SubscriptionResetEvent:        NewSubscriptionResetEventClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
@@ -417,9 +435,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.SubscriptionResetApplication, c.SubscriptionResetCard,
+		c.SubscriptionResetEvent, c.TLSFingerprintProfile, c.UsageCleanupTask,
+		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
+		c.UserAttributeValue, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -437,9 +456,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.SubscriptionResetApplication, c.SubscriptionResetCard,
+		c.SubscriptionResetEvent, c.TLSFingerprintProfile, c.UsageCleanupTask,
+		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
+		c.UserAttributeValue, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -508,6 +528,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Setting.mutate(ctx, m)
 	case *SubscriptionPlanMutation:
 		return c.SubscriptionPlan.mutate(ctx, m)
+	case *SubscriptionResetApplicationMutation:
+		return c.SubscriptionResetApplication.mutate(ctx, m)
+	case *SubscriptionResetCardMutation:
+		return c.SubscriptionResetCard.mutate(ctx, m)
+	case *SubscriptionResetEventMutation:
+		return c.SubscriptionResetEvent.mutate(ctx, m)
 	case *TLSFingerprintProfileMutation:
 		return c.TLSFingerprintProfile.mutate(ctx, m)
 	case *UsageCleanupTaskMutation:
@@ -5218,6 +5244,551 @@ func (c *SubscriptionPlanClient) mutate(ctx context.Context, m *SubscriptionPlan
 	}
 }
 
+// SubscriptionResetApplicationClient is a client for the SubscriptionResetApplication schema.
+type SubscriptionResetApplicationClient struct {
+	config
+}
+
+// NewSubscriptionResetApplicationClient returns a client for the SubscriptionResetApplication from the given config.
+func NewSubscriptionResetApplicationClient(c config) *SubscriptionResetApplicationClient {
+	return &SubscriptionResetApplicationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `subscriptionresetapplication.Hooks(f(g(h())))`.
+func (c *SubscriptionResetApplicationClient) Use(hooks ...Hook) {
+	c.hooks.SubscriptionResetApplication = append(c.hooks.SubscriptionResetApplication, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `subscriptionresetapplication.Intercept(f(g(h())))`.
+func (c *SubscriptionResetApplicationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SubscriptionResetApplication = append(c.inters.SubscriptionResetApplication, interceptors...)
+}
+
+// Create returns a builder for creating a SubscriptionResetApplication entity.
+func (c *SubscriptionResetApplicationClient) Create() *SubscriptionResetApplicationCreate {
+	mutation := newSubscriptionResetApplicationMutation(c.config, OpCreate)
+	return &SubscriptionResetApplicationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SubscriptionResetApplication entities.
+func (c *SubscriptionResetApplicationClient) CreateBulk(builders ...*SubscriptionResetApplicationCreate) *SubscriptionResetApplicationCreateBulk {
+	return &SubscriptionResetApplicationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SubscriptionResetApplicationClient) MapCreateBulk(slice any, setFunc func(*SubscriptionResetApplicationCreate, int)) *SubscriptionResetApplicationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SubscriptionResetApplicationCreateBulk{err: fmt.Errorf("calling to SubscriptionResetApplicationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SubscriptionResetApplicationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SubscriptionResetApplicationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SubscriptionResetApplication.
+func (c *SubscriptionResetApplicationClient) Update() *SubscriptionResetApplicationUpdate {
+	mutation := newSubscriptionResetApplicationMutation(c.config, OpUpdate)
+	return &SubscriptionResetApplicationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SubscriptionResetApplicationClient) UpdateOne(_m *SubscriptionResetApplication) *SubscriptionResetApplicationUpdateOne {
+	mutation := newSubscriptionResetApplicationMutation(c.config, OpUpdateOne, withSubscriptionResetApplication(_m))
+	return &SubscriptionResetApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SubscriptionResetApplicationClient) UpdateOneID(id int64) *SubscriptionResetApplicationUpdateOne {
+	mutation := newSubscriptionResetApplicationMutation(c.config, OpUpdateOne, withSubscriptionResetApplicationID(id))
+	return &SubscriptionResetApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SubscriptionResetApplication.
+func (c *SubscriptionResetApplicationClient) Delete() *SubscriptionResetApplicationDelete {
+	mutation := newSubscriptionResetApplicationMutation(c.config, OpDelete)
+	return &SubscriptionResetApplicationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SubscriptionResetApplicationClient) DeleteOne(_m *SubscriptionResetApplication) *SubscriptionResetApplicationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SubscriptionResetApplicationClient) DeleteOneID(id int64) *SubscriptionResetApplicationDeleteOne {
+	builder := c.Delete().Where(subscriptionresetapplication.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SubscriptionResetApplicationDeleteOne{builder}
+}
+
+// Query returns a query builder for SubscriptionResetApplication.
+func (c *SubscriptionResetApplicationClient) Query() *SubscriptionResetApplicationQuery {
+	return &SubscriptionResetApplicationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSubscriptionResetApplication},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SubscriptionResetApplication entity by its id.
+func (c *SubscriptionResetApplicationClient) Get(ctx context.Context, id int64) (*SubscriptionResetApplication, error) {
+	return c.Query().Where(subscriptionresetapplication.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SubscriptionResetApplicationClient) GetX(ctx context.Context, id int64) *SubscriptionResetApplication {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryResetEvent queries the reset_event edge of a SubscriptionResetApplication.
+func (c *SubscriptionResetApplicationClient) QueryResetEvent(_m *SubscriptionResetApplication) *SubscriptionResetEventQuery {
+	query := (&SubscriptionResetEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetapplication.Table, subscriptionresetapplication.FieldID, id),
+			sqlgraph.To(subscriptionresetevent.Table, subscriptionresetevent.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, subscriptionresetapplication.ResetEventTable, subscriptionresetapplication.ResetEventColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUserSubscription queries the user_subscription edge of a SubscriptionResetApplication.
+func (c *SubscriptionResetApplicationClient) QueryUserSubscription(_m *SubscriptionResetApplication) *UserSubscriptionQuery {
+	query := (&UserSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetapplication.Table, subscriptionresetapplication.FieldID, id),
+			sqlgraph.To(usersubscription.Table, usersubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, subscriptionresetapplication.UserSubscriptionTable, subscriptionresetapplication.UserSubscriptionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SubscriptionResetApplicationClient) Hooks() []Hook {
+	return c.hooks.SubscriptionResetApplication
+}
+
+// Interceptors returns the client interceptors.
+func (c *SubscriptionResetApplicationClient) Interceptors() []Interceptor {
+	return c.inters.SubscriptionResetApplication
+}
+
+func (c *SubscriptionResetApplicationClient) mutate(ctx context.Context, m *SubscriptionResetApplicationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SubscriptionResetApplicationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SubscriptionResetApplicationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SubscriptionResetApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SubscriptionResetApplicationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SubscriptionResetApplication mutation op: %q", m.Op())
+	}
+}
+
+// SubscriptionResetCardClient is a client for the SubscriptionResetCard schema.
+type SubscriptionResetCardClient struct {
+	config
+}
+
+// NewSubscriptionResetCardClient returns a client for the SubscriptionResetCard from the given config.
+func NewSubscriptionResetCardClient(c config) *SubscriptionResetCardClient {
+	return &SubscriptionResetCardClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `subscriptionresetcard.Hooks(f(g(h())))`.
+func (c *SubscriptionResetCardClient) Use(hooks ...Hook) {
+	c.hooks.SubscriptionResetCard = append(c.hooks.SubscriptionResetCard, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `subscriptionresetcard.Intercept(f(g(h())))`.
+func (c *SubscriptionResetCardClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SubscriptionResetCard = append(c.inters.SubscriptionResetCard, interceptors...)
+}
+
+// Create returns a builder for creating a SubscriptionResetCard entity.
+func (c *SubscriptionResetCardClient) Create() *SubscriptionResetCardCreate {
+	mutation := newSubscriptionResetCardMutation(c.config, OpCreate)
+	return &SubscriptionResetCardCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SubscriptionResetCard entities.
+func (c *SubscriptionResetCardClient) CreateBulk(builders ...*SubscriptionResetCardCreate) *SubscriptionResetCardCreateBulk {
+	return &SubscriptionResetCardCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SubscriptionResetCardClient) MapCreateBulk(slice any, setFunc func(*SubscriptionResetCardCreate, int)) *SubscriptionResetCardCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SubscriptionResetCardCreateBulk{err: fmt.Errorf("calling to SubscriptionResetCardClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SubscriptionResetCardCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SubscriptionResetCardCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) Update() *SubscriptionResetCardUpdate {
+	mutation := newSubscriptionResetCardMutation(c.config, OpUpdate)
+	return &SubscriptionResetCardUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SubscriptionResetCardClient) UpdateOne(_m *SubscriptionResetCard) *SubscriptionResetCardUpdateOne {
+	mutation := newSubscriptionResetCardMutation(c.config, OpUpdateOne, withSubscriptionResetCard(_m))
+	return &SubscriptionResetCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SubscriptionResetCardClient) UpdateOneID(id int64) *SubscriptionResetCardUpdateOne {
+	mutation := newSubscriptionResetCardMutation(c.config, OpUpdateOne, withSubscriptionResetCardID(id))
+	return &SubscriptionResetCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) Delete() *SubscriptionResetCardDelete {
+	mutation := newSubscriptionResetCardMutation(c.config, OpDelete)
+	return &SubscriptionResetCardDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SubscriptionResetCardClient) DeleteOne(_m *SubscriptionResetCard) *SubscriptionResetCardDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SubscriptionResetCardClient) DeleteOneID(id int64) *SubscriptionResetCardDeleteOne {
+	builder := c.Delete().Where(subscriptionresetcard.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SubscriptionResetCardDeleteOne{builder}
+}
+
+// Query returns a query builder for SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) Query() *SubscriptionResetCardQuery {
+	return &SubscriptionResetCardQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSubscriptionResetCard},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SubscriptionResetCard entity by its id.
+func (c *SubscriptionResetCardClient) Get(ctx context.Context, id int64) (*SubscriptionResetCard, error) {
+	return c.Query().Where(subscriptionresetcard.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SubscriptionResetCardClient) GetX(ctx context.Context, id int64) *SubscriptionResetCard {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) QueryUser(_m *SubscriptionResetCard) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetcard.Table, subscriptionresetcard.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, subscriptionresetcard.UserTable, subscriptionresetcard.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCreatedByUser queries the created_by_user edge of a SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) QueryCreatedByUser(_m *SubscriptionResetCard) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetcard.Table, subscriptionresetcard.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, subscriptionresetcard.CreatedByUserTable, subscriptionresetcard.CreatedByUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUsedSubscription queries the used_subscription edge of a SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) QueryUsedSubscription(_m *SubscriptionResetCard) *UserSubscriptionQuery {
+	query := (&UserSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetcard.Table, subscriptionresetcard.FieldID, id),
+			sqlgraph.To(usersubscription.Table, usersubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, subscriptionresetcard.UsedSubscriptionTable, subscriptionresetcard.UsedSubscriptionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryGrantEvent queries the grant_event edge of a SubscriptionResetCard.
+func (c *SubscriptionResetCardClient) QueryGrantEvent(_m *SubscriptionResetCard) *SubscriptionResetEventQuery {
+	query := (&SubscriptionResetEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetcard.Table, subscriptionresetcard.FieldID, id),
+			sqlgraph.To(subscriptionresetevent.Table, subscriptionresetevent.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, subscriptionresetcard.GrantEventTable, subscriptionresetcard.GrantEventColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SubscriptionResetCardClient) Hooks() []Hook {
+	hooks := c.hooks.SubscriptionResetCard
+	return append(hooks[:len(hooks):len(hooks)], subscriptionresetcard.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *SubscriptionResetCardClient) Interceptors() []Interceptor {
+	inters := c.inters.SubscriptionResetCard
+	return append(inters[:len(inters):len(inters)], subscriptionresetcard.Interceptors[:]...)
+}
+
+func (c *SubscriptionResetCardClient) mutate(ctx context.Context, m *SubscriptionResetCardMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SubscriptionResetCardCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SubscriptionResetCardUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SubscriptionResetCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SubscriptionResetCardDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SubscriptionResetCard mutation op: %q", m.Op())
+	}
+}
+
+// SubscriptionResetEventClient is a client for the SubscriptionResetEvent schema.
+type SubscriptionResetEventClient struct {
+	config
+}
+
+// NewSubscriptionResetEventClient returns a client for the SubscriptionResetEvent from the given config.
+func NewSubscriptionResetEventClient(c config) *SubscriptionResetEventClient {
+	return &SubscriptionResetEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `subscriptionresetevent.Hooks(f(g(h())))`.
+func (c *SubscriptionResetEventClient) Use(hooks ...Hook) {
+	c.hooks.SubscriptionResetEvent = append(c.hooks.SubscriptionResetEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `subscriptionresetevent.Intercept(f(g(h())))`.
+func (c *SubscriptionResetEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SubscriptionResetEvent = append(c.inters.SubscriptionResetEvent, interceptors...)
+}
+
+// Create returns a builder for creating a SubscriptionResetEvent entity.
+func (c *SubscriptionResetEventClient) Create() *SubscriptionResetEventCreate {
+	mutation := newSubscriptionResetEventMutation(c.config, OpCreate)
+	return &SubscriptionResetEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SubscriptionResetEvent entities.
+func (c *SubscriptionResetEventClient) CreateBulk(builders ...*SubscriptionResetEventCreate) *SubscriptionResetEventCreateBulk {
+	return &SubscriptionResetEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SubscriptionResetEventClient) MapCreateBulk(slice any, setFunc func(*SubscriptionResetEventCreate, int)) *SubscriptionResetEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SubscriptionResetEventCreateBulk{err: fmt.Errorf("calling to SubscriptionResetEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SubscriptionResetEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SubscriptionResetEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SubscriptionResetEvent.
+func (c *SubscriptionResetEventClient) Update() *SubscriptionResetEventUpdate {
+	mutation := newSubscriptionResetEventMutation(c.config, OpUpdate)
+	return &SubscriptionResetEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SubscriptionResetEventClient) UpdateOne(_m *SubscriptionResetEvent) *SubscriptionResetEventUpdateOne {
+	mutation := newSubscriptionResetEventMutation(c.config, OpUpdateOne, withSubscriptionResetEvent(_m))
+	return &SubscriptionResetEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SubscriptionResetEventClient) UpdateOneID(id int64) *SubscriptionResetEventUpdateOne {
+	mutation := newSubscriptionResetEventMutation(c.config, OpUpdateOne, withSubscriptionResetEventID(id))
+	return &SubscriptionResetEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SubscriptionResetEvent.
+func (c *SubscriptionResetEventClient) Delete() *SubscriptionResetEventDelete {
+	mutation := newSubscriptionResetEventMutation(c.config, OpDelete)
+	return &SubscriptionResetEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SubscriptionResetEventClient) DeleteOne(_m *SubscriptionResetEvent) *SubscriptionResetEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SubscriptionResetEventClient) DeleteOneID(id int64) *SubscriptionResetEventDeleteOne {
+	builder := c.Delete().Where(subscriptionresetevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SubscriptionResetEventDeleteOne{builder}
+}
+
+// Query returns a query builder for SubscriptionResetEvent.
+func (c *SubscriptionResetEventClient) Query() *SubscriptionResetEventQuery {
+	return &SubscriptionResetEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSubscriptionResetEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SubscriptionResetEvent entity by its id.
+func (c *SubscriptionResetEventClient) Get(ctx context.Context, id int64) (*SubscriptionResetEvent, error) {
+	return c.Query().Where(subscriptionresetevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SubscriptionResetEventClient) GetX(ctx context.Context, id int64) *SubscriptionResetEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryCreatedByUser queries the created_by_user edge of a SubscriptionResetEvent.
+func (c *SubscriptionResetEventClient) QueryCreatedByUser(_m *SubscriptionResetEvent) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetevent.Table, subscriptionresetevent.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, subscriptionresetevent.CreatedByUserTable, subscriptionresetevent.CreatedByUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryApplications queries the applications edge of a SubscriptionResetEvent.
+func (c *SubscriptionResetEventClient) QueryApplications(_m *SubscriptionResetEvent) *SubscriptionResetApplicationQuery {
+	query := (&SubscriptionResetApplicationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetevent.Table, subscriptionresetevent.FieldID, id),
+			sqlgraph.To(subscriptionresetapplication.Table, subscriptionresetapplication.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, subscriptionresetevent.ApplicationsTable, subscriptionresetevent.ApplicationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryGrantedCards queries the granted_cards edge of a SubscriptionResetEvent.
+func (c *SubscriptionResetEventClient) QueryGrantedCards(_m *SubscriptionResetEvent) *SubscriptionResetCardQuery {
+	query := (&SubscriptionResetCardClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionresetevent.Table, subscriptionresetevent.FieldID, id),
+			sqlgraph.To(subscriptionresetcard.Table, subscriptionresetcard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, subscriptionresetevent.GrantedCardsTable, subscriptionresetevent.GrantedCardsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SubscriptionResetEventClient) Hooks() []Hook {
+	return c.hooks.SubscriptionResetEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *SubscriptionResetEventClient) Interceptors() []Interceptor {
+	return c.inters.SubscriptionResetEvent
+}
+
+func (c *SubscriptionResetEventClient) mutate(ctx context.Context, m *SubscriptionResetEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SubscriptionResetEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SubscriptionResetEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SubscriptionResetEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SubscriptionResetEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SubscriptionResetEvent mutation op: %q", m.Op())
+	}
+}
+
 // TLSFingerprintProfileClient is a client for the TLSFingerprintProfile schema.
 type TLSFingerprintProfileClient struct {
 	config
@@ -6006,6 +6577,54 @@ func (c *UserClient) QueryPlatformQuotas(_m *User) *UserPlatformQuotaQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(userplatformquota.Table, userplatformquota.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PlatformQuotasTable, user.PlatformQuotasColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryResetCards queries the reset_cards edge of a User.
+func (c *UserClient) QueryResetCards(_m *User) *SubscriptionResetCardQuery {
+	query := (&SubscriptionResetCardClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(subscriptionresetcard.Table, subscriptionresetcard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ResetCardsTable, user.ResetCardsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCreatedResetEvents queries the created_reset_events edge of a User.
+func (c *UserClient) QueryCreatedResetEvents(_m *User) *SubscriptionResetEventQuery {
+	query := (&SubscriptionResetEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(subscriptionresetevent.Table, subscriptionresetevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CreatedResetEventsTable, user.CreatedResetEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCreatedResetCards queries the created_reset_cards edge of a User.
+func (c *UserClient) QueryCreatedResetCards(_m *User) *SubscriptionResetCardQuery {
+	query := (&SubscriptionResetCardClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(subscriptionresetcard.Table, subscriptionresetcard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CreatedResetCardsTable, user.CreatedResetCardsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -6811,6 +7430,38 @@ func (c *UserSubscriptionClient) QueryUsageLogs(_m *UserSubscription) *UsageLogQ
 	return query
 }
 
+// QueryResetApplications queries the reset_applications edge of a UserSubscription.
+func (c *UserSubscriptionClient) QueryResetApplications(_m *UserSubscription) *SubscriptionResetApplicationQuery {
+	query := (&SubscriptionResetApplicationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usersubscription.Table, usersubscription.FieldID, id),
+			sqlgraph.To(subscriptionresetapplication.Table, subscriptionresetapplication.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, usersubscription.ResetApplicationsTable, usersubscription.ResetApplicationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUsedByResetCards queries the used_by_reset_cards edge of a UserSubscription.
+func (c *UserSubscriptionClient) QueryUsedByResetCards(_m *UserSubscription) *SubscriptionResetCardQuery {
+	query := (&SubscriptionResetCardClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usersubscription.Table, usersubscription.FieldID, id),
+			sqlgraph.To(subscriptionresetcard.Table, subscriptionresetcard.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, usersubscription.UsedByResetCardsTable, usersubscription.UsedByResetCardsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserSubscriptionClient) Hooks() []Hook {
 	hooks := c.hooks.UserSubscription
@@ -6848,6 +7499,7 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
+		SubscriptionResetApplication, SubscriptionResetCard, SubscriptionResetEvent,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
 		UserSubscription []ent.Hook
@@ -6860,6 +7512,7 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
+		SubscriptionResetApplication, SubscriptionResetCard, SubscriptionResetEvent,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
 		UserSubscription []ent.Interceptor

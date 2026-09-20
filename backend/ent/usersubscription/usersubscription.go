@@ -49,6 +49,8 @@ const (
 	FieldAssignedAt = "assigned_at"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// FieldAutoPaygFallback holds the string denoting the auto_payg_fallback field in the database.
+	FieldAutoPaygFallback = "auto_payg_fallback"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// EdgeGroup holds the string denoting the group edge name in mutations.
@@ -57,6 +59,10 @@ const (
 	EdgeAssignedByUser = "assigned_by_user"
 	// EdgeUsageLogs holds the string denoting the usage_logs edge name in mutations.
 	EdgeUsageLogs = "usage_logs"
+	// EdgeResetApplications holds the string denoting the reset_applications edge name in mutations.
+	EdgeResetApplications = "reset_applications"
+	// EdgeUsedByResetCards holds the string denoting the used_by_reset_cards edge name in mutations.
+	EdgeUsedByResetCards = "used_by_reset_cards"
 	// Table holds the table name of the usersubscription in the database.
 	Table = "user_subscriptions"
 	// UserTable is the table that holds the user relation/edge.
@@ -87,6 +93,20 @@ const (
 	UsageLogsInverseTable = "usage_logs"
 	// UsageLogsColumn is the table column denoting the usage_logs relation/edge.
 	UsageLogsColumn = "subscription_id"
+	// ResetApplicationsTable is the table that holds the reset_applications relation/edge.
+	ResetApplicationsTable = "subscription_reset_applications"
+	// ResetApplicationsInverseTable is the table name for the SubscriptionResetApplication entity.
+	// It exists in this package in order to avoid circular dependency with the "subscriptionresetapplication" package.
+	ResetApplicationsInverseTable = "subscription_reset_applications"
+	// ResetApplicationsColumn is the table column denoting the reset_applications relation/edge.
+	ResetApplicationsColumn = "user_subscription_id"
+	// UsedByResetCardsTable is the table that holds the used_by_reset_cards relation/edge.
+	UsedByResetCardsTable = "subscription_reset_cards"
+	// UsedByResetCardsInverseTable is the table name for the SubscriptionResetCard entity.
+	// It exists in this package in order to avoid circular dependency with the "subscriptionresetcard" package.
+	UsedByResetCardsInverseTable = "subscription_reset_cards"
+	// UsedByResetCardsColumn is the table column denoting the used_by_reset_cards relation/edge.
+	UsedByResetCardsColumn = "used_subscription_id"
 )
 
 // Columns holds all SQL columns for usersubscription fields.
@@ -109,6 +129,7 @@ var Columns = []string{
 	FieldAssignedBy,
 	FieldAssignedAt,
 	FieldNotes,
+	FieldAutoPaygFallback,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -147,6 +168,8 @@ var (
 	DefaultMonthlyUsageUsd float64
 	// DefaultAssignedAt holds the default value on creation for the "assigned_at" field.
 	DefaultAssignedAt func() time.Time
+	// DefaultAutoPaygFallback holds the default value on creation for the "auto_payg_fallback" field.
+	DefaultAutoPaygFallback bool
 )
 
 // OrderOption defines the ordering options for the UserSubscription queries.
@@ -242,6 +265,11 @@ func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
 }
 
+// ByAutoPaygFallback orders the results by the auto_payg_fallback field.
+func ByAutoPaygFallback(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoPaygFallback, opts...).ToFunc()
+}
+
 // ByUserField orders the results by user field.
 func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -276,6 +304,34 @@ func ByUsageLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUsageLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByResetApplicationsCount orders the results by reset_applications count.
+func ByResetApplicationsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newResetApplicationsStep(), opts...)
+	}
+}
+
+// ByResetApplications orders the results by reset_applications terms.
+func ByResetApplications(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newResetApplicationsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByUsedByResetCardsCount orders the results by used_by_reset_cards count.
+func ByUsedByResetCardsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newUsedByResetCardsStep(), opts...)
+	}
+}
+
+// ByUsedByResetCards orders the results by used_by_reset_cards terms.
+func ByUsedByResetCards(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUsedByResetCardsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -302,5 +358,19 @@ func newUsageLogsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UsageLogsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, UsageLogsTable, UsageLogsColumn),
+	)
+}
+func newResetApplicationsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ResetApplicationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ResetApplicationsTable, ResetApplicationsColumn),
+	)
+}
+func newUsedByResetCardsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UsedByResetCardsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, UsedByResetCardsTable, UsedByResetCardsColumn),
 	)
 }

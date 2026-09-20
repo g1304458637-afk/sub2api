@@ -150,6 +150,11 @@ func DefaultValidityDays(v int) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldDefaultValidityDays, v))
 }
 
+// ConcurrencyOverride applies equality check predicate on the "concurrency_override" field. It's identical to ConcurrencyOverrideEQ.
+func ConcurrencyOverride(v int) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldConcurrencyOverride, v))
+}
+
 // AllowImageGeneration applies equality check predicate on the "allow_image_generation" field. It's identical to AllowImageGenerationEQ.
 func AllowImageGeneration(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldAllowImageGeneration, v))
@@ -1303,6 +1308,56 @@ func DefaultValidityDaysLT(v int) predicate.Group {
 // DefaultValidityDaysLTE applies the LTE predicate on the "default_validity_days" field.
 func DefaultValidityDaysLTE(v int) predicate.Group {
 	return predicate.Group(sql.FieldLTE(FieldDefaultValidityDays, v))
+}
+
+// ConcurrencyOverrideEQ applies the EQ predicate on the "concurrency_override" field.
+func ConcurrencyOverrideEQ(v int) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldConcurrencyOverride, v))
+}
+
+// ConcurrencyOverrideNEQ applies the NEQ predicate on the "concurrency_override" field.
+func ConcurrencyOverrideNEQ(v int) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldConcurrencyOverride, v))
+}
+
+// ConcurrencyOverrideIn applies the In predicate on the "concurrency_override" field.
+func ConcurrencyOverrideIn(vs ...int) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldConcurrencyOverride, vs...))
+}
+
+// ConcurrencyOverrideNotIn applies the NotIn predicate on the "concurrency_override" field.
+func ConcurrencyOverrideNotIn(vs ...int) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldConcurrencyOverride, vs...))
+}
+
+// ConcurrencyOverrideGT applies the GT predicate on the "concurrency_override" field.
+func ConcurrencyOverrideGT(v int) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldConcurrencyOverride, v))
+}
+
+// ConcurrencyOverrideGTE applies the GTE predicate on the "concurrency_override" field.
+func ConcurrencyOverrideGTE(v int) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldConcurrencyOverride, v))
+}
+
+// ConcurrencyOverrideLT applies the LT predicate on the "concurrency_override" field.
+func ConcurrencyOverrideLT(v int) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldConcurrencyOverride, v))
+}
+
+// ConcurrencyOverrideLTE applies the LTE predicate on the "concurrency_override" field.
+func ConcurrencyOverrideLTE(v int) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldConcurrencyOverride, v))
+}
+
+// ConcurrencyOverrideIsNil applies the IsNil predicate on the "concurrency_override" field.
+func ConcurrencyOverrideIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldConcurrencyOverride))
+}
+
+// ConcurrencyOverrideNotNil applies the NotNil predicate on the "concurrency_override" field.
+func ConcurrencyOverrideNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldConcurrencyOverride))
 }
 
 // AllowImageGenerationEQ applies the EQ predicate on the "allow_image_generation" field.
