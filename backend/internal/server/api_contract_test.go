@@ -1054,7 +1054,10 @@ func TestAPIContracts(t *testing.T) {
 					"payment_usd_to_cny_display_rate": 0,
 					"web_chat_enabled": true,
 					"web_chat_models": "",
-					"web_chat_default_model": ""
+					"web_chat_default_model": "",
+					"student_verification_reward_enabled": false,
+					"student_verification_reward_campaign": "",
+					"student_verification_reward_amount": 0
 				}
 			}`,
 		},
@@ -1410,7 +1413,10 @@ func TestAPIContracts(t *testing.T) {
 					"payment_usd_to_cny_display_rate": 0,
 					"web_chat_enabled": true,
 					"web_chat_models": "",
-					"web_chat_default_model": ""
+					"web_chat_default_model": "",
+					"student_verification_reward_enabled": false,
+					"student_verification_reward_campaign": "",
+					"student_verification_reward_amount": 0
 				}
 			}`,
 		},
