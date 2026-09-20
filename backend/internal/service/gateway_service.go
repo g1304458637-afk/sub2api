@@ -1516,6 +1516,35 @@ func explicitModelMappingClaims(account Account, model string) bool {
 	return ok && strings.TrimSpace(mapped) != ""
 }
 
+// DefaultGroupIDWithAccounts 返回当前挂有可调度账号的最小分组 ID。
+// MUC Harness: 免配置一键连接给"未限定分组"用户（如管理员测试号）签发 Key 时，
+// 需要一个真实存在账号池的分组，否则无分组 Key 在 allow_ungrouped_key_scheduling
+// =false 的站点上无法被调度。没有任何分组挂有账号时返回 nil。
+func (s *GatewayService) DefaultGroupIDWithAccounts(ctx context.Context) (*int64, error) {
+	if s == nil || s.accountRepo == nil {
+		return nil, nil
+	}
+	accounts, err := s.accountRepo.ListSchedulable(ctx)
+	if err != nil {
+		return nil, err
+	}
+	smallest := int64(0)
+	for _, acc := range accounts {
+		for _, g := range acc.Groups {
+			if g == nil || g.ID <= 0 {
+				continue
+			}
+			if smallest == 0 || g.ID < smallest {
+				smallest = g.ID
+			}
+		}
+	}
+	if smallest == 0 {
+		return nil, nil
+	}
+	return &smallest, nil
+}
+
 // GetSchedulablePlatforms returns the concrete platforms that currently have
 // schedulable accounts in the target group.
 func (s *GatewayService) GetSchedulablePlatforms(ctx context.Context, groupID *int64) map[string]struct{} {

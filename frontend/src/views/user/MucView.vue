@@ -105,10 +105,12 @@
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { createMucConnectCode } from '@/api/muc'
+import { useAppStore } from '@/stores'
 import campusImg from '@/assets/muc/campus.png'
 
 type PlatformKey = 'mac-arm' | 'mac-intel' | 'win' | 'other'
 
+const appStore = useAppStore()
 const platform = ref<{ key: PlatformKey; label: string }>({ key: 'mac-arm', label: 'macOS Apple Silicon' })
 const detectedLabel = computed(() => platform.value.label)
 const gatewayHint = `${location.origin}/v1`
@@ -144,7 +146,8 @@ function detectPlatform(): void {
     platform.value = { key: 'other', label: '未识别的平台' }
     return
   }
-  // Apple Silicon 探测：优先 User-Agent Client Hints，默认 arm64
+  // Apple Silicon 探测：优先 User-Agent Client Hints；
+  // Safari/Firefox 无 Client Hints 时降级用 navigator.platform（Intel Mac 报 MacIntel）。
   const uad = (navigator as unknown as { userAgentData?: { getHighEntropyValues?: (hints: string[]) => Promise<{ architecture?: string }> } }).userAgentData
   if (uad?.getHighEntropyValues) {
     uad
@@ -156,6 +159,13 @@ function detectPlatform(): void {
       .catch(() => {
         platform.value = { key: 'mac-arm', label: 'macOS Apple Silicon' }
       })
+    return
+  }
+  const navPlatform = (navigator as unknown as { platform?: string }).platform || ''
+  if (/MacIntel|Intel/i.test(navPlatform)) {
+    platform.value = { key: 'mac-intel', label: 'macOS Intel' }
+  } else {
+    platform.value = { key: 'mac-arm', label: 'macOS Apple Silicon' }
   }
 }
 
@@ -174,10 +184,14 @@ async function connect(): Promise<void> {
     window.location.href = `muc://connect?code=${encodeURIComponent(code)}`
     window.setTimeout(() => {
       window.removeEventListener('blur', onBlur)
+      // 未失焦 → 未安装提示；已失焦（唤起成功/用户切走）→ 回到 idle，
+      // 否则按钮会永远停在"正在唤起"且禁用，只能刷新页面恢复。
       if (!left) state.value = 'fallback'
+      else state.value = 'idle'
     }, 2500)
-  } catch {
+  } catch (err) {
     state.value = 'idle'
+    appStore.showError((err as Error)?.message || '授权码签发失败，请稍后重试')
   }
 }
 
