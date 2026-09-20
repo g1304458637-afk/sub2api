@@ -3920,6 +3920,69 @@
                 </div>
               </div>
 
+              <!-- Student verification reward -->
+              <div
+                class="border-t border-gray-100 pt-4 dark:border-dark-700"
+                data-testid="student-verification-reward-settings"
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.defaults.studentVerificationRewardEnabled") }}
+                    </label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.defaults.studentVerificationRewardEnabledHint") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.student_verification_reward_enabled" />
+                </div>
+                <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.defaults.studentVerificationRewardAmount") }}
+                    </label>
+                    <input
+                      v-model.number="form.student_verification_reward_amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input"
+                      placeholder="0.00"
+                    />
+                    <p class="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300">
+                      {{ t("admin.settings.defaults.studentVerificationRewardAmountUnit") }}
+                    </p>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.defaults.studentVerificationRewardAmountHint") }}
+                    </p>
+                    <p
+                      v-if="studentRewardAmountCnyHint"
+                      class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      {{ studentRewardAmountCnyHint }}
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.defaults.studentVerificationRewardCampaign") }}
+                    </label>
+                    <input
+                      v-model="form.student_verification_reward_campaign"
+                      type="text"
+                      class="input"
+                      placeholder="2026_fall"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.defaults.studentVerificationRewardCampaignHint") }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
                 <div class="mb-3 flex items-center justify-between">
                   <div>
@@ -9649,6 +9712,9 @@ const form = reactive<SettingsForm>({
   password_reset_enabled: false,
   totp_enabled: false,
   education_email_verification_enabled: false,
+  student_verification_reward_enabled: false,
+  student_verification_reward_amount: 0,
+  student_verification_reward_campaign: "",
   totp_encryption_key_configured: false,
   passkey_enabled: false,
   passkey_configured: false,
@@ -9929,7 +9995,19 @@ const form = reactive<SettingsForm>({
   affiliate_enabled: false,
   // Allow user view error requests
   allow_user_view_error_requests: false,
-});
+})
+
+// 学生认证奖励金额（USD，系统内部余额单位）的只读 CNY 折算提示：
+// 汇率来自本页 payment_usd_to_cny_display_rate 配置；未配置或金额非法时不显示。
+const studentRewardAmountCnyHint = computed(() => {
+  const amount = Number(form.student_verification_reward_amount)
+  const rate = Number(form.payment_usd_to_cny_display_rate)
+  if (!Number.isFinite(amount) || amount <= 0) return ''
+  if (!Number.isFinite(rate) || rate <= 0) return ''
+  return t("admin.settings.defaults.studentVerificationRewardApproxCny", {
+    amount: `¥${(amount * rate).toFixed(2)}`,
+  })
+});;
 
 // 人机验证 UI 状态：单卡片「总开关 + 服务商单选」，落库仍是三个独立
 // enabled 键（与上游一致），由下面的映射保证同一时间至多一家启用。
@@ -11307,6 +11385,11 @@ async function saveSettings() {
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       education_email_verification_enabled: form.education_email_verification_enabled,
+      student_verification_reward_enabled: form.student_verification_reward_enabled,
+      student_verification_reward_amount: Number.isFinite(form.student_verification_reward_amount)
+        ? form.student_verification_reward_amount
+        : 0,
+      student_verification_reward_campaign: form.student_verification_reward_campaign,
       passkey_enabled: form.passkey_enabled,
       session_binding_enabled: form.session_binding_enabled,
       step_up_enabled: form.step_up_enabled,

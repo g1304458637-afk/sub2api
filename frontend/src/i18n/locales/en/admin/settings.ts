@@ -417,6 +417,16 @@ export default {
         defaultConcurrencyHint: 'Maximum concurrent requests for new users',
         defaultUserRpmLimit: 'Default User RPM Limit',
         defaultUserRpmLimitHint: 'Default max requests per minute for new users; 0 = unlimited. Only applied at new user creation.',
+        studentVerificationRewardEnabled: 'Student Verification Reward',
+        studentVerificationRewardEnabledHint:
+          'Automatically credit a trial balance when a student verification is approved (requires the student verification module; reward grants never count toward total recharged)',
+        studentVerificationRewardAmount: 'Student Verification Reward Amount',
+        studentVerificationRewardAmountHint: 'One-time balance credited after approval; 0 = no reward',
+        studentVerificationRewardAmountUnit: 'Unit: USD (the internal ledger unit, same as balances and recharges)',
+        studentVerificationRewardApproxCny: '≈ {amount} (converted at the current display rate, informational only)',
+        studentVerificationRewardCampaign: 'Reward Campaign',
+        studentVerificationRewardCampaignHint:
+          'Campaign idempotency key (e.g. 2026_fall): each user is granted once per campaign; change the key to start a new round',
         defaultSubscriptions: 'Default Subscriptions',
         defaultSubscriptionsHint: 'Auto-assign these subscriptions when a new user is created or registered',
         addDefaultSubscription: 'Add Default Subscription',

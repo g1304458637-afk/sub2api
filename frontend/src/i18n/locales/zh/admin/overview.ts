@@ -686,6 +686,7 @@ export default {
       allTypes: '全部类型',
       typeBalance: '余额（兑换码）',
       typeAffiliateBalance: '余额（返利转入）',
+      typeRewardGrant: '余额（系统奖励）',
       typeAdminBalance: '余额（管理员调整）',
       typeConcurrency: '并发（兑换码）',
       typeAdminConcurrency: '并发（管理员调整）',

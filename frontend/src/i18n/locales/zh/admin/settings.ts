@@ -413,6 +413,16 @@ export default {
         defaultConcurrencyHint: '新用户的最大并发请求数',
         defaultUserRpmLimit: '默认用户 RPM 限制',
         defaultUserRpmLimitHint: '新用户默认每分钟最大请求数，0 = 不限制；仅作用于新用户创建时初始化',
+        studentVerificationRewardEnabled: '学生认证奖励',
+        studentVerificationRewardEnabledHint:
+          '学生认证通过后自动发放一笔 API 体验额度（需学生认证模块配合；奖励金额不计入累计充值）',
+        studentVerificationRewardAmount: '学生认证奖励金额',
+        studentVerificationRewardAmountHint: '认证通过后一次性发放的余额，0 = 不发放',
+        studentVerificationRewardAmountUnit: '单位：USD（系统内部余额单位，与充值/余额同一记账单位）',
+        studentVerificationRewardApproxCny: '≈ {amount}（按当前展示汇率折算，仅提示）',
+        studentVerificationRewardCampaign: '奖励活动标识',
+        studentVerificationRewardCampaignHint:
+          '活动幂等标识（如 2026_fall）：同一用户同一标识只发放一次；更换标识即可开启新一轮活动',
         defaultSubscriptions: '默认订阅列表',
         defaultSubscriptionsHint: '新用户创建或注册时自动分配这些订阅',
         addDefaultSubscription: '添加默认订阅',

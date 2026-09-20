@@ -1228,3 +1228,34 @@ func mergePlatformQuotaDefaults(dst, src *DefaultPlatformQuotaSetting) {
 		dst.MonthlyLimitUSD = src.MonthlyLimitUSD
 	}
 }
+
+// IsStudentVerificationRewardEnabled 学生认证奖励发放开关。
+// 与学生认证功能开关解耦：仅控制"认证通过后是否自动发奖励"。读取失败按未配置处理（fail-closed）。
+func (s *SettingService) IsStudentVerificationRewardEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyStudentVerificationRewardEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// GetStudentVerificationRewardAmount 学生认证奖励金额（<= 0 视为未配置）。
+func (s *SettingService) GetStudentVerificationRewardAmount(ctx context.Context) float64 {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyStudentVerificationRewardAmount)
+	if err != nil {
+		return 0
+	}
+	if v, err := strconv.ParseFloat(strings.TrimSpace(value), 64); err == nil {
+		return v
+	}
+	return 0
+}
+
+// GetStudentVerificationRewardCampaign 学生认证奖励活动标识（发放幂等的 campaign 维度）。
+func (s *SettingService) GetStudentVerificationRewardCampaign(ctx context.Context) string {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyStudentVerificationRewardCampaign)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}

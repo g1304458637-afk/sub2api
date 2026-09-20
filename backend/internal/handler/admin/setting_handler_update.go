@@ -33,6 +33,9 @@ type UpdateSettingsRequest struct {
 	InvitationCodeEnabled               bool                         `json:"invitation_code_enabled"`
 	TotpEnabled                         bool                         `json:"totp_enabled"`                         // TOTP 双因素认证
 	EducationEmailVerificationEnabled   *bool                        `json:"education_email_verification_enabled"` // 校园邮箱认证（省略=保持现值）
+	StudentVerificationRewardEnabled    *bool                        `json:"student_verification_reward_enabled"`  // 学生认证奖励发放开关（省略=保持现值）
+	StudentVerificationRewardAmount     float64                      `json:"student_verification_reward_amount"`   // 学生认证奖励金额
+	StudentVerificationRewardCampaign   string                       `json:"student_verification_reward_campaign"` // 学生认证奖励活动标识
 	PasskeyEnabled                      *bool                        `json:"passkey_enabled"`                      // Passkey 登录（省略=保持现值）
 	SessionBindingEnabled               *bool                        `json:"session_binding_enabled"`              // 会话 IP/UA 绑定（省略=保持现值）
 	StepUpEnabled                       *bool                        `json:"step_up_enabled"`                      // 敏感操作 step-up 2FA（省略=保持现值）
@@ -528,6 +531,15 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.EducationEmailVerificationEnabled != nil {
 		educationEmailVerificationEnabled = *req.EducationEmailVerificationEnabled
 	}
+	studentVerificationRewardEnabled := previousSettings.StudentVerificationRewardEnabled
+	if req.StudentVerificationRewardEnabled != nil {
+		studentVerificationRewardEnabled = *req.StudentVerificationRewardEnabled
+	}
+	studentVerificationRewardAmount := req.StudentVerificationRewardAmount
+	if studentVerificationRewardAmount < 0 {
+		studentVerificationRewardAmount = 0
+	}
+	studentVerificationRewardCampaign := strings.TrimSpace(req.StudentVerificationRewardCampaign)
 	registrationEmailDomainQuotaEnabled := previousSettings.RegistrationEmailDomainQuotaEnabled
 	if req.RegistrationEmailDomainQuotaEnabled != nil {
 		registrationEmailDomainQuotaEnabled = *req.RegistrationEmailDomainQuotaEnabled
@@ -1641,6 +1653,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                        customEndpointsJSON,
 		DefaultConcurrency:                     req.DefaultConcurrency,
 		DefaultBalance:                         req.DefaultBalance,
+		StudentVerificationRewardEnabled:       studentVerificationRewardEnabled,
+		StudentVerificationRewardAmount:        studentVerificationRewardAmount,
+		StudentVerificationRewardCampaign:      studentVerificationRewardCampaign,
 		AffiliateRebateRate:                    affiliateRebateRate,
 		AffiliateRebateFreezeHours:             affiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            affiliateRebateDurationDays,
@@ -2162,6 +2177,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		InvitationCodeEnabled:                                  updatedSettings.InvitationCodeEnabled,
 		TotpEnabled:                                            updatedSettings.TotpEnabled,
 		EducationEmailVerificationEnabled:                      updatedSettings.EducationEmailVerificationEnabled,
+		StudentVerificationRewardEnabled:                       updatedSettings.StudentVerificationRewardEnabled,
+		StudentVerificationRewardAmount:                        updatedSettings.StudentVerificationRewardAmount,
+		StudentVerificationRewardCampaign:                      updatedSettings.StudentVerificationRewardCampaign,
 		TotpEncryptionKeyConfigured:                            h.settingService.IsTotpEncryptionKeyConfigured(),
 		PasskeyEnabled:                                         updatedSettings.PasskeyEnabled,
 		PasskeyConfigured:                                      passkeyConfigured,

@@ -20,12 +20,15 @@ type SystemSettings struct {
 	PasswordResetEnabled                bool
 	FrontendURL                         string
 	InvitationCodeEnabled               bool
-	TotpEnabled                         bool // TOTP 双因素认证
-	EducationEmailVerificationEnabled   bool // @muc.edu.cn 校园邮箱认证
-	PasskeyEnabled                      bool // Passkey 登录
-	SessionBindingEnabled               bool // 会话 IP/UA 绑定（变更即失效）
-	StepUpEnabled                       bool // 敏感操作 step-up 2FA 门控
-	AuditLogRetentionDays               int  // 审计日志保留天数（<=0 永久保留）
+	TotpEnabled                         bool    // TOTP 双因素认证
+	EducationEmailVerificationEnabled   bool    // @muc.edu.cn 校园邮箱认证
+	PasskeyEnabled                      bool    // Passkey 登录
+	StudentVerificationRewardEnabled    bool    // 学生认证奖励发放开关（与认证功能开关解耦）
+	StudentVerificationRewardAmount     float64 // 学生认证奖励金额
+	StudentVerificationRewardCampaign   string  // 学生认证奖励活动标识
+	SessionBindingEnabled               bool    // 会话 IP/UA 绑定（变更即失效）
+	StepUpEnabled                       bool    // 敏感操作 step-up 2FA 门控
+	AuditLogRetentionDays               int     // 审计日志保留天数（<=0 永久保留）
 	LoginAgreementEnabled               bool
 	LoginAgreementMode                  string
 	LoginAgreementUpdatedAt             string

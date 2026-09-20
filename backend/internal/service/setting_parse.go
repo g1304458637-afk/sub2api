@@ -58,6 +58,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyRegistrationEnabled:                       "true",
 		SettingKeyEmailVerifyEnabled:                        "false",
 		SettingKeyEducationEmailVerificationEnabled:         "false",
+		SettingKeyStudentVerificationRewardEnabled:          "false",
+		SettingKeyStudentVerificationRewardAmount:           "0.00000000",
+		SettingKeyStudentVerificationRewardCampaign:         "",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
 		SettingKeyRegistrationEmailDomainQuotaEnabled:       "false",
 		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
@@ -327,6 +330,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		TotpEnabled:                            settings[SettingKeyTotpEnabled] == "true",
 		EducationEmailVerificationEnabled:      settings[SettingKeyEducationEmailVerificationEnabled] == "true",
 		PasskeyEnabled:                         s.passkeySettingEnabled(settings),
+		StudentVerificationRewardEnabled:       settings[SettingKeyStudentVerificationRewardEnabled] == "true",
 		SessionBindingEnabled:                  settings[SettingKeySessionBindingEnabled] == "true", // 默认关闭
 		StepUpEnabled:                          settings[SettingKeyStepUpEnabled] == "true",         // 默认关闭
 		AuditLogRetentionDays:                  parseAuditLogRetentionDays(settings[SettingKeyAuditLogRetentionDays]),
@@ -400,6 +404,12 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.DefaultBalance = s.cfg.Default.UserBalance
 	}
+	if rewardAmount, err := strconv.ParseFloat(settings[SettingKeyStudentVerificationRewardAmount], 64); err == nil {
+		result.StudentVerificationRewardAmount = rewardAmount
+	} else {
+		result.StudentVerificationRewardAmount = 0
+	}
+	result.StudentVerificationRewardCampaign = strings.TrimSpace(settings[SettingKeyStudentVerificationRewardCampaign])
 	if rebateRate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRate], 64); err == nil {
 		result.AffiliateRebateRate = clampAffiliateRebateRate(rebateRate)
 	} else {

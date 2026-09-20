@@ -835,6 +835,8 @@ var ProviderSet = wire.NewSet(
 	NewProxyService,
 	NewRedeemService,
 	NewPromoService,
+	NewRewardGrantService,
+	wire.Bind(new(StudentRewardConfigReader), new(*SettingService)),
 	NewUsageService,
 	NewDashboardService,
 	ProvidePricingService,

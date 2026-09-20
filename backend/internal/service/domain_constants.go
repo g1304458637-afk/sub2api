@@ -177,6 +177,7 @@ const (
 	RedeemTypeSubscription     = domain.RedeemTypeSubscription
 	RedeemTypeInvitation       = domain.RedeemTypeInvitation
 	RedeemTypeAffiliateBalance = "affiliate_balance"
+	RedeemTypeRewardGrant      = "reward_grant" // 余额历史展示用：系统奖励发放（reward_grants 表）
 )
 
 // PromoCode status constants
@@ -398,6 +399,11 @@ const (
 	SettingKeyDefaultBalance       = "default_balance"        // 新用户默认余额
 	SettingKeyDefaultSubscriptions = "default_subscriptions"  // 新用户默认订阅列表（JSON）
 	SettingKeyDefaultUserRPMLimit  = "default_user_rpm_limit" // 新用户默认 RPM 限制（0 = 不限制）
+
+	// 学生认证奖励配置（与学生认证功能开关解耦：仅控制"认证通过后是否自动发奖励"）
+	SettingKeyStudentVerificationRewardEnabled  = "student_verification_reward_enabled"  // 是否自动发放学生认证奖励（默认 false）
+	SettingKeyStudentVerificationRewardAmount   = "student_verification_reward_amount"   // 学生认证奖励金额（DECIMAL(20,8) 字符串）
+	SettingKeyStudentVerificationRewardCampaign = "student_verification_reward_campaign" // 学生认证奖励活动标识（发放时的幂等 campaign）
 
 	// 第三方认证来源默认授予配置
 	SettingKeyAuthSourceDefaultEmailBalance             = "auth_source_default_email_balance"
