@@ -324,4 +324,3 @@ func mucodeWalletBalance(t *testing.T, svc *service.AccountStatusService, userID
 func fmtPhase4Email(tag string) string {
 	return fmt.Sprintf("phase4-%s-%d@example.com", tag, time.Now().UnixNano())
 }
-

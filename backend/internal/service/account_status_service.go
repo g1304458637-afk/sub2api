@@ -28,11 +28,11 @@ import (
 type UsageStatus string
 
 const (
-	UsageStatusUnmetered  UsageStatus = "unmetered"  // 分组未配置 weekly_limit（NULL/0）= 该维度不限
-	UsageStatusNormal     UsageStatus = "normal"     // 0–69
-	UsageStatusHigh       UsageStatus = "high"       // 70–89
-	UsageStatusNearLimit  UsageStatus = "near_limit" // 90–99
-	UsageStatusExhausted  UsageStatus = "exhausted"  // >= 100
+	UsageStatusUnmetered UsageStatus = "unmetered"  // 分组未配置 weekly_limit（NULL/0）= 该维度不限
+	UsageStatusNormal    UsageStatus = "normal"     // 0–69
+	UsageStatusHigh      UsageStatus = "high"       // 70–89
+	UsageStatusNearLimit UsageStatus = "near_limit" // 90–99
+	UsageStatusExhausted UsageStatus = "exhausted"  // >= 100
 )
 
 // SubscriptionWindowMaintainer 窗口惰性维护（自然重置）由 SubscriptionService 提供。
@@ -49,15 +49,15 @@ type AccountWalletStatus struct {
 
 // AccountSubscriptionStatus 单条订阅的净化状态（无任何内部 USD 数值）。
 type AccountSubscriptionStatus struct {
-	ID                    int64      `json:"id"`
-	GroupID               int64      `json:"group_id"`
-	Name                  string     `json:"name"`
-	WeeklyUsagePercent    *float64   `json:"weekly_usage_percent"` // clamp 0..100；unmetered 时为 null
+	ID                    int64       `json:"id"`
+	GroupID               int64       `json:"group_id"`
+	Name                  string      `json:"name"`
+	WeeklyUsagePercent    *float64    `json:"weekly_usage_percent"` // clamp 0..100；unmetered 时为 null
 	UsageStatus           UsageStatus `json:"usage_status"`
-	WeeklyPeriodStartedAt *time.Time `json:"weekly_period_started_at"` // 未激活（尚无请求）时为 null
-	WeeklyPeriodEndsAt    *time.Time `json:"weekly_period_ends_at"`    // min(锚点+7d, expires_at)；未激活时为 null
-	ExpiresAt             time.Time  `json:"expires_at"`
-	PaygFallback          bool       `json:"payg_fallback"`
+	WeeklyPeriodStartedAt *time.Time  `json:"weekly_period_started_at"` // 未激活（尚无请求）时为 null
+	WeeklyPeriodEndsAt    *time.Time  `json:"weekly_period_ends_at"`    // min(锚点+7d, expires_at)；未激活时为 null
+	ExpiresAt             time.Time   `json:"expires_at"`
+	PaygFallback          bool        `json:"payg_fallback"`
 	// Reset Card Runtime（发卡/消费）尚未实现；Reset Card 表已存在但无任何入口，
 	// 因此恒为 0 —— 不伪造可用功能。
 	ResetCardsAvailable int `json:"reset_cards_available"`
@@ -200,10 +200,10 @@ func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscri
 	}
 
 	st := &AccountSubscriptionStatus{
-		ID:          sub.ID,
-		GroupID:     sub.GroupID,
-		Name:        sub.Group.Name,
-		ExpiresAt:   sub.ExpiresAt,
+		ID:           sub.ID,
+		GroupID:      sub.GroupID,
+		Name:         sub.Group.Name,
+		ExpiresAt:    sub.ExpiresAt,
 		PaygFallback: sub.AutoPaygFallback,
 	}
 	if group != nil {
