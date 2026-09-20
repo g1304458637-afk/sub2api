@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -909,7 +910,7 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 		if _, err := s.ResetSubscriptionWeeklyPeriod(ctx, &WeeklyResetInput{
 			UserSubscriptionID:   subscriptionID,
 			EffectiveAt:          now,
-			Source:               domain.WeeklyResetSourceAdminManual,
+			Source:               domain.WeeklyResetSourceAdminDirect,
 			IgnoreLifecycleCheck: true,
 		}); err != nil {
 			return nil, err
@@ -1288,6 +1289,30 @@ func (s *SubscriptionService) ValidateSubscription(ctx context.Context, sub *Use
 		// 更新状态
 		_ = s.userSubRepo.UpdateStatus(ctx, sub.ID, SubscriptionStatusExpired)
 		return ErrSubscriptionExpired
+	}
+	return nil
+}
+
+// UpdatePaygFallback 用户级 PAYG fallback 开关（Phase 8：仅切换持久化配置，
+// Gateway Runtime 在独立阶段接线）。必须校验归属，防止跨用户修改。
+func (s *SubscriptionService) UpdatePaygFallback(ctx context.Context, userID, subscriptionID int64, enabled bool) error {
+	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil {
+		return err
+	}
+	if sub.UserID != userID {
+		return ErrSubscriptionNotFound
+	}
+	store, ok := s.userSubRepo.(SubscriptionPaygFallbackStore)
+	if !ok {
+		return errors.New("subscription repository does not support payg fallback updates")
+	}
+	if err := store.UpdatePaygFallback(ctx, subscriptionID, enabled); err != nil {
+		return err
+	}
+	// 失效订阅缓存（预检读取 fallback 标记）
+	if err := s.invalidateSubscriptionCaches(userID, sub.GroupID); err != nil {
+		return err
 	}
 	return nil
 }

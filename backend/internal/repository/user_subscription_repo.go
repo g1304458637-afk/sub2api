@@ -691,3 +691,41 @@ func applyUserSubscriptionEntityToService(dst *service.UserSubscription, src *db
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
 }
+
+// UpdatePaygFallback 更新用户级 PAYG fallback 开关。
+func (r *userSubscriptionRepository) UpdatePaygFallback(ctx context.Context, id int64, enabled bool) error {
+	client := clientFromContext(ctx, r.client)
+	_, err := client.UserSubscription.Update().
+		Where(usersubscription.IDEQ(id)).
+		SetAutoPaygFallback(enabled).
+		Save(ctx)
+	return translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
+}
+
+// GetMaxActiveGroupConcurrencyOverride 用户全部 active+metered 订阅分组的
+// concurrency_override 最大值；无任何匹配返回 0。
+func (r *userSubscriptionRepository) GetMaxActiveGroupConcurrencyOverride(ctx context.Context, userID int64) (int, error) {
+	const query = `
+		SELECT COALESCE(MAX(g.concurrency_override), 0)
+		FROM user_subscriptions us
+		JOIN groups g ON g.id = us.group_id AND g.deleted_at IS NULL
+		WHERE us.user_id = $1
+		  AND us.deleted_at IS NULL
+		  AND us.status = 'active'
+		  AND us.expires_at > NOW()
+		  AND g.concurrency_override IS NOT NULL
+	`
+	rows, err := r.client.QueryContext(ctx, query, userID)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return 0, rows.Err()
+	}
+	var maxOverride int
+	if err := rows.Scan(&maxOverride); err != nil {
+		return 0, err
+	}
+	return maxOverride, rows.Err()
+}

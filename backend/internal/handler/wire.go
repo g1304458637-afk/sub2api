@@ -48,6 +48,8 @@ func ProvideAdminHandlers(
 	affiliateHandler *admin.AffiliateHandler,
 	complianceHandler *admin.ComplianceHandler,
 	auditLogHandler *admin.AuditLogHandler,
+	resetEventHandler *admin.AdminResetEventHandler,
+	resetCardHandler *admin.AdminSubscriptionResetHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 ) *AdminHandlers {
@@ -90,6 +92,8 @@ func ProvideAdminHandlers(
 		Affiliate:              affiliateHandler,
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
+		ResetEvent:             resetEventHandler,
+		ResetCard:              resetCardHandler,
 	}
 }
 

@@ -685,6 +685,26 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		subscriptions.POST("/:id/revoke", h.Admin.Subscription.Revoke)
 		subscriptions.POST("/:id/restore", h.Admin.Subscription.Restore)
 		subscriptions.DELETE("/:id", h.Admin.Subscription.Revoke)
+
+		// ── Subscription V1：Direct Reset 事件（scoped/batch）──
+		resets := admin.Group("/subscription-resets")
+		{
+			resets.POST("", h.Admin.ResetEvent.CreateResetEvent)
+			resets.POST("/preview", h.Admin.ResetEvent.PreviewResetTargets)
+			resets.GET("", h.Admin.ResetEvent.ListResetEvents)
+			resets.GET("/:id", h.Admin.ResetEvent.GetResetEvent)
+			resets.POST("/:id/retry", h.Admin.ResetEvent.RetryResetEvent)
+		}
+
+		// ── Reset Card 管理端（grant / list / revoke / preview / count）──
+		resetCards := admin.Group("/subscription-reset-cards")
+		{
+			resetCards.POST("/grants", h.Admin.ResetCard.GrantResetCards)
+			resetCards.POST("/grants/preview", h.Admin.ResetCard.PreviewGrantResetCards)
+			resetCards.GET("", h.Admin.ResetCard.ListResetCards)
+			resetCards.GET("/count", h.Admin.ResetCard.CountAvailableResetCards)
+			resetCards.POST("/:id/revoke", h.Admin.ResetCard.RevokeResetCard)
+		}
 	}
 
 	// 分组下的订阅列表

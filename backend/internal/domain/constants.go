@@ -122,9 +122,11 @@ const (
 
 // Reset application status constants
 const (
-	ResetApplicationStatusApplied = "applied"
-	ResetApplicationStatusSkipped = "skipped" // 守卫跳过（如用户锚点已晚于事件 effective_at）
-	ResetApplicationStatusFailed  = "failed"
+	ResetApplicationStatusPending  = "pending"  // snapshot 创建待 worker 执行
+	ResetApplicationStatusApplying = "applying" // worker 认领中（崩溃自动回滚为 pending）
+	ResetApplicationStatusApplied  = "applied"
+	ResetApplicationStatusSkipped  = "skipped" // 守卫跳过（如用户锚点已晚于事件 effective_at）
+	ResetApplicationStatusFailed   = "failed"
 )
 
 // Reset card constants（一次性可消费的周期重置权益）
@@ -147,14 +149,22 @@ const (
 	ResetCardSourceStudentReward      = "student_reward"
 )
 
-// Weekly reset source constants（统一 Reset Core 的调用来源，见 subscription_reset_service.go）。
-// effectiveAt 一律由调用方显式传入：Global Reset 用事件内共享的同一时刻，
-// Reset Card 用实际成功消费时刻，Admin Manual 用当前时刻。
+// Weekly reset source constants（统一 Reset Core 的调用来源，审计必须可区分）。
+// effectiveAt 一律由调用方显式传入：Batch Direct 用事件内共享的同一时刻，
+// Reset Card 用实际成功消费时刻，Admin Direct 用当前时刻。
 const (
-	WeeklyResetSourceAdminManual  = "admin_manual"
-	WeeklyResetSourceGlobalReset  = "global_reset"
-	WeeklyResetSourceResetCard    = "reset_card"
-	WeeklyResetSourceCompensation = "compensation"
+	WeeklyResetSourceAdminDirect  = "admin_direct" // 管理员单订阅/手动立即重置
+	WeeklyResetSourceBatchDirect  = "batch_direct" // 事件驱动的批量直接重置（worker）
+	WeeklyResetSourceResetCard    = "reset_card"   // 用户消费 Reset Card
+	WeeklyResetSourceCompensation = "compensation" // 补偿操作
+)
+
+// Reset target selector modes（Direct Reset / Reset Card Grant 共用的定向语义）。
+const (
+	ResetTargetModeSubscriptionIDs = "subscription_ids"
+	ResetTargetModeUsers           = "users"
+	ResetTargetModeGroups          = "groups"
+	ResetTargetModeAllActive       = "all_active"
 )
 
 // AntigravityGemini31ProAgentModel is the upstream route for Gemini 3.1 Pro High.

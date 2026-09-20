@@ -135,6 +135,8 @@ func RegisterUserRoutes(
 			subscriptions.GET("/active", h.Subscription.GetActive)
 			subscriptions.GET("/progress", h.Subscription.GetProgress)
 			subscriptions.GET("/status", h.Subscription.GetStatus)
+			subscriptions.POST("/:id/reset-with-card", h.Subscription.ResetWithCard)
+			subscriptions.PATCH("/:id/payg-fallback", h.Subscription.UpdatePaygFallback)
 			subscriptions.GET("/summary", h.Subscription.GetSummary)
 		}
 

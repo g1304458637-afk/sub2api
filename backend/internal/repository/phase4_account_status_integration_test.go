@@ -259,7 +259,7 @@ func TestPhase4AccountStatusFallbackFlagAndResetContract(t *testing.T) {
 	_, err := subSvc.ResetSubscriptionWeeklyPeriod(ctx, &service.WeeklyResetInput{
 		UserSubscriptionID:   sub.ID,
 		EffectiveAt:          effectiveAt,
-		Source:               domain.WeeklyResetSourceAdminManual,
+		Source:               domain.WeeklyResetSourceAdminDirect,
 		IgnoreLifecycleCheck: true,
 	})
 	require.NoError(t, err)

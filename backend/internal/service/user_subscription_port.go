@@ -43,3 +43,15 @@ type UserSubscriptionRepository interface {
 
 	BatchUpdateExpiredStatus(ctx context.Context) (int64, error)
 }
+
+// SubscriptionPaygFallbackStore 是 UserSubscriptionRepository 的可选能力：
+// 更新用户级 PAYG fallback 开关（生产 ent 仓储实现；测试 stub 可不实现）。
+type SubscriptionPaygFallbackStore interface {
+	UpdatePaygFallback(ctx context.Context, id int64, enabled bool) error
+}
+
+// SubscriptionConcurrencyOverrideReader 是 UserSubscriptionRepository 的可选能力：
+// 用户全部 active+metered 订阅分组的 concurrency_override 最大值（Phase 9 并发权益）。
+type SubscriptionConcurrencyOverrideReader interface {
+	GetMaxActiveGroupConcurrencyOverride(ctx context.Context, userID int64) (int, error)
+}
