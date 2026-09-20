@@ -552,6 +552,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	updates[SettingKeyAllowUserViewErrorRequests] = strconv.FormatBool(settings.AllowUserViewErrorRequests)
 
+	// 网页聊天设置（web_chat_models 存原始 JSON 串，整体替换语义）
+	updates[SettingKeyWebChatEnabled] = strconv.FormatBool(settings.WebChatEnabled)
+	updates[SettingKeyWebChatModels] = settings.WebChatModels
+	updates[SettingKeyWebChatDefaultModel] = strings.TrimSpace(settings.WebChatDefaultModel)
+
 	return updates, nil
 }
 

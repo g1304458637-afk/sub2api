@@ -215,6 +215,12 @@ export default {
     contentModeration: 'Content Moderation',
     promptAudit: 'Prompt Audit',
     auditLogs: 'Audit Logs',
+    // Sidebar portal groups for regular users
+    groupLlm: 'AI Services',
+    groupMine: 'My Account',
+    chat: 'AI Chat',
+    draw: 'Image Generation',
+    mucDownload: 'Download MUC',
   },
 
   // Auth

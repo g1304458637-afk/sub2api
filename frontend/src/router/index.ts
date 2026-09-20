@@ -188,8 +188,37 @@ const routes: RouteRecordRaw[] = [
 
   // ==================== User Routes ====================
   {
+    // 落地页按登录态分流，决策在全局 beforeEach 中完成：
+    // 未登录 → /home；已登录管理员 → /admin/dashboard；已登录普通用户 → /chat。
+    // 这里仍挂载 HomeView 以满足路由记录类型并兜底（正常情况下守卫会先重定向）。
     path: '/',
-    redirect: '/home'
+    name: 'Root',
+    component: () => import('@/views/HomeView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Home'
+    }
+  },
+  // AI 门户：网页对话与绘图（视图文件由并行分支提供，按冻结路径懒加载）
+  {
+    path: '/chat',
+    name: 'Chat',
+    component: () => import('@/views/chat/ChatView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'AI Chat'
+    }
+  },
+  {
+    path: '/draw',
+    name: 'Draw',
+    component: () => import('@/views/user/DrawView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Image Generation'
+    }
   },
   {
     path: '/dashboard',
@@ -825,6 +854,17 @@ router.beforeEach(async (to, _from, next) => {
     } catch {
       // If setup status cannot be determined, keep the setup page reachable.
     }
+  }
+
+  // 根路径按登录态分流落地页。必须在上方 checkAuth() 之后判断：
+  // 硬刷新时登录态正是在这条守卫的开头同步恢复的，提前到 redirect 静态求值阶段会误判为未登录。
+  if (to.path === '/') {
+    if (!authStore.isAuthenticated) {
+      next('/home')
+      return
+    }
+    next(authStore.isAdmin ? '/admin/dashboard' : '/chat')
+    return
   }
 
   // If route doesn't require auth, allow access

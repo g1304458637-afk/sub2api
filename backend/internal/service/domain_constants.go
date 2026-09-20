@@ -287,6 +287,11 @@ const (
 	SettingKeyPasskeyEnabled                    = "passkey_enabled"                      // 是否启用 Passkey 登录（仍要求有效的 WebAuthn 部署配置）
 	SettingKeyEducationEmailVerificationEnabled = "education_email_verification_enabled" // 是否开放 @muc.edu.cn 校园邮箱认证
 
+	// 网页聊天 / 网页绘图设置
+	SettingKeyWebChatEnabled      = "web_chat_enabled"       // 是否启用网页聊天功能（解析失败/缺失按 false 处理 = fail-closed）
+	SettingKeyWebChatModels       = "web_chat_models"        // 网页聊天模型列表（JSON 数组字符串，空串 = 回退模式：取用户可见分组可用模型并集）
+	SettingKeyWebChatDefaultModel = "web_chat_default_model" // 网页聊天默认模型（空串 = 前端自行选择）
+
 	// 会话安全设置
 	SettingKeySessionBindingEnabled = "session_binding_enabled" // 会话 IP/UA 绑定（变更即失效），默认关闭
 

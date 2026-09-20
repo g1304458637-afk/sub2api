@@ -605,7 +605,9 @@ async function handleLogin(): Promise<void> {
     // Redirect to dashboard or intended route
     // MUC Harness: 首次登录引导至 /muc 下载页（访问过一次后不再引导）
     const redirectTo = (router.currentRoute.value.query.redirect as string)
-      || (localStorage.getItem('muc_seen') ? '/dashboard' : '/muc')
+      || (authStore.isAdmin
+        ? '/admin/dashboard'
+        : localStorage.getItem('muc_seen') ? '/chat' : '/muc')
     await router.push(redirectTo)
   } catch (error: unknown) {
     errorMessage.value = extractI18nErrorMessage(error, t, 'auth.errors', t('auth.loginFailed'))
@@ -648,7 +650,9 @@ async function handlePasskeyLogin(): Promise<void> {
     appStore.showSuccess(t('auth.loginSuccess'))
     // MUC Harness: 首次登录引导至 /muc 下载页（访问过一次后不再引导）
     const redirectTo = (router.currentRoute.value.query.redirect as string)
-      || (localStorage.getItem('muc_seen') ? '/dashboard' : '/muc')
+      || (authStore.isAdmin
+        ? '/admin/dashboard'
+        : localStorage.getItem('muc_seen') ? '/chat' : '/muc')
     await router.push(redirectTo)
   } catch (error: unknown) {
     const fallback = error instanceof DOMException && error.name === 'NotAllowedError'
@@ -719,7 +723,9 @@ async function handle2FAVerify(code: string): Promise<void> {
     // Redirect to dashboard or intended route
     // MUC Harness: 首次登录引导至 /muc 下载页（访问过一次后不再引导）
     const redirectTo = (router.currentRoute.value.query.redirect as string)
-      || (localStorage.getItem('muc_seen') ? '/dashboard' : '/muc')
+      || (authStore.isAdmin
+        ? '/admin/dashboard'
+        : localStorage.getItem('muc_seen') ? '/chat' : '/muc')
     await router.push(redirectTo)
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { data?: { message?: string } } }

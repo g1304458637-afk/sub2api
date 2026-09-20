@@ -129,20 +129,64 @@
       <!-- Regular User View -->
       <template v-else-if="!appStore.backendModeEnabled">
         <div class="sidebar-section">
-          <router-link
-            v-for="item in userNavItems"
-            :key="item.path"
-            :to="item.path"
-            class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
-            :title="sidebarCollapsed ? item.label : undefined"
-            :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
-            @click="handleMenuItemClick(item.path)"
-          >
-            <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
-            <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
-          </router-link>
+          <template v-for="item in userNavItems" :key="item.path">
+            <!-- Collapsible group (has children): same rendering contract as the admin section -->
+            <template v-if="item.children?.length">
+              <button
+                type="button"
+                class="sidebar-link mb-1 w-full"
+                :class="{
+                  'sidebar-link-active': isGroupActive(item) && !isGroupExpanded(item),
+                  'sidebar-link-collapsed': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? item.label : undefined"
+                @click="handleGroupClick(item)"
+              >
+                <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+                <span
+                  class="sidebar-label sidebar-label-flex"
+                  :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"
+                  :aria-hidden="sidebarCollapsed ? 'true' : 'false'"
+                >
+                  <span class="min-w-0 truncate">{{ item.label }}</span>
+                  <ChevronDownIcon
+                    class="h-4 w-4 flex-shrink-0 transition-transform duration-200"
+                    :class="isGroupExpanded(item) ? 'rotate-180' : ''"
+                  />
+                </span>
+              </button>
+              <!-- Children -->
+              <div v-if="!sidebarCollapsed && isGroupExpanded(item)" class="mb-1 ml-4 border-l border-gray-200 pl-2 dark:border-dark-600">
+                <router-link
+                  v-for="child in item.children"
+                  :key="child.path"
+                  :to="child.path"
+                  class="sidebar-link mb-0.5 py-1.5 text-sm"
+                  :class="{ 'sidebar-link-active': route.path === child.path }"
+                  :data-tour="child.path === '/keys' ? 'sidebar-my-keys' : undefined"
+                  @click="handleMenuItemClick(child.path)"
+                >
+                  <span v-if="child.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(child.iconSvg)"></span>
+                  <component v-else :is="child.icon" class="h-4 w-4 flex-shrink-0" />
+                  <span>{{ child.label }}</span>
+                </router-link>
+              </div>
+            </template>
+            <!-- Normal item (no children): defensive fallback, regular users normally get groups only -->
+            <router-link
+              v-else
+              :to="item.path"
+              class="sidebar-link mb-1"
+              :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
+              :title="sidebarCollapsed ? item.label : undefined"
+              :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
+              @click="handleMenuItemClick(item.path)"
+            >
+              <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
+              <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+              <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+            </router-link>
+          </template>
         </div>
       </template>
     </nav>
@@ -198,6 +242,8 @@ import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+// 直接从 store 模块导入（不经过 @/stores 桶文件），保持 sidebar → store → api 的单向依赖
+import { useWebChatStore } from '@/stores/webChat'
 
 interface NavItem {
   path: string
@@ -211,6 +257,13 @@ interface NavItem {
    * does NOT navigate to its `path`. The `path` is purely a stable key.
    */
   expandOnly?: boolean
+  /**
+   * When true and the user has not toggled the group manually, the group stays
+   * expanded instead of following the active-route heuristic. Used by the fixed
+   * portal groups ("大模型服务" / "我的") so their children (and tour targets
+   * like [data-tour="sidebar-my-keys"]) are reachable without an extra click.
+   */
+  defaultExpanded?: boolean
   /**
    * 可选的功能开关 getter。返回 false 时菜单项被隐藏；返回 undefined/true 时显示。
    * 宽容策略（undefined → 显示）避免 public settings 未加载完成时菜单闪烁消失。
@@ -243,6 +296,7 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 const adminSettingsStore = useAdminSettingsStore()
+const webChatStore = useWebChatStore()
 const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
 
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
@@ -290,6 +344,66 @@ const MucDownloadIcon = {
           'stroke-linecap': 'round',
           'stroke-linejoin': 'round',
           d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
+        })
+      ]
+    )
+}
+
+const ChatBubbleIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155'
+        })
+      ]
+    )
+}
+
+const PaintBrushIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42'
+        })
+      ]
+    )
+}
+
+const SparklesIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M9.813 15.904L9.5 17.25l-.313-1.346a4.5 4.5 0 00-2.59-2.59L5.25 13l1.346-.313a4.5 4.5 0 002.59-2.59L9.5 8.75l.313 1.346a4.5 4.5 0 002.59 2.59L13.75 13l-1.346.313a4.5 4.5 0 00-2.59 2.59zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z'
+        })
+      ]
+    )
+}
+
+const UserCircleIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z'
         })
       ]
     )
@@ -724,23 +838,39 @@ const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
+// 网页聊天开关：控制 AI 对话 / 绘图两个门户入口的显隐。
+// config 为 null（尚未返回或加载失败）时默认显示；仅在配置成功加载且明确 enabled === false 时隐藏。
+// getter 在 computed（finalizeNav → applyFeatureFlags）内求值，store 状态变化时菜单自动更新。
+const flagWebChatEntrance = (): boolean => webChatStore.config?.enabled !== false
 
-// buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
-// withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
+// buildSelfNavGroups 构造用户自己的导航，按门户分成两个可折叠分组：
+// 「大模型服务」（AI 对话 / 绘图 / 下载 MUC）与「我的」（账户、密钥、用量、订阅等）。
+// 用户端主菜单直接渲染这两个分组；管理员的"我的账户"区是扁平列表（无分组渲染），
+// 通过 flattenNavGroups 复用同一份声明，保持管理端旧结构不变。
 //
-// 条目顺序：密钥 → 用量 → 可用渠道 → 订阅/支付 → 兑换/资料。
-// 可用渠道紧挨订阅之上。用户端不再展示「渠道状态」入口（/monitor 路由仍保留）。
-function buildSelfNavItems(withDashboard: boolean): NavItem[] {
-  const items: NavItem[] = []
-  if (withDashboard) {
-    items.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
-  }
-  items.push(
+// withDashboard=true 时「我的」分组包含概览（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
+//
+// 分组本身是 expandOnly 的纯折叠控件，path 只是稳定 key，不可导航；
+// defaultExpanded 让两个门户分组默认展开（同时保证引导步骤能定位到分组内的子项）。
+// 用户端不再展示「渠道状态」入口（/monitor 路由仍保留）。
+function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
+  const llmItems: NavItem[] = [
+    // AI 对话 / 绘图：显隐跟随网页聊天开关（关闭时隐藏，配置未返回时默认显示）
+    { path: '/chat', label: t('nav.chat'), icon: ChatBubbleIcon, featureFlag: flagWebChatEntrance },
+    { path: '/draw', label: t('nav.draw'), icon: PaintBrushIcon, featureFlag: flagWebChatEntrance },
     // MUC Harness: mucode 桌面端下载与一键连接
-    { path: '/muc', label: '下载 MUC', icon: MucDownloadIcon },
+    { path: '/muc', label: t('nav.mucDownload'), icon: MucDownloadIcon },
+  ]
+
+  // 条目顺序：密钥 → 用量 → 批量生图 → 可用渠道 → 订阅/支付 → 兑换/资料 → 自定义页面。
+  const mineItems: NavItem[] = []
+  if (withDashboard) {
+    mineItems.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
+  }
+  mineItems.push(
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
-    { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
+    { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
     { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
@@ -755,22 +885,67 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
       iconSvg: item.icon_svg,
     })),
   )
-  return items
+
+  return [
+    {
+      path: 'group-llm-services',
+      label: t('nav.groupLlm'),
+      icon: SparklesIcon,
+      expandOnly: true,
+      defaultExpanded: true,
+      children: llmItems,
+    },
+    {
+      path: 'group-my-account',
+      label: t('nav.groupMine'),
+      icon: UserCircleIcon,
+      expandOnly: true,
+      defaultExpanded: true,
+      children: mineItems,
+    },
+  ]
 }
 
-// finalizeNav 合并三重过滤：featureFlag 过滤 + simple 模式过滤。
+// flattenNavGroups：把分组声明拍平成叶子项，供管理员的"我的账户"扁平列表复用。
+function flattenNavGroups(groups: NavItem[]): NavItem[] {
+  return groups.flatMap((group) => group.children ?? [])
+}
+
+// simple 模式过滤同样要递归进 children：hideInSimpleMode 标在分组内的叶子项上。
+function filterHiddenInSimpleMode(items: NavItem[]): NavItem[] {
+  const out: NavItem[] = []
+  for (const item of items) {
+    if (item.hideInSimpleMode) continue
+    out.push(item.children ? { ...item, children: filterHiddenInSimpleMode(item.children) } : item)
+  }
+  return out
+}
+
+// 过滤后 children 清空的 expandOnly 分组整体隐藏——它们的 path 只是稳定 key，
+// 若保留会被模板当成普通链接渲染成死链。
+function pruneEmptyExpandOnlyGroups(items: NavItem[]): NavItem[] {
+  return items
+    .map((item) => (item.children ? { ...item, children: pruneEmptyExpandOnlyGroups(item.children) } : item))
+    .filter((item) => !(item.expandOnly && item.children?.length === 0))
+}
+
+// finalizeNav 合并三重过滤：featureFlag 过滤（递归）+ simple 模式过滤（递归）+ 空分组清理。
 function finalizeNav(items: NavItem[]): NavItem[] {
   const visible = applyFeatureFlags(items)
-  return authStore.isSimpleMode ? visible.filter(item => !item.hideInSimpleMode) : visible
+  const modeFiltered = authStore.isSimpleMode ? filterHiddenInSimpleMode(visible) : visible
+  return pruneEmptyExpandOnlyGroups(modeFiltered)
 }
 
-// User navigation items (for regular users)
-const userNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavItems(true)))
+// User navigation items (for regular users): the two collapsible portal groups.
+const userNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavGroups(true)))
 
 // Personal navigation items (for admin's "My Account" section, without Dashboard).
-// Admins access 可用渠道 from this section just like regular users — there is no
-// separate admin entry, since the page is purely a user-facing view.
-const personalNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavItems(false)))
+// The section renders a flat router-link list with no group support, so the same
+// declaration is flattened back to a single level — items and flags stay identical
+// to the regular-user view. Admins access 可用渠道 from this section just like
+// regular users — there is no separate admin entry, since the page is purely a
+// user-facing view.
+const personalNavItems = computed((): NavItem[] => flattenNavGroups(finalizeNav(buildSelfNavGroups(false))))
 
 // Custom menu items filtered by visibility
 const customMenuItemsForUser = computed(() => {
@@ -919,6 +1094,8 @@ function isGroupActive(item: NavItem): boolean {
 function isGroupExpanded(item: NavItem): boolean {
   const override = groupExpandOverrides.value.get(item.path)
   if (override !== undefined) return override
+  // 固定门户分组默认展开；用户手动收起后（override 生效）尊重用户的选择
+  if (item.defaultExpanded) return true
   return isGroupActive(item)
 }
 
@@ -971,6 +1148,11 @@ onMounted(() => {
   void refreshBatchImageAccess()
   if (isAdmin.value) {
     adminSettingsStore.fetch()
+  }
+  // 网页聊天开关：已登录渲染时拉取一次配置，不 await、不阻塞侧边栏首帧
+  // （侧边栏随路由视图反复挂载，用 loaded 兜底避免重复请求）
+  if (authStore.isAuthenticated && !webChatStore.loaded.value) {
+    void webChatStore.loadConfig()
   }
   // Restore sidebar scroll position after route change re-mounts the component
   if (appStore.sidebarScrollTop > 0 && sidebarNavRef.value) {

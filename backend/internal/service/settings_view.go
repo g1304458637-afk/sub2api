@@ -319,6 +319,11 @@ type SystemSettings struct {
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool
+
+	// 网页聊天 / 网页绘图（面板登录后可见，不进 PublicSettings）
+	WebChatEnabled      bool   // 功能开关（严格 "true" 才开启 = fail-closed）
+	WebChatModels       string // 模型列表原始 JSON 数组字符串；空串 = 回退模式（用户可见分组可用模型并集）
+	WebChatDefaultModel string // 默认模型；空串 = 未指定
 }
 
 type DefaultSubscriptionSetting struct {

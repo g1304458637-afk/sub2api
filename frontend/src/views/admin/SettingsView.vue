@@ -7853,6 +7853,9 @@
           </div>
         </div>
 
+        <!-- MUC: 网页聊天设置 -->
+        <WebChatSettings :form="form" />
+
         </div><!-- /Tab: Features -->
 
         <!-- Tab: Email -->
@@ -8987,6 +8990,9 @@ import Toggle from "@/components/common/Toggle.vue";
 import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
+// MUC: 网页聊天设置
+import WebChatSettings from "@/components/admin/settings/WebChatSettings.vue";
+import { buildWebChatSettingsPayload } from "@/api/admin/webChat";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
@@ -11697,6 +11703,8 @@ async function saveSettings() {
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
       allow_user_view_error_requests: form.allow_user_view_error_requests,
+      // MUC: 网页聊天设置（随现有设置链路一并提交）
+      ...buildWebChatSettingsPayload(form),
     };
 
     // 仅当 openai_fast_policy_settings 已成功从后端加载时才回写，

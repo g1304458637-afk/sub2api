@@ -389,6 +389,12 @@ type UpdateSettingsRequest struct {
 	AuthSourceDingTalkPlatformQuotas map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_dingtalk_platform_quotas"`
 
 	AllowUserViewErrorRequests *bool `json:"allow_user_view_error_requests"`
+
+	// 网页聊天 / 网页绘图设置（值类型字段：JSON name 与 setting key 同名，
+	// 由 buildSettingKeyByJSONName 自动纳入 omitted 语义——未发送=保留现值）
+	WebChatEnabled      bool   `json:"web_chat_enabled"`
+	WebChatModels       string `json:"web_chat_models"`
+	WebChatDefaultModel string `json:"web_chat_default_model"`
 }
 
 // UpdateSettings 更新系统设置
@@ -2016,6 +2022,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.CyberSessionBlockTTLSeconds
 		}(),
+		WebChatEnabled:      req.WebChatEnabled,
+		WebChatModels:       req.WebChatModels,
+		WebChatDefaultModel: strings.TrimSpace(req.WebChatDefaultModel),
 	}
 
 	// req.AuthSourceXxxPlatformQuotas 为 nil 表示本次请求未包含该 source 的 quota 配置（保留 previousAuthSourceDefaults 中的值）；

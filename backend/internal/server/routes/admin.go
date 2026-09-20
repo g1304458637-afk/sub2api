@@ -130,6 +130,9 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// 网页聊天（管理端只读：可用模型并集）
+		admin.GET("/web-chat/available-models", h.WebChat.AdminAvailableModels)
 	}
 }
 

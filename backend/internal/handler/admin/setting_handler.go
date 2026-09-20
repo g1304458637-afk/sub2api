@@ -399,6 +399,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AccountSchedulingThresholds: settings.AccountSchedulingThresholds,
 		AllowUserViewErrorRequests:  settings.AllowUserViewErrorRequests,
+
+		WebChatEnabled:      settings.WebChatEnabled,
+		WebChatModels:       settings.WebChatModels,
+		WebChatDefaultModel: settings.WebChatDefaultModel,
 	}
 
 	// OpenAI fast policy (stored under a dedicated setting key)
