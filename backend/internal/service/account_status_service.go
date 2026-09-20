@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -40,6 +41,15 @@ type SubscriptionWindowMaintainer interface {
 	EnsureWindowMaintenance(ctx context.Context, sub *UserSubscription) (*UserSubscription, error)
 }
 
+// SubscriptionResetCardReader Reset Card 只读统计（发卡/消费 Runtime 未实现；
+// Phase 4.1 仅提供账户级可用卡计数，不做任何状态修改）。
+type SubscriptionResetCardReader interface {
+	// CountAvailableResetCards 统计用户当前可用的 Reset Card 数量。
+	// 可用定义：status='available' AND (expires_at IS NULL OR expires_at > now)。
+	// 过期边界：expires_at == now 不可用（严格大于）。
+	CountAvailableResetCards(ctx context.Context, userID int64, now time.Time) (int, error)
+}
+
 // AccountWalletStatus 钱包状态。canonical 账本为 users.balance（USD，NUMERIC(20,8)），
 // 金额以 8 位小数字符串表达以保证小数保真；CNY 等展示折算由客户端基于既有汇率逻辑完成。
 type AccountWalletStatus struct {
@@ -49,24 +59,45 @@ type AccountWalletStatus struct {
 
 // AccountSubscriptionStatus 单条订阅的净化状态（无任何内部 USD 数值）。
 type AccountSubscriptionStatus struct {
-	ID                    int64       `json:"id"`
-	GroupID               int64       `json:"group_id"`
-	Name                  string      `json:"name"`
-	WeeklyUsagePercent    *float64    `json:"weekly_usage_percent"` // clamp 0..100；unmetered 时为 null
+	ID          int64  `json:"id"`
+	GroupID     int64  `json:"group_id"`
+	DisplayName string `json:"display_name"`
+
+	// 整数百分比 0..100（floor，raw>=100 钳为 100）；unmetered 时为 null。
+	// usage_status 由 raw 分档，与本整数控解耦（99.99 → 99 / near_limit）。
+	WeeklyUsagePercent    *int        `json:"weekly_usage_percent"`
 	UsageStatus           UsageStatus `json:"usage_status"`
 	WeeklyPeriodStartedAt *time.Time  `json:"weekly_period_started_at"` // 未激活（尚无请求）时为 null
 	WeeklyPeriodEndsAt    *time.Time  `json:"weekly_period_ends_at"`    // min(锚点+7d, expires_at)；未激活时为 null
 	ExpiresAt             time.Time   `json:"expires_at"`
 	PaygFallback          bool        `json:"payg_fallback"`
-	// Reset Card Runtime（发卡/消费）尚未实现；Reset Card 表已存在但无任何入口，
-	// 因此恒为 0 —— 不伪造可用功能。
-	ResetCardsAvailable int `json:"reset_cards_available"`
+}
+
+// AccountResetCardsStatus 账户级 Reset Card 计数。
+// Reset Card 属于 User（未消费前不绑定订阅，Phase 1 定稿）：账户级一份，
+// 不随订阅条目重复——避免 Pro+Max 用户看起来"每个套餐各有一张卡"。
+type AccountResetCardsStatus struct {
+	Available int `json:"available"`
 }
 
 // AccountStatus 用户账户统一状态。
 type AccountStatus struct {
 	Wallet        AccountWalletStatus         `json:"wallet"`
+	ResetCards    AccountResetCardsStatus     `json:"reset_cards"`
 	Subscriptions []AccountSubscriptionStatus `json:"subscriptions"`
+}
+
+// UserDisplayPercent 普通用户展示百分比（整数合同，Phase 4.1 定稿）：
+// raw >= 100 → 100；否则 floor(raw)。99.99 → 99（显示 100% 会与"eligibility 尚未
+// exhausted"矛盾）；106.5 → 100。usage_status 仍按 raw 分档，不得由本整数反推。
+func UserDisplayPercent(rawPercent float64) int {
+	if rawPercent >= 100 {
+		return 100
+	}
+	if rawPercent < 0 {
+		return 0
+	}
+	return int(math.Floor(rawPercent))
 }
 
 // FormatWalletBalance 把 users.balance（NUMERIC(20,8)）格式化为 8 位小数字符串。
@@ -105,6 +136,7 @@ type AccountStatusService struct {
 	subRepo     UserSubscriptionRepository
 	groupRepo   GroupRepository
 	maintainer  SubscriptionWindowMaintainer
+	resetCards  SubscriptionResetCardReader
 	monitorOnly bool // true = 只读监控视图（不执行窗口维护写入）
 	now         func() time.Time
 }
@@ -114,6 +146,7 @@ func NewAccountStatusService(
 	subRepo UserSubscriptionRepository,
 	groupRepo GroupRepository,
 	maintainer SubscriptionWindowMaintainer,
+	resetCards SubscriptionResetCardReader,
 	monitorOnly bool,
 ) *AccountStatusService {
 	return &AccountStatusService{
@@ -121,6 +154,7 @@ func NewAccountStatusService(
 		subRepo:     subRepo,
 		groupRepo:   groupRepo,
 		maintainer:  maintainer,
+		resetCards:  resetCards,
 		monitorOnly: monitorOnly,
 		now:         time.Now,
 	}
@@ -129,7 +163,20 @@ func NewAccountStatusService(
 // SetNow 供测试注入时钟。
 func (s *AccountStatusService) SetNow(now func() time.Time) { s.now = now }
 
-// GetAccountStatus Website 视角：Wallet + 全部 active subscriptions。
+// CountAvailableResetCards 账户级可用 Reset Card 数（只读；发卡 Runtime 未实现，恒 0 直到入口存在）。
+func (s *AccountStatusService) CountAvailableResetCards(ctx context.Context, userID int64) int {
+	if s.resetCards == nil {
+		return 0
+	}
+	n, err := s.resetCards.CountAvailableResetCards(ctx, userID, s.now())
+	if err != nil {
+		// 只读统计失败不应打断状态返回；按 0 处理（与 wallet best-effort 同级）
+		return 0
+	}
+	return n
+}
+
+// GetAccountStatus Website 视角：Wallet + 账户级 Reset Cards + 全部 active subscriptions。
 func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int64) (*AccountStatus, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -152,6 +199,7 @@ func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int6
 			Balance:           FormatWalletBalance(user.Balance),
 			CanonicalCurrency: "USD",
 		},
+		ResetCards:    AccountResetCardsStatus{Available: s.CountAvailableResetCards(ctx, userID)},
 		Subscriptions: statuses,
 	}, nil
 }
@@ -202,12 +250,12 @@ func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscri
 	st := &AccountSubscriptionStatus{
 		ID:           sub.ID,
 		GroupID:      sub.GroupID,
-		Name:         sub.Group.Name,
+		DisplayName:  sub.Group.Name,
 		ExpiresAt:    sub.ExpiresAt,
 		PaygFallback: sub.AutoPaygFallback,
 	}
 	if group != nil {
-		st.Name = group.Name
+		st.DisplayName = group.Name
 	}
 
 	// 周期与百分比：锚点为空 = 尚未激活（还没有任何请求），百分比记 0、周期起点/终点未知
@@ -226,7 +274,7 @@ func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscri
 
 	if group != nil && group.HasWeeklyLimit() && *group.WeeklyLimitUSD > 0 {
 		raw := sub.WeeklyUsageUSD / *group.WeeklyLimitUSD * 100
-		display := ClampUsagePercent(raw)
+		display := UserDisplayPercent(raw)
 		st.WeeklyUsagePercent = &display
 		st.UsageStatus = ClassifyUsageStatus(raw)
 	} else {

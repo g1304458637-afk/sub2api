@@ -49,7 +49,7 @@ func phase4NewStatusService(t *testing.T, client *dbent.Client) (*service.Accoun
 	userRepo := NewUserRepository(client, integrationDB)
 	subRepo := NewUserSubscriptionRepository(client)
 	subSvc := service.NewSubscriptionService(nil, subRepo, nil, client, nil)
-	svc := service.NewAccountStatusService(userRepo, subRepo, NewGroupRepository(client, integrationDB), subSvc, false)
+	svc := service.NewAccountStatusService(userRepo, subRepo, NewGroupRepository(client, integrationDB), subSvc, NewSubscriptionResetCardRepository(client), false)
 	return svc, subSvc
 }
 
@@ -92,12 +92,11 @@ func TestPhase4AccountStatusSubscriptionWithWalletAndPercent(t *testing.T) {
 	require.Len(t, status.Subscriptions, 1)
 	st := status.Subscriptions[0]
 	require.Equal(t, sub.ID, st.ID)
-	require.Equal(t, group.Name, st.Name)
+	require.Equal(t, group.Name, st.DisplayName, "display_name sourced from Group (entitlement identity)")
 	require.NotNil(t, st.WeeklyUsagePercent)
-	require.InDelta(t, 63.0, *st.WeeklyUsagePercent, 1e-6)
+	require.Equal(t, 63, *st.WeeklyUsagePercent, "integer percentage contract (floor)")
 	require.Equal(t, service.UsageStatusNormal, st.UsageStatus)
 	require.False(t, st.PaygFallback)
-	require.Equal(t, 0, st.ResetCardsAvailable, "reset card runtime not enabled yet")
 
 	// 周期起点 = 锚点；终点 = 锚点+7d（远晚于 30 天到期，不被钳制）
 	require.NotNil(t, st.WeeklyPeriodStartedAt)
@@ -143,8 +142,8 @@ func TestPhase4AccountStatusMultipleSubscriptions(t *testing.T) {
 	for _, st := range status.Subscriptions {
 		byGroup[st.GroupID] = st
 	}
-	require.InDelta(t, 20.0, *byGroup[g1.ID].WeeklyUsagePercent, 1e-6)
-	require.InDelta(t, 90.0, *byGroup[g2.ID].WeeklyUsagePercent, 1e-6)
+	require.Equal(t, 20, *byGroup[g1.ID].WeeklyUsagePercent)
+	require.Equal(t, 90, *byGroup[g2.ID].WeeklyUsagePercent)
 	require.Equal(t, service.UsageStatusNearLimit, byGroup[g2.ID].UsageStatus)
 }
 
@@ -176,7 +175,7 @@ func TestPhase4AccountStatusExhaustedAndOvershootClamped(t *testing.T) {
 	require.NoError(t, err)
 	st := status.Subscriptions[0]
 	require.NotNil(t, st.WeeklyUsagePercent)
-	require.InDelta(t, 100.0, *st.WeeklyUsagePercent, 1e-6,
+	require.Equal(t, 100, *st.WeeklyUsagePercent,
 		"overshoot 106.5% must be clamped to 100 for users (§26)")
 	require.Equal(t, service.UsageStatusExhausted, st.UsageStatus)
 
@@ -184,7 +183,7 @@ func TestPhase4AccountStatusExhaustedAndOvershootClamped(t *testing.T) {
 	phase0SetWeeklyWindow(t, sub.ID, time.Now().Add(-24*time.Hour), 20)
 	status, _ = svc.GetAccountStatus(ctx, user.ID)
 	st = status.Subscriptions[0]
-	require.InDelta(t, 100.0, *st.WeeklyUsagePercent, 1e-6)
+	require.Equal(t, 100, *st.WeeklyUsagePercent)
 	require.Equal(t, service.UsageStatusExhausted, st.UsageStatus)
 
 	// 边界：0%（有额度、无使用）
@@ -192,7 +191,7 @@ func TestPhase4AccountStatusExhaustedAndOvershootClamped(t *testing.T) {
 	status, _ = svc.GetAccountStatus(ctx, user.ID)
 	st = status.Subscriptions[0]
 	require.NotNil(t, st.WeeklyUsagePercent)
-	require.InDelta(t, 0.0, *st.WeeklyUsagePercent, 1e-6)
+	require.Equal(t, 0, *st.WeeklyUsagePercent)
 	require.Equal(t, service.UsageStatusNormal, st.UsageStatus)
 }
 
@@ -275,7 +274,7 @@ func TestPhase4AccountStatusFallbackFlagAndResetContract(t *testing.T) {
 	require.NoError(t, err)
 	st := status.Subscriptions[0]
 	require.NotNil(t, st.WeeklyUsagePercent)
-	require.InDelta(t, 0.0, *st.WeeklyUsagePercent, 1e-6, "reset must read as 0%")
+	require.Equal(t, 0, *st.WeeklyUsagePercent, "reset must read as 0%")
 	require.Equal(t, effectiveAt.Format(time.RFC3339Nano), st.WeeklyPeriodStartedAt.Format(time.RFC3339Nano),
 		"period start = reset effective_at (re-anchoring)")
 	require.Equal(t, effectiveAt.Add(7*24*time.Hour).Format(time.RFC3339Nano),
@@ -305,7 +304,7 @@ func TestPhase4WebsiteMucodeConsistency(t *testing.T) {
 	require.Equal(t, website.Subscriptions[0], *mucode)
 
 	// 语义抽查
-	require.InDelta(t, 63.0, *mucode.WeeklyUsagePercent, 1e-6)
+	require.Equal(t, 63, *mucode.WeeklyUsagePercent)
 	require.Equal(t, sub.ID, mucode.ID)
 
 	// 不同 Group（无订阅）→ nil（MUCODE 钱包模式不受影响）
