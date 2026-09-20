@@ -7,7 +7,7 @@
       <ProfileInfoCard :user="user" />
 
       <ProfileEducationEmailCard
-        v-if="user"
+        v-if="user && educationEmailVerificationEnabled"
         :user="user"
       />
 
@@ -68,6 +68,7 @@ const contactInfo = ref('')
 const balanceLowNotifyEnabled = ref(false)
 const systemDefaultThreshold = ref(0)
 const passkeyEnabled = ref(false)
+const educationEmailVerificationEnabled = ref(false)
 
 onMounted(async () => {
   const profileRefresh = authStore.refreshUser().catch((error) => {
@@ -83,6 +84,7 @@ onMounted(async () => {
       balanceLowNotifyEnabled.value = settings.balance_low_notify_enabled ?? false
       systemDefaultThreshold.value = settings.balance_low_notify_threshold ?? 0
       passkeyEnabled.value = settings.passkey_enabled === true
+      educationEmailVerificationEnabled.value = settings.education_email_verification_enabled === true
     })
     .catch((error) => {
       console.error('Failed to load settings:', error)

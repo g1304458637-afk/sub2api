@@ -176,6 +176,10 @@ export default {
           '请先在环境变量中配置 TOTP_ENCRYPTION_KEY。使用命令 openssl rand -hex 32 生成密钥。'
       },
       security: {
+		educationEmailVerification: '校园邮箱认证',
+		educationEmailVerificationHint: '开放后，用户可在个人资料中验证精确的 @muc.edu.cn 邮箱；关闭时入口隐藏，服务端也拒绝发送或提交验证码。',
+		educationEmailVerificationScope: '该认证只证明邮箱控制权，不更换登录邮箱、不授予学生或教职工身份，也不能作为登录方式。认证结果可在「用户管理」中查看。',
+		educationEmailVerificationSmtpRequired: '请先在「邮件设置」配置 SMTP；未配置时无法投递验证码。',
         passkey: 'Passkey 登录',
         passkeyHint: '当依赖方配置有效时，允许无密码登录及用户自行管理 Passkey。',
         passkeyConfigured: 'WebAuthn 依赖方配置有效。',

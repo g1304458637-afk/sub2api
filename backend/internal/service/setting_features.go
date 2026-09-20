@@ -184,6 +184,17 @@ func (s *SettingService) IsTotpEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsEducationEmailVerificationEnabled reports whether users may start or
+// complete the @muc.edu.cn campus-email verification flow. It fails closed so
+// an unconfigured deployment does not send verification mail.
+func (s *SettingService) IsEducationEmailVerificationEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyEducationEmailVerificationEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
 // PasskeyEnabled reports the effective runtime switch. WebAuthn deployment
 // configuration remains the security boundary; the database setting can only
 // disable a valid configured relying party, never replace or weaken it.

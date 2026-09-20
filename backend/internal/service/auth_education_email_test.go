@@ -47,11 +47,31 @@ func (s *educationEmailCacheStub) SetVerificationCode(_ context.Context, _ strin
 	return nil
 }
 
-// newEducationEmailTestService 构造 AuthService：未配置 SMTP（settingRepo 无值）
-// 时 SendEducationEmailVerification 必然失败，用于覆盖失败语义。
+// newEducationEmailTestService 构造已开启校园邮箱认证、但未配置 SMTP 的
+// AuthService；发送必然失败，用于覆盖失败语义。
 func newEducationEmailTestService(cache *educationEmailCacheStub) *AuthService {
 	emailService := NewEmailService(&settingRepoStub{values: nil}, cache)
-	return &AuthService{emailService: emailService}
+	settingService := NewSettingService(&settingRepoStub{values: map[string]string{
+		SettingKeyEducationEmailVerificationEnabled: "true",
+	}}, nil)
+	return &AuthService{emailService: emailService, settingService: settingService}
+}
+
+func TestEducationEmailVerificationDisabledFailsClosed(t *testing.T) {
+	cache := &educationEmailCacheStub{}
+	emailService := NewEmailService(&settingRepoStub{values: nil}, cache)
+	settingService := NewSettingService(&settingRepoStub{values: map[string]string{
+		SettingKeyEducationEmailVerificationEnabled: "false",
+	}}, nil)
+	svc := &AuthService{emailService: emailService, settingService: settingService}
+
+	err := svc.SendEducationEmailCode(context.Background(), 42, "student@muc.edu.cn")
+	require.ErrorIs(t, err, ErrEducationEmailVerificationDisabled)
+	require.Equal(t, 0, cache.incrCount)
+	require.False(t, cache.cooldownHeld)
+
+	err = svc.VerifyAndBindEducationEmail(context.Background(), 42, "student@muc.edu.cn", "123456")
+	require.ErrorIs(t, err, ErrEducationEmailVerificationDisabled)
 }
 
 func TestSendEducationEmailCode_SuccessCountsRateOnce(t *testing.T) {

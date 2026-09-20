@@ -142,6 +142,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		FrontendURL:                                            settings.FrontendURL,
 		InvitationCodeEnabled:                                  settings.InvitationCodeEnabled,
 		TotpEnabled:                                            settings.TotpEnabled,
+		EducationEmailVerificationEnabled:                      settings.EducationEmailVerificationEnabled,
 		TotpEncryptionKeyConfigured:                            h.settingService.IsTotpEncryptionKeyConfigured(),
 		PasskeyEnabled:                                         settings.PasskeyEnabled,
 		PasskeyConfigured:                                      passkeyConfigured,

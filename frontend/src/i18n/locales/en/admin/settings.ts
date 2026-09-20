@@ -176,6 +176,10 @@ export default {
           'Please configure TOTP_ENCRYPTION_KEY in environment variables first. Generate a key with: openssl rand -hex 32'
       },
       security: {
+		educationEmailVerification: 'Campus Email Verification',
+		educationEmailVerificationHint: 'When enabled, users can verify an exact @muc.edu.cn email in their profile. When disabled, the entry is hidden and the server rejects code sends and verification.',
+		educationEmailVerificationScope: 'This proves mailbox control only. It does not replace the sign-in email, grant student or staff status, or become a sign-in method. Results are available in User Management.',
+		educationEmailVerificationSmtpRequired: 'Configure SMTP under Email Settings before sending verification codes.',
         passkey: 'Passkey Sign-in',
         passkeyHint: 'Allow passwordless sign-in and user-managed passkeys when the relying party configuration is valid.',
         passkeyConfigured: 'WebAuthn relying party configuration is valid.',

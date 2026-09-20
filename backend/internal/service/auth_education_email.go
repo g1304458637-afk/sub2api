@@ -21,15 +21,22 @@ const (
 )
 
 var (
-	ErrEducationEmailInvalid      = infraerrors.BadRequest("EDUCATION_EMAIL_INVALID", "use an exact @muc.edu.cn email address")
-	ErrEducationEmailAlreadyBound = infraerrors.Conflict("EDUCATION_EMAIL_ALREADY_BOUND", "this education email is already verified")
+	ErrEducationEmailInvalid              = infraerrors.BadRequest("EDUCATION_EMAIL_INVALID", "use an exact @muc.edu.cn email address")
+	ErrEducationEmailAlreadyBound         = infraerrors.Conflict("EDUCATION_EMAIL_ALREADY_BOUND", "this education email is already verified")
+	ErrEducationEmailVerificationDisabled = infraerrors.Forbidden("EDUCATION_EMAIL_VERIFICATION_DISABLED", "campus email verification is not enabled")
 )
 
 // SendEducationEmailCode sends a short-lived verification code tied to both
 // the authenticated user and the exact MUC email address being verified.
 func (s *AuthService) SendEducationEmailCode(ctx context.Context, userID int64, email string, locale ...string) error {
 	_ = locale
-	if s == nil || s.emailService == nil || s.emailService.cache == nil || userID <= 0 {
+	if s == nil {
+		return ErrServiceUnavailable
+	}
+	if s.settingService == nil || !s.settingService.IsEducationEmailVerificationEnabled(ctx) {
+		return ErrEducationEmailVerificationDisabled
+	}
+	if s.emailService == nil || s.emailService.cache == nil || userID <= 0 {
 		return ErrServiceUnavailable
 	}
 	normalizedEmail, err := normalizeEducationEmail(email)
@@ -87,7 +94,13 @@ func (s *AuthService) SendEducationEmailCode(ctx context.Context, userID int64, 
 // VerifyAndBindEducationEmail consumes a code once and persists a verified
 // campus identity without changing the user's primary login email.
 func (s *AuthService) VerifyAndBindEducationEmail(ctx context.Context, userID int64, email, code string) error {
-	if s == nil || s.emailService == nil || s.emailService.cache == nil || s.entClient == nil || userID <= 0 {
+	if s == nil {
+		return ErrServiceUnavailable
+	}
+	if s.settingService == nil || !s.settingService.IsEducationEmailVerificationEnabled(ctx) {
+		return ErrEducationEmailVerificationDisabled
+	}
+	if s.emailService == nil || s.emailService.cache == nil || s.entClient == nil || userID <= 0 {
 		return ErrServiceUnavailable
 	}
 	normalizedEmail, err := normalizeEducationEmail(email)

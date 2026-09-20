@@ -1644,6 +1644,33 @@
                 />
               </div>
 
+              <!-- Campus email verification -->
+              <div
+                class="border-t border-gray-100 pt-4 dark:border-dark-700"
+                data-testid="education-email-verification-settings"
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">
+                      {{ t('admin.settings.security.educationEmailVerification') }}
+                    </label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.security.educationEmailVerificationHint') }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.education_email_verification_enabled" />
+                </div>
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.security.educationEmailVerificationScope') }}
+                </p>
+                <p
+                  v-if="!form.smtp_host.trim()"
+                  class="mt-2 text-sm text-amber-600 dark:text-amber-400"
+                >
+                  {{ t('admin.settings.security.educationEmailVerificationSmtpRequired') }}
+                </p>
+              </div>
+
               <!-- Passkey sign-in -->
               <div
                 class="border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -9621,6 +9648,7 @@ const form = reactive<SettingsForm>({
   invitation_code_enabled: false,
   password_reset_enabled: false,
   totp_enabled: false,
+  education_email_verification_enabled: false,
   totp_encryption_key_configured: false,
   passkey_enabled: false,
   passkey_configured: false,
@@ -11278,6 +11306,7 @@ async function saveSettings() {
       invitation_code_enabled: form.invitation_code_enabled,
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
+      education_email_verification_enabled: form.education_email_verification_enabled,
       passkey_enabled: form.passkey_enabled,
       session_binding_enabled: form.session_binding_enabled,
       step_up_enabled: form.step_up_enabled,

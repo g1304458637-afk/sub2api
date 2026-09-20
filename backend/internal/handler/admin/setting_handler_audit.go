@@ -59,6 +59,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.TotpEnabled != after.TotpEnabled {
 		changed = append(changed, "totp_enabled")
 	}
+	if before.EducationEmailVerificationEnabled != after.EducationEmailVerificationEnabled {
+		changed = append(changed, "education_email_verification_enabled")
+	}
 	if before.PasskeyEnabled != after.PasskeyEnabled {
 		changed = append(changed, "passkey_enabled")
 	}
