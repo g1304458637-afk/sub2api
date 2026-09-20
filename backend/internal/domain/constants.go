@@ -147,6 +147,16 @@ const (
 	ResetCardSourceStudentReward      = "student_reward"
 )
 
+// Weekly reset source constants（统一 Reset Core 的调用来源，见 subscription_reset_service.go）。
+// effectiveAt 一律由调用方显式传入：Global Reset 用事件内共享的同一时刻，
+// Reset Card 用实际成功消费时刻，Admin Manual 用当前时刻。
+const (
+	WeeklyResetSourceAdminManual  = "admin_manual"
+	WeeklyResetSourceGlobalReset  = "global_reset"
+	WeeklyResetSourceResetCard    = "reset_card"
+	WeeklyResetSourceCompensation = "compensation"
+)
+
 // AntigravityGemini31ProAgentModel is the upstream route for Gemini 3.1 Pro High.
 const AntigravityGemini31ProAgentModel = "gemini-pro-agent"
 

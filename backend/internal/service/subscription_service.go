@@ -11,6 +11,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
@@ -48,6 +49,10 @@ type SubscriptionService struct {
 	userSubRepo         UserSubscriptionRepository
 	billingCacheService *BillingCacheService
 	entClient           *dbent.Client
+	// resetAppRepo 统一 Reset Core 的事件应用仓储（事件驱动 Reset 必需；
+	// 由 wire 经 ProvideSubscriptionServiceWithReset 注入，测试可经
+	// SetResetApplicationRepository 注入；nil 时仅事件驱动路径不可用）
+	resetAppRepo SubscriptionResetApplicationRepository
 
 	// L1 缓存：加速中间件热路径的订阅查询
 	subCacheL1     *ristretto.Cache
@@ -884,17 +889,40 @@ func (s *SubscriptionService) checkAndActivateWindowAt(ctx context.Context, sub 
 }
 
 // AdminResetQuota manually resets the daily, weekly, and/or monthly usage windows.
+//
+// Phase 2 起 weekly-only 请求统一走 ResetSubscriptionWeeklyPeriod（Re-Anchoring Core）；
+// 混合/日/月窗口仍走原合并语句路径（保持每订阅单次原子变更的既有契约，
+// BulkSubscriptionAction 的 reset_quota 依赖该语义）。对外行为（API 签名、响应、
+// 缓存失效）保持兼容：
+//   - weekly-only：effectiveAt = 当前时刻；IgnoreLifecycleCheck=true 保留存量语义
+//     （允许对已过期/暂停订阅清零，不因 lifecycle 校验拒绝管理员操作）；
+//   - 极端场景下 core 的 stale 守卫（anchor >= now）只会跳过一次本来就不会
+//     改变任何值的重复重置（usage 已为 0、anchor 已等于 now），终态一致。
 func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool) (*UserSubscription, error) {
 	if !resetDaily && !resetWeekly && !resetMonthly {
 		return nil, ErrInvalidInput
 	}
+	now := s.now()
+
+	// weekly-only：统一 Re-Anchoring Core
+	if resetWeekly && !resetDaily && !resetMonthly {
+		if _, err := s.ResetSubscriptionWeeklyPeriod(ctx, &WeeklyResetInput{
+			UserSubscriptionID:   subscriptionID,
+			EffectiveAt:          now,
+			Source:               domain.WeeklyResetSourceAdminManual,
+			IgnoreLifecycleCheck: true,
+		}); err != nil {
+			return nil, err
+		}
+		return s.userSubRepo.GetByID(ctx, subscriptionID)
+	}
+
+	// 混合 / 日 / 月窗口：原有合并重置路径（保持既有原子性与行为）。
 	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
 	if err != nil {
 		return nil, err
 	}
-	now := s.now()
 	// 日窗口锚点取当天 0 点：手动重置只清空用量，不改变“每天 0 点刷新”的节奏。
-	// 周/月窗口保持锚定重置时刻（期限对齐滚动窗口语义）。
 	if err := s.userSubRepo.ResetUsageWindows(ctx, sub.ID, resetDaily, resetWeekly, resetMonthly, timezone.StartOfDay(now), now); err != nil {
 		return nil, err
 	}
