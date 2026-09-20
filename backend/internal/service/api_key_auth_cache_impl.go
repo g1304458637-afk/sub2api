@@ -312,7 +312,21 @@ func (s *APIKeyService) lookupAPIKeyForAuth(ctx context.Context, key string) (*A
 		s.authLookupRejected.Add(1)
 		return nil, ErrAPIKeyAuthOverloaded
 	}
-	return s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+	apiKey, err := s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	// Phase 9 并发权益：effective = max(users.concurrency, 活跃订阅分组 override)。
+	// users.concurrency <= 0 = unlimited（保持 0 传播，AcquireUserSlot bypass）。
+	// 认证缓存 TTL 吸收订阅/分组变更的新鲜度（purchase/revoke/admin update 均有失效钩子）。
+	if apiKey != nil && apiKey.User != nil && apiKey.User.Concurrency > 0 && s.userSubRepo != nil {
+		if reader, ok := s.userSubRepo.(SubscriptionConcurrencyOverrideReader); ok {
+			if maxOverride, oerr := reader.GetMaxActiveGroupConcurrencyOverride(ctx, apiKey.User.ID); oerr == nil && maxOverride > apiKey.User.Concurrency {
+				apiKey.User.Concurrency = maxOverride
+			}
+		}
+	}
+	return apiKey, nil
 }
 
 func (s *APIKeyService) applyAuthCacheEntry(key string, entry *APIKeyAuthCacheEntry) (*APIKey, bool, error) {

@@ -102,6 +102,7 @@ type Group struct {
 	SubscriptionType          string   `json:"subscription_type"`
 	DailyLimitUSD             *float64 `json:"daily_limit_usd"`
 	WeeklyLimitUSD            *float64 `json:"weekly_limit_usd"`
+	ConcurrencyOverride       *int     `json:"concurrency_override,omitempty"`
 	MonthlyLimitUSD           *float64 `json:"monthly_limit_usd"`
 	LongContextPricingEnabled bool     `json:"long_context_pricing_enabled"`
 

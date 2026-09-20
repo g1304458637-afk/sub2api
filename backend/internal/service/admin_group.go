@@ -418,6 +418,12 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	weeklyLimit := normalizeLimit(input.WeeklyLimitUSD)
 	monthlyLimit := normalizeLimit(input.MonthlyLimitUSD)
 
+	// Phase 9 并发权益：NULL = 不提供；正整数 = 权益值（负数/0 非法）
+	if input.ConcurrencyOverride != nil && *input.ConcurrencyOverride <= 0 {
+		return nil, errors.New("concurrency_override must be a positive integer or omitted")
+	}
+	concurrencyOverride := input.ConcurrencyOverride
+
 	// 图片价格：负数表示清除（使用默认价格），0 保留（表示免费）
 	imagePrice1K := normalizePrice(input.ImagePrice1K)
 	imagePrice2K := normalizePrice(input.ImagePrice2K)
@@ -562,6 +568,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		SubscriptionType:                subscriptionType,
 		DailyLimitUSD:                   dailyLimit,
 		WeeklyLimitUSD:                  weeklyLimit,
+		ConcurrencyOverride:             concurrencyOverride,
 		MonthlyLimitUSD:                 monthlyLimit,
 		LongContextPricingEnabled:       input.LongContextPricingEnabled,
 		ModelPricing:                    modelPricing,
@@ -802,6 +809,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.WeeklyLimitUSD != nil {
 		group.WeeklyLimitUSD = normalizeLimit(input.WeeklyLimitUSD)
+	}
+	if input.ConcurrencyOverride != nil && *input.ConcurrencyOverride <= 0 {
+		return nil, errors.New("concurrency_override must be a positive integer or omitted")
+	}
+	if input.ConcurrencyOverride != nil {
+		group.ConcurrencyOverride = input.ConcurrencyOverride
 	}
 	if input.MonthlyLimitUSD != nil {
 		group.MonthlyLimitUSD = normalizeLimit(input.MonthlyLimitUSD)

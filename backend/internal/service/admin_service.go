@@ -244,6 +244,7 @@ type CreateGroupInput struct {
 	DailyLimitUSD             *float64 // 日限额 (USD)
 	WeeklyLimitUSD            *float64 // 周限额 (USD)
 	MonthlyLimitUSD           *float64 // 月限额 (USD)
+	ConcurrencyOverride       *int     // 并发权益覆盖（NULL/正整数）
 	LongContextPricingEnabled bool
 	ModelPricing              []ChannelModelPricing
 	// 图片生成计费配置（仅 antigravity 平台使用）
@@ -325,6 +326,7 @@ type UpdateGroupInput struct {
 	DailyLimitUSD             *float64 // 日限额 (USD)
 	WeeklyLimitUSD            *float64 // 周限额 (USD)
 	MonthlyLimitUSD           *float64 // 月限额 (USD)
+	ConcurrencyOverride       *int     // 并发权益覆盖（NULL/正整数）
 	LongContextPricingEnabled *bool
 	ModelPricing              *[]ChannelModelPricing
 	// 图片生成计费配置（仅 antigravity 平台使用）
