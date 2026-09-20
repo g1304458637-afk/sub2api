@@ -152,13 +152,13 @@ func TestPhase0PAYGSettlementDeductsBalanceOnly(t *testing.T) {
 	phase0CleanupStack(t, user.ID, group.ID, account.ID)
 
 	cmd := &service.UsageBillingCommand{
-		RequestID:       uuid.NewString(),
-		APIKeyID:        apiKey.ID,
-		UserID:          user.ID,
-		AccountID:       account.ID,
-		AccountType:     service.AccountTypeAPIKey,
-		BalanceCost:     0.5,
-		SubscriptionID:  nil,
+		RequestID:        uuid.NewString(),
+		APIKeyID:         apiKey.ID,
+		UserID:           user.ID,
+		AccountID:        account.ID,
+		AccountType:      service.AccountTypeAPIKey,
+		BalanceCost:      0.5,
+		SubscriptionID:   nil,
 		SubscriptionCost: 0,
 	}
 
@@ -375,9 +375,11 @@ func TestPhase0ResetVsSettlementSequences(t *testing.T) {
 //
 // 不变量：初始 (anchor=T0, usage=10)，并发执行 IncrementUsage(1.5) 与
 // ResetWeeklyUsage(T0→T1) 各一次，最终只允许三种结局：
-//   (usage=11.5, anchor=T0)  reset 的 CAS 输了（合法：另一请求已推进）
-//   (usage=0,    anchor=T1)  settlement 先提交
-//   (usage=1.5,  anchor=T1)  reset 先提交
+//
+//	(usage=11.5, anchor=T0)  reset 的 CAS 输了（合法：另一请求已推进）
+//	(usage=0,    anchor=T1)  settlement 先提交
+//	(usage=1.5,  anchor=T1)  reset 先提交
+//
 // 被禁止：usage=11.5 且 anchor=T1（旧周期用量被叠进新周期）。
 func TestPhase0ResetVsSettlementConcurrentInvariant(t *testing.T) {
 	client := testEntClient(t)

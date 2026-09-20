@@ -160,16 +160,16 @@ func ValidateSimpleModeGroupOperation(cfg *config.Config, operation AdminGroupOp
 
 // CreateUserInput represents input for creating a new user via admin operations.
 type CreateUserInput struct {
-	Email                string
-	Password             string
-	Username             string
-	Notes                string
-	Role                 string // 空字符串表示使用默认角色(user);合法值 admin/user
-	Balance              *float64
+	Email    string
+	Password string
+	Username string
+	Notes    string
+	Role     string // 空字符串表示使用默认角色(user);合法值 admin/user
+	Balance  *float64
 	// Concurrency 为 nil（字段未提供）时使用 default_concurrency 设置；
 	// 显式 0 = 管理员明确要求不限并发（Runtime 语义：<=0 → unlimited）。
-	Concurrency *int
-	RPMLimit    int
+	Concurrency          *int
+	RPMLimit             int
 	AllowedGroups        []int64
 	RestrictPublicGroups bool
 	// ActorAdminID 执行本次操作的管理员ID(来自JWT)，仅用于权限敏感操作的审计日志。

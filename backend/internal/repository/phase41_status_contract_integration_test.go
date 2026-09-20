@@ -23,7 +23,7 @@ import (
 func TestPhase41DisplayPercentIntegerContract(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		raw    float64
+		raw     float64
 		display int
 		status  service.UsageStatus
 	}{

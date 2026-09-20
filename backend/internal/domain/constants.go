@@ -113,11 +113,11 @@ const (
 
 // Reset event scope type constants（scope 过滤条件存 JSONB，见 migration 239 注释）
 const (
-	ResetEventScopeTypeAll           = "all"
-	ResetEventScopeTypeGroup         = "group"
-	ResetEventScopeTypePlan          = "plan"
-	ResetEventScopeTypeUser          = "user"
-	ResetEventScopeTypeSubscription  = "subscription"
+	ResetEventScopeTypeAll          = "all"
+	ResetEventScopeTypeGroup        = "group"
+	ResetEventScopeTypePlan         = "plan"
+	ResetEventScopeTypeUser         = "user"
+	ResetEventScopeTypeSubscription = "subscription"
 )
 
 // Reset application status constants

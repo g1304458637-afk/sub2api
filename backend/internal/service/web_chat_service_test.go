@@ -163,11 +163,11 @@ func TestWebChatSettingsParseAndRoundTrip(t *testing.T) {
 
 func TestWebChatEnabledParse(t *testing.T) {
 	cases := []struct {
-		raw   string
-		want  bool
+		raw  string
+		want bool
 	}{
 		{"true", true},
-		{"", true},    // 键缺失/空值（存量站点未写入设置行）默认开启
+		{"", true}, // 键缺失/空值（存量站点未写入设置行）默认开启
 		{"false", false},
 		{"True", false}, // 脏值 fail-closed
 		{"1", false},

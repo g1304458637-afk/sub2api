@@ -59,17 +59,17 @@ func NewUserHandler(
 
 // CreateUserRequest represents admin create user request
 type CreateUserRequest struct {
-	Email                string   `json:"email" binding:"required,email"`
-	Password             string   `json:"password" binding:"required,min=6"`
-	Username             string   `json:"username"`
-	Notes                string   `json:"notes"`
-	Role                 string   `json:"role" binding:"omitempty,oneof=admin user"`
-	Balance              *float64 `json:"balance"`
+	Email    string   `json:"email" binding:"required,email"`
+	Password string   `json:"password" binding:"required,min=6"`
+	Username string   `json:"username"`
+	Notes    string   `json:"notes"`
+	Role     string   `json:"role" binding:"omitempty,oneof=admin user"`
+	Balance  *float64 `json:"balance"`
 	// 省略时使用 default_concurrency 设置；显式 0 = unlimited；负数非法。
-	Concurrency *int `json:"concurrency" binding:"omitempty,gte=0"`
-	RPMLimit    int  `json:"rpm_limit"`
-	AllowedGroups        []int64  `json:"allowed_groups"`
-	RestrictPublicGroups bool     `json:"restrict_public_groups"`
+	Concurrency          *int    `json:"concurrency" binding:"omitempty,gte=0"`
+	RPMLimit             int     `json:"rpm_limit"`
+	AllowedGroups        []int64 `json:"allowed_groups"`
+	RestrictPublicGroups bool    `json:"restrict_public_groups"`
 }
 
 // UpdateUserRequest represents admin update user request

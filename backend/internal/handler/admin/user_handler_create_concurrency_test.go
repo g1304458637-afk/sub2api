@@ -93,4 +93,3 @@ func TestPhase3D_CreateUser_ExplicitZeroPassesPointerToZero(t *testing.T) {
 		"explicit 0 must be distinguishable from omission")
 	require.Equal(t, 0, *stub.calls[0].Concurrency)
 }
-
