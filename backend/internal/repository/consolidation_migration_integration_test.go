@@ -28,7 +28,7 @@ func TestConsolidationMigrationMainToUnion(t *testing.T) {
 	dsn.Path = "/" + database
 	db, err := sql.Open("postgres", dsn.String())
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	old := fstest.MapFS{}
 	names, err := fs.Glob(migrations.FS, "*.sql")
 	require.NoError(t, err)
@@ -79,5 +79,13 @@ func TestConsolidationMigrationMainToUnion(t *testing.T) {
 	var fks int
 	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM pg_constraint WHERE contype='f' AND conrelid='subscription_terms'::regclass").Scan(&fks))
 	require.GreaterOrEqual(t, fks, 2)
+	var tierDefault, tierNullable string
+	require.NoError(t, db.QueryRow("SELECT column_default,is_nullable FROM information_schema.columns WHERE table_name='subscription_plans' AND column_name='tier_rank'").Scan(&tierDefault, &tierNullable))
+	require.Equal(t, "0", tierDefault)
+	require.Equal(t, "NO", tierNullable)
+	var planFKs int
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM pg_constraint WHERE contype='f' AND conrelid='user_subscriptions'::regclass AND confrelid='subscription_plans'::regclass").Scan(&planFKs))
+	require.Equal(t, 2, planFKs, "plan_id and next_plan_id retain foreign keys")
+
 	t.Logf("released main %d migrations -> union %d migrations; legacy cleanup, immutable history, research/music and FK/index checks passed", len(old), len(names))
 }
