@@ -1,20 +1,8 @@
 <template>
-  <div class="card p-6">
-    <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-base font-semibold text-gray-900 dark:text-white">
-        {{ t('draw.gallery.title') }}
-      </h2>
-      <span
-        v-if="items.length > 0"
-        class="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 dark:bg-dark-800 dark:text-gray-300"
-      >
-        {{ items.length }}
-      </span>
-    </div>
-
+  <div>
     <div
       v-if="items.length === 0"
-      class="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 px-6 py-16 text-center dark:border-dark-600"
+      class="flex flex-col items-center justify-center px-6 py-16 text-center"
     >
       <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-800">
         <Icon name="sparkles" size="lg" class="text-gray-400 dark:text-gray-500" />
@@ -22,11 +10,11 @@
       <p class="text-sm text-gray-400 dark:text-gray-500">{{ t('draw.gallery.empty') }}</p>
     </div>
 
-    <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <figure
         v-for="item in items"
         :key="item.id"
-        class="group relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-800"
+        class="group relative overflow-hidden rounded-2xl bg-gray-50 dark:bg-dark-800"
       >
         <img
           :src="item.src"

@@ -1,8 +1,8 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
+    <div class="mx-auto flex w-full max-w-3xl flex-col">
       <!-- 页头 -->
-      <div>
+      <div class="pb-6 pt-2 text-center">
         <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('draw.title') }}</h1>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('draw.subtitle') }}</p>
       </div>
@@ -13,36 +13,34 @@
       </div>
 
       <!-- 功能未开放：无可用的网页生图模型 -->
-      <div v-else-if="!ready" class="card">
-        <EmptyState
-          :title="t('draw.empty.title')"
-          :description="t('draw.empty.description')"
-        >
-          <template #icon>
-            <Icon name="sparkles" size="xl" class="text-gray-400 dark:text-gray-500" />
-          </template>
-        </EmptyState>
-      </div>
+      <EmptyState
+        v-else-if="!ready"
+        :title="t('draw.empty.title')"
+        :description="t('draw.empty.description')"
+      >
+        <template #icon>
+          <Icon name="sparkles" size="xl" class="text-gray-400 dark:text-gray-500" />
+        </template>
+      </EmptyState>
 
       <template v-else>
-        <div class="grid items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <!-- 表单区 -->
-          <DrawForm
-            v-model:model="selectedModel"
-            v-model:size="selectedSize"
-            v-model:count="selectedCount"
-            v-model:prompt="prompt"
-            :models="imageModels"
-            :generating="generating"
-            :show-prompt-error="showPromptError"
-            @submit="generate"
-          />
+        <DrawForm
+          v-model:model="selectedModel"
+          v-model:size="selectedSize"
+          v-model:count="selectedCount"
+          v-model:prompt="prompt"
+          :models="imageModels"
+          :generating="generating"
+          :show-prompt-error="showPromptError"
+          @submit="generate"
+        />
 
-          <!-- 结果区 -->
+        <!-- 结果区 -->
+        <div class="mt-8">
           <DrawGallery :items="images" />
         </div>
 
-        <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('draw.saveHint') }}</p>
+        <p class="mt-6 text-center text-xs text-gray-400 dark:text-gray-500">{{ t('draw.saveHint') }}</p>
       </template>
     </div>
   </AppLayout>
