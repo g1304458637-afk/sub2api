@@ -100,7 +100,7 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 		defer userRelease()
 	}
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)
@@ -109,14 +109,10 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.errorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	searchID := strings.TrimSpace(gjson.GetBytes(body, "id").String())
 	sessionHash := h.gatewayService.GenerateSessionHashWithFallback(c, nil, searchID)

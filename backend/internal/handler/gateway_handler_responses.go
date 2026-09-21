@@ -144,7 +144,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 
 	// 2. Re-check billing
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(requestCtx, apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(requestCtx, apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(requestCtx, apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(requestCtx, apiKey))
 
 	if err != nil {
 		reqLog.Info("gateway.responses.billing_check_failed", zap.Error(err))
@@ -154,14 +154,10 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.responsesErrorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	// Parse request for session hash
 	bodyRef := service.NewRequestBodyRef(body)

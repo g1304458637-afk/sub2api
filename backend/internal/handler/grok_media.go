@@ -150,7 +150,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		defer userReleaseFunc()
 	}
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		reqLog.Info("grok_media.billing_eligibility_check_failed", zap.Error(err))
@@ -160,14 +160,10 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.errorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	sessionSeed := body
 	if len(sessionSeed) == 0 && strings.TrimSpace(requestID) != "" {

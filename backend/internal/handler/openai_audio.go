@@ -150,7 +150,8 @@ func (h *OpenAIGatewayHandler) Speech(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	if err != nil {
 		reqLog.Info("openai.speech.billing_eligibility_check_failed", zap.Error(err))
 		status, code, message, retryAfter := billingErrorDetails(err)
 		if retryAfter > 0 {
@@ -159,6 +160,7 @@ func (h *OpenAIGatewayHandler) Speech(c *gin.Context) {
 		h.handleStreamingAwareError(c, status, code, message, streamStarted)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	// Account scheduling mirrors GrokVoice: a small bounded retry loop over the
 	// scheduler with an excluded set. Speech v1 is apikey passthrough only, so

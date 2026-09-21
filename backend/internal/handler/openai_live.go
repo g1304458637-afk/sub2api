@@ -81,7 +81,7 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 		h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Billing service unavailable")
 		return
 	}
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(
 		c.Request.Context(),
 		apiKey.User,
 		apiKey,
@@ -94,12 +94,10 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 		if retryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
 		}
-		if fallbackAdmitted {
-			subscription = nil
-		}
 		h.errorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	userRelease, acquired, err := h.concurrencyHelper.TryAcquireUserSlot(
 		c.Request.Context(),

@@ -36,7 +36,7 @@ func (h *OpenAIGatewayHandler) GrokRealtime(c *gin.Context) {
 	}
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)
@@ -45,14 +45,10 @@ func (h *OpenAIGatewayHandler) GrokRealtime(c *gin.Context) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.errorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	reqLog := requestLogger(c, "handler.openai_gateway.grok_realtime")
 	model := c.Query("model")
@@ -191,7 +187,7 @@ func (h *OpenAIGatewayHandler) GrokVoice(c *gin.Context, endpoint string) {
 	}
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)
@@ -200,14 +196,10 @@ func (h *OpenAIGatewayHandler) GrokVoice(c *gin.Context, endpoint string) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.errorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	body, err := readGrokVoiceGatewayBody(c)
 	if err != nil {

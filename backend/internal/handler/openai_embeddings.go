@@ -98,7 +98,7 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		reqLog.Info("openai_embeddings.billing_check_failed", zap.Error(err))
@@ -108,14 +108,10 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.errorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	profitVetoCount := 0
 	failedAccountIDs := make(map[int64]struct{})

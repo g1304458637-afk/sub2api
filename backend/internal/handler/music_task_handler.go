@@ -157,7 +157,8 @@ func (h *AsyncMusicHandler) Submit(c *gin.Context) {
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	if h.openAI != nil && h.openAI.billingCacheService != nil {
-		if err := h.openAI.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+		eligibility, err := h.openAI.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+		if err != nil {
 			status, code, message, retryAfter := billingErrorDetails(err)
 			if retryAfter > 0 {
 				c.Header("Retry-After", strconv.Itoa(retryAfter))
@@ -165,6 +166,7 @@ func (h *AsyncMusicHandler) Submit(c *gin.Context) {
 			musicTaskJSONError(c, status, code, message)
 			return
 		}
+		subscription = eligibility.SubscriptionForBilling(subscription)
 	}
 
 	usage := musicUsageMeta{

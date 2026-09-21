@@ -135,7 +135,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 	// 2. Re-check billing
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		reqLog.Info("gateway.cc.billing_check_failed", zap.Error(err))
@@ -145,14 +145,10 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.chatCompletionsErrorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	// Parse request for session hash
 	bodyRef := service.NewRequestBodyRef(body)

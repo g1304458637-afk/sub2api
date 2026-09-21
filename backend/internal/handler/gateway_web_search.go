@@ -80,7 +80,7 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 	// Billing eligibility (same as other requests)
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)
@@ -89,14 +89,10 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		c.JSON(status, gin.H{"error": gin.H{"type": code, "message": message}})
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	subject, _ := middleware2.GetAuthSubjectFromContext(c)
 	reqLog := requestLogger(c, "handler.gateway.web_search")

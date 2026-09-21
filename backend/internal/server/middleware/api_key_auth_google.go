@@ -187,6 +187,10 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				subscription = refreshed
 				_, err = subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
 			}
+			if subscription.AutoPaygFallback && service.IsSubscriptionLimitError(err) {
+				err = nil
+			}
+
 			if err != nil {
 				status := 403
 				if errors.Is(err, service.ErrDailyLimitExceeded) ||

@@ -169,7 +169,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// Async image task polling only reads data that already belongs to the
 		// authenticated key and must remain available after the completed
 		// generation consumes the key's remaining balance.
-		skipBilling := c.Request.URL.Path == "/v1/usage" || billingInfoRequest || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path)
+		skipBilling := c.Request.URL.Path == "/v1/usage" || billingInfoRequest || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) || isSubscriptionResetRequest(c.Request.Method, c.Request.URL.Path)
 
 		// ── 4. SimpleMode → early return ─────────────────────────────
 
@@ -245,6 +245,11 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 					}
 					subscription = refreshed
 					_, validateErr = subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
+				}
+				if subscription.AutoPaygFallback && service.IsSubscriptionLimitError(validateErr) {
+					// Balance/cache and platform limits are checked by the shared
+					// eligibility service after any concurrency wait.
+					validateErr = nil
 				}
 				if validateErr != nil {
 					code := "SUBSCRIPTION_INVALID"
@@ -337,7 +342,11 @@ func isAsyncImageTaskRead(method, path string) bool {
 	if method != http.MethodGet {
 		return false
 	}
-	return strings.HasPrefix(path, "/v1/images/tasks/") || strings.HasPrefix(path, "/images/tasks/")
+	return strings.HasPrefix(path, "/v1/images/tasks/") || strings.HasPrefix(path, "/images/tasks/") || strings.HasPrefix(path, "/v1/audio/music/tasks/")
+}
+
+func isSubscriptionResetRequest(method, path string) bool {
+	return method == http.MethodPost && strings.HasPrefix(path, "/muc/reset-with-card/")
 }
 
 // GetAPIKeyFromContext 从上下文中获取API key

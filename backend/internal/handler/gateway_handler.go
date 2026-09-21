@@ -255,7 +255,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	// 2. 【新增】Wait后二次检查余额/订阅
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		reqLog.Info("gateway.billing_eligibility_check_failed", zap.Error(err))
@@ -265,14 +265,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.handleStreamingAwareError(c, status, code, message, streamStarted)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	// 设置请求所属分组 ID（用于渠道级功能判断，如 WebSearch 模拟）
 	parsedReq.GroupID = apiKey.GroupID
@@ -1015,7 +1011,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						}
 						fallbackAPIKey := cloneAPIKeyWithGroup(apiKey, fallbackGroup)
 
-						fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), fallbackAPIKey.User, fallbackAPIKey, fallbackGroup, nil, service.PlatformFromAPIKey(fallbackAPIKey))
+						eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), fallbackAPIKey.User, fallbackAPIKey, fallbackGroup, nil, service.PlatformFromAPIKey(fallbackAPIKey))
 
 						if err != nil {
 							status, code, message, retryAfter := billingErrorDetails(err)
@@ -1024,11 +1020,6 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 							}
 
-							if fallbackAdmitted {
-
-								subscription = nil
-
-							}
 							h.handleStreamingAwareError(c, status, code, message, streamStarted)
 							return
 						}
@@ -1036,7 +1027,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						ctx := context.WithValue(c.Request.Context(), ctxkey.ForcePlatform, "")
 						c.Request = c.Request.WithContext(ctx)
 						currentAPIKey = fallbackAPIKey
-						currentSubscription = nil
+						currentSubscription = eligibility.SubscriptionForBilling(nil)
 						fallbackUsed = true
 						retryWithFallback = true
 						// 原分组账号已确定性失败（prompt too long），先释放其会话注册再走兜底分组
@@ -2208,7 +2199,7 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 	// 校验 billing eligibility（订阅/余额）
 	// 【注意】不计算并发，但需要校验订阅/余额
 
-	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)
@@ -2217,14 +2208,10 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 
 		}
 
-		if fallbackAdmitted {
-
-			subscription = nil
-
-		}
 		h.errorResponse(c, status, code, message)
 		return
 	}
+	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	// 计算粘性会话 hash
 	parsedReq.SessionContext = &service.SessionContext{

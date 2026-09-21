@@ -39,12 +39,12 @@ var (
 	// ErrPrimarySubscriptionExists 单主套餐不变量（产品 RULE 1）：用户在其他组已有
 	// ACTIVE 主订阅时，禁止再以购买/兑换/赠送路径创建第二份；应走升级/降级。
 	ErrPrimarySubscriptionExists = infraerrors.Conflict("PRIMARY_SUBSCRIPTION_EXISTS", "user already has an active primary subscription in another plan; use upgrade or downgrade instead")
-	ErrInvalidInput                = infraerrors.BadRequest("INVALID_INPUT", "at least one of resetDaily, resetWeekly, or resetMonthly must be true")
-	ErrDailyLimitExceeded          = infraerrors.TooManyRequests("DAILY_LIMIT_EXCEEDED", "daily usage limit exceeded")
-	ErrWeeklyLimitExceeded         = infraerrors.TooManyRequests("WEEKLY_LIMIT_EXCEEDED", "weekly usage limit exceeded")
-	ErrMonthlyLimitExceeded        = infraerrors.TooManyRequests("MONTHLY_LIMIT_EXCEEDED", "monthly usage limit exceeded")
-	ErrSubscriptionNilInput        = infraerrors.BadRequest("SUBSCRIPTION_NIL_INPUT", "subscription input cannot be nil")
-	ErrAdjustWouldExpire           = infraerrors.BadRequest("ADJUST_WOULD_EXPIRE", "adjustment would result in expired subscription (remaining days must be > 0)")
+	ErrInvalidInput              = infraerrors.BadRequest("INVALID_INPUT", "at least one of resetDaily, resetWeekly, or resetMonthly must be true")
+	ErrDailyLimitExceeded        = infraerrors.TooManyRequests("DAILY_LIMIT_EXCEEDED", "daily usage limit exceeded")
+	ErrWeeklyLimitExceeded       = infraerrors.TooManyRequests("WEEKLY_LIMIT_EXCEEDED", "weekly usage limit exceeded")
+	ErrMonthlyLimitExceeded      = infraerrors.TooManyRequests("MONTHLY_LIMIT_EXCEEDED", "monthly usage limit exceeded")
+	ErrSubscriptionNilInput      = infraerrors.BadRequest("SUBSCRIPTION_NIL_INPUT", "subscription input cannot be nil")
+	ErrAdjustWouldExpire         = infraerrors.BadRequest("ADJUST_WOULD_EXPIRE", "adjustment would result in expired subscription (remaining days must be > 0)")
 )
 
 // SubscriptionService 订阅服务
@@ -59,14 +59,14 @@ type SubscriptionService struct {
 	resetAppRepo SubscriptionResetApplicationRepository
 
 	// L1 缓存：加速中间件热路径的订阅查询
-	subCacheL1     *ristretto.Cache
-	subCacheGroup  singleflight.Group
+	subCacheL1    *ristretto.Cache
+	subCacheGroup singleflight.Group
 
 	// scheduledChangeSuperseder 续期取代 pending 预约降级的回调（PlanChangeService 实现，
 	// wire 经 SetScheduledChangeSuperseder 注入；nil 时为 no-op）。
 	scheduledChangeSuperseder ScheduledChangeSuperseder
-	subCacheTTL    time.Duration
-	subCacheJitter int // 抖动百分比
+	subCacheTTL               time.Duration
+	subCacheJitter            int // 抖动百分比
 
 	maintenanceQueue *SubscriptionMaintenanceQueue
 	now              func() time.Time
@@ -402,7 +402,6 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 		if err := s.userSubRepo.ExtendExpiry(txCtx, existingSub.ID, newExpiresAt); err != nil {
 			return fmt.Errorf("extend subscription: %w", err)
 		}
-
 
 		// 如果订阅被暂停，恢复为 active 状态
 		if existingSub.Status != SubscriptionStatusActive {
@@ -1095,6 +1094,9 @@ func (s *SubscriptionService) CheckUsageLimits(ctx context.Context, sub *UserSub
 // 仅做内存检查，不触发 DB 写入。调用方必须在放行请求前同步完成窗口维护。
 // 返回 needsMaintenance 表示是否需要执行窗口维护并回读数据库快照。
 func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, group *Group) (needsMaintenance bool, err error) {
+	if sub == nil || group == nil {
+		return false, ErrSubscriptionInvalid
+	}
 	now := s.now()
 	// 1. 验证订阅状态
 	if sub.Status == SubscriptionStatusExpired {
@@ -1126,13 +1128,13 @@ func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, grou
 	}
 
 	// 3. 检查用量限额
-	if !sub.CheckDailyLimit(group, 0) {
+	if group.HasDailyLimit() && sub.DailyUsageUSD >= *group.DailyLimitUSD {
 		return needsMaintenance, ErrDailyLimitExceeded
 	}
-	if !sub.CheckWeeklyLimit(group, 0) {
+	if group.HasWeeklyLimit() && sub.WeeklyUsageUSD >= *group.WeeklyLimitUSD {
 		return needsMaintenance, ErrWeeklyLimitExceeded
 	}
-	if !sub.CheckMonthlyLimit(group, 0) {
+	if group.HasMonthlyLimit() && sub.MonthlyUsageUSD >= *group.MonthlyLimitUSD {
 		return needsMaintenance, ErrMonthlyLimitExceeded
 	}
 
