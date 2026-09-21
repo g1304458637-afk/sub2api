@@ -114,11 +114,143 @@ export async function getAccountStatus(): Promise<AccountStatus> {
   return response.data
 }
 
+// ── Phase 10 Plan Change（升级/到期切换）；金额全部来自服务端权威报价 ──
+
+/** 服务端权威报价。金额字段为 decimal 字符串（后端 json:",string"），禁止用 float 重算。 */
+export type PlanChangeQuote = {
+  subscription_id: number
+  change_type: 'upgrade' | 'scheduled_downgrade'
+  from_plan_id: number
+  to_plan_id: number
+  from_display_name: string
+  to_display_name: string
+  effective_at: string
+  current_expiry: string
+  /** 升级=不变；降级=term 末 */
+  new_expiry: string
+  remaining_seconds: number
+  /** decimal 字符串 */
+  unused_credit: string
+  /** decimal 字符串 */
+  prorated_charge: string
+  /** decimal 字符串 */
+  amount_due: string
+  currency: string
+  weekly_usage_percent_before: number | null
+  weekly_usage_percent_after: number | null
+  usage_status_after: UsageStatus
+  keys_to_migrate_count: number
+}
+
+/**
+ * GET /subscriptions/:id/changes 审计记录。后端返回无 json tag 的 Go 结构体，
+ * 键为 PascalCase——保持原样，勿"纠正"为 snake_case。
+ */
+export type PlanChangeRecordDto = {
+  ID: number
+  UserID: number
+  SubscriptionID: number
+  ChangeType: 'upgrade' | 'scheduled_downgrade' | string
+  FromPlanID: number | null
+  ToPlanID: number
+  FromGroupID: number | null
+  ToGroupID: number
+  FromTier: number
+  ToTier: number
+  OldPriceSnapshot: number | null
+  NewPriceSnapshot: number
+  Currency: string
+  TermStart: string | null
+  TermEnd: string | null
+  RemainingSeconds: number
+  UnusedCredit: number
+  ProratedCharge: number
+  AmountDue: number
+  QuoteCreatedAt: string | null
+  QuoteExpiresAt: string | null
+  EffectiveAt: string | null
+  Status: 'quoted' | 'scheduled' | 'paid' | 'fulfilled' | 'cancelled' | string
+  CancelReason: string | null
+  OrderID: number | null
+  IdempotencyKey: string | null
+  PaidAt: string | null
+  FulfilledAt: string | null
+  CancelledAt: string | null
+  CreatedAt: string
+  UpdatedAt: string
+}
+
+/** 升级下单返回（金额来自冻结报价行，客户端不传 amount）。 */
+export type PlanUpgradeOrder = {
+  order_id: number
+  plan_change_id: number
+  amount: number
+  pay_amount: number
+  payment_type: string
+  status: string
+  pay_url?: string
+  qr_code?: string
+}
+
+export async function previewUpgrade(
+  subscriptionId: number,
+  targetPlanId: number
+): Promise<PlanChangeQuote> {
+  const response = await apiClient.post<PlanChangeQuote>(
+    `/subscriptions/${subscriptionId}/change/preview`,
+    { target_plan_id: targetPlanId }
+  )
+  return response.data
+}
+
+export async function createUpgrade(
+  subscriptionId: number,
+  targetPlanId: number,
+  paymentType: string,
+  idempotencyKey: string
+): Promise<PlanUpgradeOrder> {
+  const response = await apiClient.post<PlanUpgradeOrder>(
+    `/subscriptions/${subscriptionId}/upgrade`,
+    { target_plan_id: targetPlanId, payment_type: paymentType },
+    { headers: { 'Idempotency-Key': idempotencyKey } }
+  )
+  return response.data
+}
+
+export async function scheduleDowngrade(
+  subscriptionId: number,
+  targetPlanId: number,
+  idempotencyKey: string
+): Promise<PlanChangeRecordDto> {
+  const response = await apiClient.post<PlanChangeRecordDto>(
+    `/subscriptions/${subscriptionId}/schedule-downgrade`,
+    { target_plan_id: targetPlanId },
+    { headers: { 'Idempotency-Key': idempotencyKey } }
+  )
+  return response.data
+}
+
+export async function cancelScheduledDowngrade(subscriptionId: number): Promise<void> {
+  await apiClient.delete(`/subscriptions/${subscriptionId}/schedule-downgrade`)
+}
+
+export async function getSubscriptionChanges(subscriptionId: number): Promise<PlanChangeRecordDto[]> {
+  const response = await apiClient.get<PlanChangeRecordDto[]>(
+    `/subscriptions/${subscriptionId}/changes`
+  )
+  return response.data
+}
+
 export default {
   getMySubscriptions,
   getActiveSubscriptions,
   getSubscriptionsProgress,
   getSubscriptionSummary,
   getSubscriptionProgress,
-  getAccountStatus
+  getAccountStatus,
+  previewUpgrade,
+  createUpgrade,
+  scheduleDowngrade,
+  cancelScheduledDowngrade,
+  getSubscriptionChanges
 }

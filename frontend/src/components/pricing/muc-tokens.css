@@ -1,0 +1,38 @@
+/*
+ * MUCODE 民大版 Design Tokens（Pricing 页体系，后续 我的订阅/Wallet/MUCODE Status/Admin 复用）。
+ * 用法：把 `muc-scope` class 加在「深色舞台根节点或任意 Teleport 出 body 的浮层根节点」上，
+ * 其子树内的 var(--muc-*) 即可用。集中声明一次，拿到学校官方 VI 色值后此处一键替换。
+ * 注意：这些是设计 token，不声称是学校官方 VI 精确色值。
+ */
+.muc-scope {
+  --muc-red: #c82433;
+  --muc-red-bright: #e23848;
+  --muc-red-deep: #7f1622;
+  --muc-red-soft: rgba(200, 36, 51, 0.18);
+  --muc-red-border: rgba(238, 56, 72, 0.45);
+  --muc-red-border-hover: rgba(238, 56, 72, 0.68);
+  --muc-red-glow: rgba(238, 56, 72, 0.28);
+
+  --muc-gold: #d6b46a;
+
+  --muc-bg-primary: #070708;
+  --muc-bg-secondary: #101012;
+  --muc-glass: rgba(15, 15, 17, 0.58);
+  --muc-glass-border: rgba(255, 255, 255, 0.09);
+  --muc-glass-border-strong: rgba(255, 255, 255, 0.16);
+
+  --muc-text-primary: #ffffff;
+  --muc-text-secondary: rgba(255, 255, 255, 0.68);
+  --muc-text-muted: rgba(255, 255, 255, 0.42);
+
+  /* 业务警示红（区别于品牌红）：仅 exhausted/错误使用 */
+  --muc-danger: #ff4550;
+
+  --muc-watermark-gradient: linear-gradient(
+    to right,
+    #16080b 0%,
+    #5e101a 30%,
+    #c82433 67%,
+    #ff5967 100%
+  );
+}
