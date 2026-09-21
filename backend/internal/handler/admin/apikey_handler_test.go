@@ -21,6 +21,7 @@ func setupAPIKeyHandler(adminSvc service.AdminService) *gin.Engine {
 	router := gin.New()
 	h := NewAdminAPIKeyHandler(adminSvc)
 	router.PUT("/api/v1/admin/api-keys/:id", h.UpdateGroup)
+	router.DELETE("/api/v1/admin/api-keys/:id", h.Delete)
 	return router
 }
 
@@ -239,4 +240,71 @@ type failingUpdateGroupService struct {
 
 func (f *failingUpdateGroupService) AdminUpdateAPIKeyGroupID(_ context.Context, _ int64, _ *int64) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
 	return nil, f.err
+}
+
+func TestAdminAPIKeyHandler_Delete_InvalidID(t *testing.T) {
+	router := setupAPIKeyHandler(newStubAdminService())
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/api-keys/abc", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "Invalid API key ID")
+}
+
+func TestAdminAPIKeyHandler_Delete_KeyNotFound(t *testing.T) {
+	router := setupAPIKeyHandler(newStubAdminService())
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/api-keys/999", nil)
+	router.ServeHTTP(rec, req)
+
+	// ErrAPIKeyNotFound maps to 404
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestAdminAPIKeyHandler_Delete_Success(t *testing.T) {
+	svc := newStubAdminService()
+	router := setupAPIKeyHandler(svc)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/api-keys/10", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Data struct {
+			Message string `json:"message"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.NotEmpty(t, resp.Data.Message)
+	// stub 断言删除确实被调用，且目标 Key 正确
+	require.Equal(t, []int64{10}, svc.deletedAPIKeyIDs)
+}
+
+func TestAdminAPIKeyHandler_Delete_ServiceError(t *testing.T) {
+	svc := &failingDeleteService{
+		stubAdminService: newStubAdminService(),
+		err:              errors.New("internal failure"),
+	}
+	router := setupAPIKeyHandler(svc)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/api-keys/10", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
+// failingDeleteService overrides AdminDeleteAPIKey to return an error.
+type failingDeleteService struct {
+	*stubAdminService
+	err error
+}
+
+func (f *failingDeleteService) AdminDeleteAPIKey(_ context.Context, _ int64) error {
+	return f.err
 }

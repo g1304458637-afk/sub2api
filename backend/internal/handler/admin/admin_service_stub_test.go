@@ -89,7 +89,17 @@ type stubAdminService struct {
 		sortOrder string
 		calls     int
 	}
-	mu sync.Mutex
+	lastGetUserAPIKeys struct {
+		userID    int64
+		page      int
+		pageSize  int
+		sortBy    string
+		sortOrder string
+		search    string
+		calls     int
+	}
+	deletedAPIKeyIDs []int64
+	mu               sync.Mutex
 }
 
 func newStubAdminService() *stubAdminService {
@@ -211,8 +221,25 @@ func (s *stubAdminService) BatchUpdateLimits(ctx context.Context, userIDs []int6
 	return len(userIDs), nil
 }
 
-func (s *stubAdminService) GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]service.APIKey, int64, error) {
+func (s *stubAdminService) GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder, search string) ([]service.APIKey, int64, error) {
+	s.lastGetUserAPIKeys.userID = userID
+	s.lastGetUserAPIKeys.page = page
+	s.lastGetUserAPIKeys.pageSize = pageSize
+	s.lastGetUserAPIKeys.sortBy = sortBy
+	s.lastGetUserAPIKeys.sortOrder = sortOrder
+	s.lastGetUserAPIKeys.search = search
+	s.lastGetUserAPIKeys.calls++
 	return s.apiKeys, int64(len(s.apiKeys)), nil
+}
+
+func (s *stubAdminService) AdminDeleteAPIKey(ctx context.Context, keyID int64) error {
+	for i := range s.apiKeys {
+		if s.apiKeys[i].ID == keyID {
+			s.deletedAPIKeyIDs = append(s.deletedAPIKeyIDs, keyID)
+			return nil
+		}
+	}
+	return service.ErrAPIKeyNotFound
 }
 
 func (s *stubAdminService) GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error) {

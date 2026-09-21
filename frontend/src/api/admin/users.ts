@@ -246,10 +246,14 @@ export async function toggleStatus(id: number, status: 'active' | 'disabled'): P
 /**
  * Get user's API keys
  * @param id - User ID
+ * @param params - Optional filters (search matches key name or value; e.g. 'MUC ' for mucode device keys)
  * @returns List of user's API keys
  */
-export async function getUserApiKeys(id: number): Promise<PaginatedResponse<ApiKey>> {
-  const { data } = await apiClient.get<PaginatedResponse<ApiKey>>(`/admin/users/${id}/api-keys`)
+export async function getUserApiKeys(
+  id: number,
+  params?: { search?: string; page?: number; page_size?: number }
+): Promise<PaginatedResponse<ApiKey>> {
+  const { data } = await apiClient.get<PaginatedResponse<ApiKey>>(`/admin/users/${id}/api-keys`, { params })
   return data
 }
 

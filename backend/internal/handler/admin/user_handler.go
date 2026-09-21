@@ -507,7 +507,14 @@ func (h *UserHandler) GetUserAPIKeys(c *gin.Context) {
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 
-	keys, total, err := h.adminService.GetUserAPIKeys(c.Request.Context(), userID, page, pageSize, sortBy, sortOrder)
+	// search 透传给 repo 的 NameContainsFold OR KeyContainsFold；
+	// 传 "MUC " 即可筛出 mucode 桌面端设备 Key。
+	search := strings.TrimSpace(c.Query("search"))
+	if len(search) > 100 {
+		search = search[:100]
+	}
+
+	keys, total, err := h.adminService.GetUserAPIKeys(c.Request.Context(), userID, page, pageSize, sortBy, sortOrder, search)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

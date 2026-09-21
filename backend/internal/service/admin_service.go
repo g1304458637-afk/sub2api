@@ -22,7 +22,7 @@ type AdminService interface {
 	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
 	BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error)
 	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
-	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
+	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder, search string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
 	GetUserRPMStatus(ctx context.Context, userID int64) (*UserRPMStatus, error)
 	// GetUserBalanceHistory returns paginated balance/concurrency change records for a user.
@@ -69,6 +69,9 @@ type AdminService interface {
 	// API Key management (admin)
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
 	AdminResetAPIKeyRateLimitUsage(ctx context.Context, keyID int64) (*APIKey, error)
+	// AdminDeleteAPIKey 管理员删除任意用户的 API Key（软删+审计+认证缓存失效，
+	// 复用用户侧 APIKeyService.Delete 流程，不校验调用者是否为所有者）。
+	AdminDeleteAPIKey(ctx context.Context, keyID int64) error
 
 	// ReplaceUserGroup 替换用户的专属分组：授予新分组权限、迁移 Key、移除旧分组权限
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
@@ -702,6 +705,8 @@ type adminServiceImpl struct {
 	accountBillingRepo   AccountBillingSettingsRepository
 	proxyRepo            ProxyRepository
 	apiKeyRepo           APIKeyRepository
+	// apiKeyService 用于管理员删除 API Key 时复用用户侧删除流程（软删+审计+缓存失效）
+	apiKeyService        *APIKeyService
 	redeemCodeRepo       RedeemCodeRepository
 	userGroupRateRepo    UserGroupRateRepository
 	userRPMCache         UserRPMCache
@@ -744,6 +749,7 @@ func NewAdminService(
 	accountRepo AdminAccountRepository,
 	proxyRepo ProxyRepository,
 	apiKeyRepo APIKeyRepository,
+	apiKeyService *APIKeyService,
 	redeemCodeRepo RedeemCodeRepository,
 	userGroupRateRepo UserGroupRateRepository,
 	userRPMCache UserRPMCache,
@@ -773,6 +779,7 @@ func NewAdminService(
 		accountBillingRepo:   accountRepo,
 		proxyRepo:            proxyRepo,
 		apiKeyRepo:           apiKeyRepo,
+		apiKeyService:        apiKeyService,
 		redeemCodeRepo:       redeemCodeRepo,
 		userGroupRateRepo:    userGroupRateRepo,
 		userRPMCache:         userRPMCache,
