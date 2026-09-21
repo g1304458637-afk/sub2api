@@ -225,6 +225,10 @@ export default {
     auditLogs: 'Audit Logs',
     // Sidebar portal groups for regular users
     groupLlm: 'AI Services',
+    groupAdminUsersBiz: 'Users & Subscription',
+    groupAdminChannels: 'Channels & Usage',
+    groupAdminGrowth: 'Growth & Operations',
+    groupAdminSecurity: 'Security & Ops',
     groupMine: 'My Account',
     chat: 'AI Chat',
     draw: 'Image Generation',
