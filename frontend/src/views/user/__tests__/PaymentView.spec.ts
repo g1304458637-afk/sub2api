@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, shallowMount } from '@vue/test-utils'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
-import { formatPaymentAmount } from '@/components/payment/currency'
+import { formatPaymentAmount as _formatPaymentAmount } from '@/components/payment/currency'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import en from '@/i18n/locales/en'
 import zh from '@/i18n/locales/zh'
@@ -218,7 +218,7 @@ function oauthOrderFixture() {
   }
 }
 
-async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}) {
+async function _mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}) {
   vi.useRealTimers()
   routeState.path = '/purchase'
   routeState.query = {
@@ -255,7 +255,7 @@ async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoW
   return wrapper
 }
 
-async function mountSubscriptionPlanList(planCount: number) {
+async function _mountSubscriptionPlanList(planCount: number) {
   vi.useRealTimers()
   routeState.path = '/purchase'
   routeState.query = { tab: 'subscription' }
