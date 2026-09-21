@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -97,6 +98,24 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Printf("failed to open sql db: %v", err)
 		os.Exit(1)
+	}
+	// Optional release validation starts from a schema-only production snapshot.
+	// Restore only into the disposable container created above, never a caller DSN.
+	if snapshot := os.Getenv("SUB2API_TEST_SCHEMA_SNAPSHOT"); snapshot != "" {
+		for _, name := range []string{"schema.sql", "migrations.sql", "seed.sql"} {
+			input, err := os.Open(filepath.Join(snapshot, name))
+			if err != nil {
+				log.Fatalf("open snapshot %s: %v", name, err)
+			}
+			cmd := exec.CommandContext(ctx, "docker", "exec", "-i", pgContainer.GetContainerID(), "psql", "-U", "postgres", "-d", "sub2api_test", "-v", "ON_ERROR_STOP=1")
+			cmd.Stdin = input
+			output, restoreErr := cmd.CombinedOutput()
+			_ = input.Close()
+			if restoreErr != nil {
+				log.Fatalf("restore snapshot %s: %v\n%s", name, restoreErr, output)
+			}
+		}
+		log.Print("restored production schema, migration ledger and synthetic fixtures into disposable database")
 	}
 	if err := ApplyMigrations(ctx, integrationDB); err != nil {
 		log.Printf("failed to apply db migrations: %v", err)
