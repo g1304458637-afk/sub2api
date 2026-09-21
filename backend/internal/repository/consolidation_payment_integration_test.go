@@ -69,3 +69,31 @@ func TestConsolidationEarlyPaidRenewalWindow(t *testing.T) {
 	require.True(t, end.Equal(start.AddDate(0, 0, 30)))
 	require.Equal(t, "renewal", source)
 }
+
+func TestConsolidationUnpaidFailedCheckoutCannotFulfillUpgrade(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	s := phase10Setup(t, client, 100, 200, 15, 30)
+	pay := phase11NewPaidRenewalStack(t, client, s, nil, s.terms)
+	pay.SetPlanChangeService(s.svc, s.changes, s.terms)
+	quote, changeID, err := s.svc.CreateUpgradeQuote(ctx, s.user.ID, s.basicSub.ID, s.proPlan.ID, "failed-checkout")
+	require.NoError(t, err)
+	orderID := phase11CreatePaidOrder(t, client, s.user.ID, s.user.Email, s.proPlan.ID, s.proG.ID, 30, quote.AmountDue)
+	_, err = client.PaymentOrder.UpdateOneID(orderID).SetOrderType("plan_change").SetPlanChangeID(changeID).ClearPaidAt().Save(ctx)
+	require.NoError(t, err)
+	require.NoError(t, s.changes.MarkPendingPayment(ctx, changeID, orderID))
+	for _, status := range []string{service.OrderStatusFailed, service.OrderStatusRecharging} {
+		_, err = client.PaymentOrder.UpdateOneID(orderID).SetStatus(status).Save(ctx)
+		require.NoError(t, err)
+		require.ErrorContains(t, pay.ExecutePlanChangeFulfillment(ctx, orderID), "order is not paid")
+	}
+	current, err := s.changes.GetByID(ctx, changeID)
+	require.NoError(t, err)
+	require.Equal(t, "pending_payment", current.Status)
+	sub, err := NewUserSubscriptionRepository(client).GetByID(ctx, s.basicSub.ID)
+	require.NoError(t, err)
+	require.Equal(t, s.basicG.ID, sub.GroupID)
+	var terms int
+	require.NoError(t, integrationDB.QueryRow("SELECT COUNT(*) FROM subscription_terms WHERE order_id=$1", orderID).Scan(&terms))
+	require.Zero(t, terms)
+}

@@ -979,6 +979,14 @@ func (s *PaymentService) ExecutePlanChangeFulfillment(ctx context.Context, oid i
 	if o.Status != OrderStatusPaid && o.Status != OrderStatusFailed && o.Status != OrderStatusRecharging {
 		return infraerrors.BadRequest("INVALID_STATUS", "order cannot fulfill in status "+o.Status)
 	}
+	// FAILED also includes provider order-creation failures. Only a paid failure
+	// may resume fulfillment; a failed checkout must never grant an upgrade.
+	if o.Status != OrderStatusPaid && o.PaidAt == nil {
+		return infraerrors.BadRequest("INVALID_STATUS", "order is not paid")
+	}
+	if o.OrderType != payment.OrderTypePlanChange {
+		return infraerrors.BadRequest("INVALID_STATUS", "order is not a plan change")
+	}
 	if o.PlanChangeID == nil {
 		return infraerrors.BadRequest("INVALID_STATUS", "plan change order missing plan_change_id")
 	}
