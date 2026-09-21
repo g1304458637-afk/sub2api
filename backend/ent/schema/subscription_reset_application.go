@@ -23,8 +23,9 @@ import (
 //   - effective_at 冗余自事件，使单行自带「承诺的新锚点」。
 //
 // 未来 worker 的守卫 invariant（schema 提供数据基础，SQL 由后续 Phase 实现）：
-//   只允许把锚点从更早的时刻推进到事件 effective_at；
-//   current anchor >= event.effective_at 时记 skipped（绝不回拨用户的新锚点）。
+//
+//	只允许把锚点从更早的时刻推进到事件 effective_at；
+//	current anchor >= event.effective_at 时记 skipped（绝不回拨用户的新锚点）。
 //
 // 删除语义：事件被引用时 RESTRICT 不可删；订阅硬删时本表随订阅 CASCADE
 // （事件主记录保留，用户级数据跟随订阅生命周期，与 user_subscriptions.user_id 惯例一致）。

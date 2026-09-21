@@ -1,5 +1,13 @@
 export default {
     // Dashboard
+    resetCenter: {
+      title: '重置中心',
+      description: '直接重置与重置卡管理'
+    },
+    rewardCenter: {
+      title: '奖励中心',
+      description: '学生认证奖励配置与发放'
+    },
     dashboard: {
       title: '管理控制台',
       description: '系统概览与统计数据',
@@ -443,6 +451,7 @@ export default {
         success: '已删除 {count} 个用户',
         failed: '{count} 个用户删除失败，已保留选中，可重试。'
       },
+      u360: '360 详情',
       bulkLimits: {
         action: '批量设置限制（{count}）',
         title: '批量设置用户限制',

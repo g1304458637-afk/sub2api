@@ -30,14 +30,14 @@ func phase0WeeklyAnchor() time.Time {
 
 func phase0SubWithWindow(anchor time.Time, expires time.Time, weeklyUsage float64) *UserSubscription {
 	return &UserSubscription{
-		ID:               1,
-		UserID:           10,
-		GroupID:          20,
-		StartsAt:         anchor,
-		ExpiresAt:        expires,
-		Status:           SubscriptionStatusActive,
+		ID:                1,
+		UserID:            10,
+		GroupID:           20,
+		StartsAt:          anchor,
+		ExpiresAt:         expires,
+		Status:            SubscriptionStatusActive,
 		WeeklyWindowStart: &anchor,
-		WeeklyUsageUSD:   weeklyUsage,
+		WeeklyUsageUSD:    weeklyUsage,
 	}
 }
 

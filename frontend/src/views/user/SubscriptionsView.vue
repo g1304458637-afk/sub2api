@@ -1,394 +1,844 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
-      <!-- Loading State -->
-      <div v-if="loading" class="flex justify-center py-12">
-        <div
-          class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
-        ></div>
-      </div>
+    <div class="muc-scope muc-subs">
+      <div class="muc-subs__bg" aria-hidden="true"></div>
 
-      <!-- Empty State -->
-      <div v-else-if="subscriptions.length === 0" class="card p-12 text-center">
-        <div
-          class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
-        >
-          <Icon name="creditCard" size="xl" class="text-gray-400" />
-        </div>
-        <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-          {{ t('userSubscriptions.noActiveSubscriptions') }}
-        </h3>
-        <p class="text-gray-500 dark:text-dark-400">
-          {{ t('userSubscriptions.noActiveSubscriptionsDesc') }}
-        </p>
-      </div>
+      <div class="muc-subs__content">
+        <header class="muc-subs__header">
+          <h1 class="muc-subs__title">{{ t('mySub.title') }}</h1>
+          <p class="muc-subs__subtitle">{{ t('mySub.subtitle') }}</p>
+        </header>
 
-      <!-- Subscriptions Grid -->
-      <div v-else class="grid gap-6 lg:grid-cols-2">
-        <div
-          v-for="subscription in subscriptions"
-          :key="subscription.id"
-          class="overflow-hidden rounded-2xl border bg-white dark:bg-dark-800"
-          :class="platformBorderClass(subscription.group?.platform || '')"
+        <!-- 钱包摘要：完整流水在 Wallet 页 -->
+        <MucGlassCard class="muc-subs__wallet" data-testid="subs-wallet">
+          <div class="muc-subs__wallet-row">
+            <div class="muc-subs__wallet-info">
+              <span class="muc-subs__wallet-label">{{ t('mySub.wallet') }}</span>
+              <span class="muc-subs__wallet-value">{{ walletDisplay }}</span>
+            </div>
+            <MucButton pill @click="goRecharge">{{ t('mySub.recharge') }}</MucButton>
+          </div>
+        </MucGlassCard>
+
+        <!-- 加载骨架 -->
+        <template v-if="loading">
+          <MucGlassCard v-for="i in 2" :key="i" class="muc-subs__card">
+            <MucSkeleton height="26px" />
+            <MucSkeleton height="14px" />
+            <MucSkeleton height="10px" />
+            <MucSkeleton height="48px" />
+          </MucGlassCard>
+        </template>
+
+        <MucState v-else-if="loadError" error :message="loadError">
+          <template #actions>
+            <MucButton variant="secondary" @click="load">{{ t('mySub.retry') }}</MucButton>
+          </template>
+        </MucState>
+
+        <!-- 无订阅空态：钱包按量仍可用 -->
+        <MucGlassCard v-else-if="!activeSubscriptions.length" class="muc-subs__card">
+          <MucState :message="t('mySub.emptyBody')">
+            <template #actions>
+              <MucButton @click="goPricing">{{ t('mySub.viewPricing') }}</MucButton>
+            </template>
+          </MucState>
+        </MucGlassCard>
+
+        <!-- 订阅主卡（单主套餐不变量下至多一张；v-for 仅为兼容过渡） -->
+        <MucGlassCard
+          v-for="sub in activeSubscriptions"
+          :key="sub.id"
+          variant="strong"
+          class="muc-subs__card"
+          data-testid="subs-card"
         >
-          <!-- Header -->
-          <div
-            class="flex items-center justify-between border-b border-gray-100 p-4 dark:border-dark-700"
-          >
-            <div class="flex items-center gap-3">
-              <div :class="['h-1.5 w-1.5 shrink-0 rounded-full', platformAccentDotClass(subscription.group?.platform || '')]" />
-              <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="font-semibold text-gray-900 dark:text-white">
-                    {{ subscription.group?.name || `Group #${subscription.group_id}` }}
-                  </h3>
-                  <span :class="['rounded-md border px-2 py-0.5 text-[11px] font-medium', platformBadgeClass(subscription.group?.platform || '')]">
-                    {{ platformLabel(subscription.group?.platform || '') }}
-                  </span>
-                </div>
-                <p v-if="subscription.group?.description" class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
-                  {{ subscription.group.description }}
-                </p>
-                <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-400 dark:text-gray-500">
-                  <span>{{ t('payment.planCard.rate') }}: ×{{ subscription.group?.rate_multiplier ?? 1 }}</span>
-                  <span v-if="subscriptionHasPeakRate(subscription)" class="text-amber-700 dark:text-amber-300">
-                    {{ t('payment.planCard.peakRate') }}: {{ subscriptionPeakRateLabel(subscription) }}
-                  </span>
-                </div>
-              </div>
+          <div class="muc-subs__card-head">
+            <div class="muc-subs__card-title">
+              <h2 class="muc-subs__tier">{{ sub.display_name }}</h2>
+              <span v-if="priceLine(sub)" class="muc-subs__price">{{ priceLine(sub) }}</span>
             </div>
-            <div class="flex items-center gap-2">
-              <span
-                :class="[
-                  'rounded-full px-2 py-0.5 text-xs font-medium',
-                  subscription.status === 'active'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                    : subscription.status === 'expired'
-                      ? 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-400'
-                      : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                ]"
-              >
-                {{ t(`userSubscriptions.status.${subscription.status}`) }}
-              </span>
-              <button
-                v-if="subscription.status === 'active'"
-                :class="['rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors', platformButtonClass(subscription.group?.platform || '')]"
-                @click="router.push({ path: '/purchase', query: { tab: 'subscription', group: String(subscription.group_id) } })"
-              >
-                {{ t('payment.renewNow') }}
-              </button>
-            </div>
+            <MucBadge :tone="badgeTone(sub.usage_status)">
+              {{ statusLabel(sub.usage_status) }}
+            </MucBadge>
           </div>
 
-          <!-- Usage Progress -->
-          <div class="space-y-4 p-4">
-            <!-- Expiration Info -->
-            <div v-if="subscription.expires_at" class="flex items-center justify-between text-sm">
-              <span class="text-gray-500 dark:text-dark-400">{{
-                t('userSubscriptions.expires')
-              }}</span>
-              <span :class="getExpirationClass(subscription.expires_at)">
-                {{ formatExpirationDate(subscription.expires_at) }}
+          <div class="muc-subs__usage">
+            <div class="muc-subs__usage-head">
+              <span class="muc-subs__usage-label">{{ t('mySub.weeklyUsage') }}</span>
+              <span class="muc-subs__usage-percent">
+                {{ sub.weekly_usage_percent === null ? t('mySub.unmetered') : `${sub.weekly_usage_percent}%` }}
               </span>
             </div>
-            <div v-else class="flex items-center justify-between text-sm">
-              <span class="text-gray-500 dark:text-dark-400">{{
-                t('userSubscriptions.expires')
-              }}</span>
-              <span class="text-gray-700 dark:text-gray-300">{{
-                t('userSubscriptions.noExpiration')
-              }}</span>
-            </div>
+            <MucProgress
+              :value="sub.weekly_usage_percent"
+              :tone="progressTone(sub.usage_status)"
+              :aria-label="t('mySub.weeklyUsage')"
+            />
+          </div>
 
-            <!-- Daily Usage -->
-            <div v-if="subscription.group?.daily_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.daily') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.daily_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.daily_limit_usd.toFixed(2)
-                  }}
-                </span>
-              </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.daily_usage_usd,
-                      subscription.group.daily_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.daily_usage_usd,
-                      subscription.group.daily_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.daily_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
-              >
-                {{ formatDailyUsageWindow(subscription) }}
+          <dl class="muc-subs__meta">
+            <div class="muc-subs__meta-item">
+              <dt>{{ t('mySub.nextReset') }}</dt>
+              <dd>{{ formatDate(sub.weekly_period_ends_at) }}</dd>
+            </div>
+            <div class="muc-subs__meta-item">
+              <dt>{{ t('mySub.expires') }}</dt>
+              <dd>{{ formatDate(sub.expires_at) }}</dd>
+            </div>
+          </dl>
+
+          <!-- 已计划的到期切换 -->
+          <div v-if="scheduledFor(sub)" class="muc-subs__scheduled">
+            <Icon name="clock" size="sm" class="muc-subs__scheduled-icon" />
+            <div class="muc-subs__scheduled-text">
+              <p>{{ t('mySub.scheduledTo', { plan: scheduledTargetName(sub) }) }}</p>
+              <p class="muc-subs__scheduled-at">
+                {{ t('mySub.scheduledEffective', { date: scheduledEffective(sub) }) }}
               </p>
             </div>
-
-            <!-- Weekly Usage -->
-            <div v-if="subscription.group?.weekly_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.weekly') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.weekly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.weekly_limit_usd.toFixed(2)
-                  }}
-                </span>
-              </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.weekly_usage_usd,
-                      subscription.group.weekly_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.weekly_usage_usd,
-                      subscription.group.weekly_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.weekly_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
-              >
-                {{
-                  t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.weekly_window_start, 168)
-                  })
-                }}
-              </p>
-            </div>
-
-            <!-- Monthly Usage -->
-            <div v-if="subscription.group?.monthly_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.monthly') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.monthly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.monthly_limit_usd.toFixed(2)
-                  }}
-                </span>
-              </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.monthly_usage_usd,
-                      subscription.group.monthly_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.monthly_usage_usd,
-                      subscription.group.monthly_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.monthly_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
-              >
-                {{
-                  t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.monthly_window_start, 720)
-                  })
-                }}
-              </p>
-            </div>
-
-            <!-- No limits configured - Unlimited badge -->
-            <div
-              v-if="
-                !subscription.group?.daily_limit_usd &&
-                !subscription.group?.weekly_limit_usd &&
-                !subscription.group?.monthly_limit_usd
-              "
-              class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-primary-50 py-6 dark:from-emerald-900/20 dark:to-primary-900/20"
+            <button
+              type="button"
+              class="muc-subs__scheduled-cancel"
+              :disabled="cancelBusy"
+              @click="askCancelScheduled(sub)"
             >
-              <div class="flex items-center gap-3">
-                <span class="text-4xl text-emerald-600 dark:text-emerald-400">∞</span>
-                <div>
-                  <p class="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                    {{ t('userSubscriptions.unlimited') }}
-                  </p>
-                  <p class="text-xs text-emerald-600/70 dark:text-emerald-400/70">
-                    {{ t('userSubscriptions.unlimitedDesc') }}
-                  </p>
-                </div>
-              </div>
-            </div>
+              {{ t('mySub.cancelPlan') }}
+            </button>
           </div>
-        </div>
+
+          <!-- PAYG fallback：用户文案「额度用完后继续使用」 -->
+          <div class="muc-subs__payg">
+            <div class="muc-subs__payg-text">
+              <span>{{ t('mySub.paygTitle') }}</span>
+              <span class="muc-subs__payg-hint">{{ t('mySub.paygHint') }}</span>
+            </div>
+            <button
+              type="button"
+              class="muc-subs__switch"
+              role="switch"
+              :aria-checked="sub.payg_fallback"
+              :disabled="paygBusyId === sub.id"
+              @click="onPaygToggle(sub)"
+            >
+              <span class="muc-subs__switch-state">{{ sub.payg_fallback ? 'ON' : 'OFF' }}</span>
+              <span
+                class="muc-subs__switch-knob"
+                :class="{ 'muc-subs__switch-knob--on': sub.payg_fallback }"
+              ></span>
+            </button>
+          </div>
+
+          <!-- 重置卡（账户级数量，作用于本订阅当前周期） -->
+          <div class="muc-subs__reset">
+            <div class="muc-subs__reset-text">
+              <span class="muc-subs__reset-count">
+                {{ t('mySub.resetCards', { count: resetCards }) }}
+              </span>
+              <span class="muc-subs__reset-hint">{{ t('mySub.resetHint') }}</span>
+            </div>
+            <MucButton
+              variant="secondary"
+              :disabled="resetCards <= 0"
+              :loading="resetBusyId === sub.id"
+              @click="askUseResetCard(sub)"
+            >
+              {{ t('mySub.useResetCard') }}
+            </MucButton>
+          </div>
+        </MucGlassCard>
+
+        <!-- 单主套餐不变量防御：正常业务永远至多一张主卡 -->
+        <MucGlassCard
+          v-if="!loading && activeSubscriptions.length > 1"
+          class="muc-subs__card"
+          data-testid="subs-multi-active-warning"
+        >
+          <MucState :message="t('mySub.multiActiveWarning', { count: activeSubscriptions.length })" />
+        </MucGlassCard>
       </div>
+
+      <!-- PAYG 开启首次确认 -->
+      <MucConfirmDialog
+        :open="!!paygPending"
+        :title="t('mySub.paygConfirmTitle')"
+        :body="paygConfirmBody"
+        :confirm-text="t('mySub.paygConfirmOk')"
+        :cancel-text="t('common.cancel')"
+        :loading="paygBusyId !== null"
+        @confirm="confirmPaygEnable"
+        @cancel="paygPending = null"
+      />
+
+      <!-- 重置卡使用确认 -->
+      <MucConfirmDialog
+        :open="!!resetPending"
+        :title="t('mySub.resetConfirmTitle')"
+        :body="resetConfirmBody"
+        :confirm-text="t('mySub.resetConfirmOk')"
+        :cancel-text="t('common.cancel')"
+        :loading="resetBusyId !== null"
+        @confirm="confirmUseResetCard"
+        @cancel="resetPending = null"
+      />
+
+      <!-- 取消到期切换确认 -->
+      <MucConfirmDialog
+        :open="cancelPending !== null"
+        :title="t('pricing.downgrade.cancelTitle')"
+        :body="cancelBody"
+        :confirm-text="t('pricing.downgrade.cancelConfirm')"
+        :cancel-text="t('common.cancel')"
+        :loading="cancelBusy"
+        danger
+        @confirm="confirmCancelScheduled"
+        @cancel="cancelPending = null"
+      />
+
+      <!-- Reset 成功动画（API 成功后才展示；AVAILABLE QUOTA 语义） -->
+      <MucResetSuccessOverlay
+        :open="resetOverlayOpen"
+        :used-percent-before="resetUsedBefore"
+        :next-end-date="resetNextEnd"
+        :remaining-cards="resetRemaining"
+        @done="resetOverlayOpen = false"
+      />
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAppStore } from '@/stores/app'
-import subscriptionsAPI from '@/api/subscriptions'
-import type { UserSubscription } from '@/types'
+import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import '@/components/pricing/muc-tokens.css'
+import MucGlassCard from '@/components/muc/MucGlassCard.vue'
+import MucButton from '@/components/muc/MucButton.vue'
+import MucBadge from '@/components/muc/MucBadge.vue'
+import type { MucBadgeTone } from '@/components/muc/MucBadge.vue'
+import MucProgress from '@/components/muc/MucProgress.vue'
+import MucSkeleton from '@/components/muc/MucSkeleton.vue'
+import MucState from '@/components/muc/MucState.vue'
+import MucConfirmDialog from '@/components/muc/MucConfirmDialog.vue'
+import MucResetSuccessOverlay from '@/components/subscription/MucResetSuccessOverlay.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { formatDateTimeToMinute } from '@/utils/format'
-import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
-import { platformBorderClass, platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
 import {
-  getExpirationDateRelation,
-  getRemainingDurationParts,
-  isOneTimeDailyQuota,
-  type RemainingDurationParts
-} from '@/utils/subscriptionQuota'
+  cancelScheduledDowngrade,
+  getAccountStatus,
+  getSubscriptionChanges,
+  resetWithCard,
+  updatePaygFallback,
+  type AccountStatus,
+  type AccountSubscriptionStatus,
+  type PlanChangeRecordDto,
+  type UsageStatus
+} from '@/api/subscriptions'
+import { paymentAPI } from '@/api/payment'
+import type { SubscriptionPlan } from '@/types/payment'
+import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { planValiditySuffix } from '@/components/payment/validity'
+import { useAppStore } from '@/stores'
 
-function platformAccentDotClass(p: string): string {
-  switch (p) {
-    case 'anthropic': return 'bg-orange-500'
-    case 'openai': return 'bg-emerald-500'
-    case 'antigravity': return 'bg-purple-500'
-    case 'gemini': return 'bg-blue-500'
-    default: return 'bg-gray-400'
+/**
+ * 我的订阅：用户 Subscription 控制中心。
+ * 所有数值（百分比/状态/周期/钱包）来自 /subscriptions/status 服务端合同；
+ * 价格展示来自 /payment/plans（仅展示，不参与任何计算）。
+ */
+const router = useRouter()
+const { t, locale } = useI18n()
+const appStore = useAppStore()
+
+const loading = ref(true)
+const loadError = ref('')
+const status = ref<AccountStatus | null>(null)
+const plans = ref<SubscriptionPlan[]>([])
+
+const scheduledBySubId = ref<Record<number, PlanChangeRecordDto>>({})
+const paygPending = ref<AccountSubscriptionStatus | null>(null)
+const paygBusyId = ref<number | null>(null)
+const resetPending = ref<AccountSubscriptionStatus | null>(null)
+const resetBusyId = ref<number | null>(null)
+const cancelPending = ref<AccountSubscriptionStatus | null>(null)
+const cancelBusy = ref(false)
+
+const resetOverlayOpen = ref(false)
+const resetUsedBefore = ref<number | null>(null)
+const resetNextEnd = ref('')
+const resetRemaining = ref<number | null>(null)
+
+const activeSubscriptions = computed(() => status.value?.subscriptions ?? [])
+const resetCards = computed(() => status.value?.reset_cards.available ?? 0)
+
+const walletDisplay = computed(() => {
+  const w = status.value?.wallet
+  if (!w) return '—'
+  const value = parseFloat(w.balance)
+  return formatPaymentAmount(
+    Number.isFinite(value) ? value : 0,
+    normalizePaymentCurrency(w.canonical_currency),
+    typeof locale.value === 'string' ? locale.value : undefined
+  )
+})
+
+const paygConfirmBody = computed(() => t('mySub.paygConfirmBody', { wallet: walletDisplay.value }))
+
+const resetConfirmBody = computed(() => t('mySub.resetConfirmBody', { count: resetCards.value }))
+
+const cancelBody = computed(() => {
+  const sub = cancelPending.value
+  if (!sub) return ''
+  const rec = scheduledFor(sub)
+  return t('pricing.downgrade.cancelBody', {
+    plan: sub.display_name,
+    date: rec?.EffectiveAt ? formatDate(rec.EffectiveAt) : '—'
+  })
+})
+
+function planForSub(sub: AccountSubscriptionStatus): SubscriptionPlan | undefined {
+  return plans.value.find((p) => p.group_id === sub.group_id)
+}
+
+function priceLine(sub: AccountSubscriptionStatus): string {
+  const plan = planForSub(sub)
+  if (!plan) return ''
+  const loc = typeof locale.value === 'string' ? locale.value : undefined
+  const price = formatPaymentAmount(plan.price, normalizePaymentCurrency(plan.currency), loc)
+  return `${price} / ${planValiditySuffix(plan, t)}`
+}
+
+function scheduledFor(sub: AccountSubscriptionStatus): PlanChangeRecordDto | null {
+  return scheduledBySubId.value[sub.id] ?? null
+}
+
+function scheduledTargetName(sub: AccountSubscriptionStatus): string {
+  const rec = scheduledFor(sub)
+  if (!rec) return ''
+  const target = plans.value.find((p) => p.id === rec.ToPlanID)
+  return target?.name ?? `#${rec.ToPlanID}`
+}
+
+function scheduledEffective(sub: AccountSubscriptionStatus): string {
+  const rec = scheduledFor(sub)
+  return rec?.EffectiveAt ? formatDate(rec.EffectiveAt) : '—'
+}
+
+function statusLabel(statusValue: UsageStatus): string {
+  return t(`mySub.usageStatus.${statusValue}`)
+}
+
+function badgeTone(statusValue: UsageStatus): MucBadgeTone {
+  switch (statusValue) {
+    case 'exhausted':
+      return 'exhausted'
+    case 'near_limit':
+      return 'near_limit'
+    case 'high':
+      return 'high'
+    case 'unmetered':
+      return 'unmetered'
+    default:
+      return 'normal'
   }
 }
 
-const { t } = useI18n()
-const router = useRouter()
-const appStore = useAppStore()
-
-const subscriptions = ref<UserSubscription[]>([])
-const loading = ref(true)
-
-function subscriptionHasPeakRate(subscription: UserSubscription): boolean {
-  return hasPeakRate(subscription.group)
+function progressTone(
+  statusValue: UsageStatus
+): 'normal' | 'high' | 'near_limit' | 'exhausted' | 'unmetered' {
+  switch (statusValue) {
+    case 'exhausted':
+      return 'exhausted'
+    case 'near_limit':
+      return 'near_limit'
+    case 'high':
+      return 'high'
+    case 'unmetered':
+      return 'unmetered'
+    default:
+      return 'normal'
+  }
 }
 
-function subscriptionPeakRateLabel(subscription: UserSubscription): string {
-  return formatPeakRateWindow(subscription.group, serverTimezoneLabel(appStore.cachedPublicSettings?.server_utc_offset))
-}
-
-async function loadSubscriptions() {
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
   try {
-    loading.value = true
-    subscriptions.value = await subscriptionsAPI.getMySubscriptions()
-  } catch (error) {
-    console.error('Failed to load subscriptions:', error)
-    appStore.showError(t('userSubscriptions.failedToLoad'))
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  } catch {
+    return iso
+  }
+}
+
+function cryptoRandomKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `mucsub-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = String((err as { message?: unknown }).message ?? '').trim()
+    if (message && message !== 'Unknown error') return message
+  }
+  return fallback
+}
+
+// ── 数据加载 ──
+async function load() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    const [statusRes, plansRes] = await Promise.all([
+      getAccountStatus(),
+      paymentAPI.getPlans().catch(() => null)
+    ])
+    status.value = statusRes
+    plans.value = plansRes?.data ?? []
+    await refreshScheduled()
+  } catch (err) {
+    loadError.value = extractErrorMessage(err, t('mySub.loadError'))
   } finally {
     loading.value = false
   }
 }
 
-function getProgressWidth(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return '0%'
-  const percentage = Math.min(((used || 0) / limit) * 100, 100)
-  return `${percentage}%`
-}
-
-function getProgressBarClass(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return 'bg-gray-400'
-  const percentage = ((used || 0) / limit) * 100
-  if (percentage >= 90) return 'bg-red-500'
-  if (percentage >= 70) return 'bg-orange-500'
-  return 'bg-green-500'
-}
-
-function formatExpirationDate(expiresAt: string): string {
-  const now = new Date()
-  const expires = new Date(expiresAt)
-  const diff = expires.getTime() - now.getTime()
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
-  const relation = getExpirationDateRelation(expires, now)
-
-  if (relation === null) return ''
-
-  if (relation === 'expired') {
-    return t('userSubscriptions.status.expired')
+async function refreshScheduled() {
+  const entries = await Promise.allSettled(
+    activeSubscriptions.value.map(async (sub) => {
+      const records = await getSubscriptionChanges(sub.id)
+      const pending =
+        records.find((r) => r.ChangeType === 'scheduled_downgrade' && r.Status === 'scheduled') ??
+        null
+      return [sub.id, pending] as const
+    })
+  )
+  const next: Record<number, PlanChangeRecordDto> = {}
+  for (const entry of entries) {
+    if (entry.status === 'fulfilled' && entry.value[1]) next[entry.value[0]] = entry.value[1]
   }
-
-  const dateStr = formatDateTimeToMinute(expires)
-
-  if (relation === 'today') {
-    return `${dateStr} (${t('common.today')})`
-  }
-  if (relation === 'tomorrow') {
-    return `${dateStr} (${t('common.tomorrow')})`
-  }
-
-  return t('userSubscriptions.daysRemaining', { days }) + ` (${dateStr})`
+  scheduledBySubId.value = next
 }
 
-function getExpirationClass(expiresAt: string): string {
-  const now = new Date()
-  const expires = new Date(expiresAt)
-  const diff = expires.getTime() - now.getTime()
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
+onMounted(load)
 
-  if (diff <= 0) return 'text-red-600 dark:text-red-400 font-medium'
-  if (days <= 3) return 'text-red-600 dark:text-red-400'
-  if (days <= 7) return 'text-orange-600 dark:text-orange-400'
-  return 'text-gray-700 dark:text-gray-300'
-}
-
-function formatDurationParts(parts: RemainingDurationParts): string {
-  if (parts.days > 0) {
-    return `${parts.days}d ${parts.hours}h`
+// ── PAYG fallback ──
+function onPaygToggle(sub: AccountSubscriptionStatus) {
+  if (sub.payg_fallback) {
+    void disablePayg(sub)
+  } else {
+    paygPending.value = sub
   }
+}
 
-  if (parts.hours > 0) {
-    return `${parts.hours}h ${parts.minutes}m`
+async function disablePayg(sub: AccountSubscriptionStatus) {
+  paygBusyId.value = sub.id
+  try {
+    await updatePaygFallback(sub.id, false)
+    sub.payg_fallback = false
+  } catch (err) {
+    appStore.showError(extractErrorMessage(err, t('mySub.paygError')))
+  } finally {
+    paygBusyId.value = null
   }
-
-  return `${parts.minutes}m`
 }
 
-function formatDailyUsageWindow(subscription: UserSubscription): string {
-  if (isOneTimeDailyQuota(subscription) && subscription.expires_at) {
-    const parts = getRemainingDurationParts(subscription.expires_at)
-    if (!parts) return t('userSubscriptions.windowNotActive')
-    return t('userSubscriptions.quotaEndsIn', { time: formatDurationParts(parts) })
+async function confirmPaygEnable() {
+  const sub = paygPending.value
+  if (!sub) return
+  paygBusyId.value = sub.id
+  try {
+    await updatePaygFallback(sub.id, true)
+    sub.payg_fallback = true
+    paygPending.value = null
+  } catch (err) {
+    appStore.showError(extractErrorMessage(err, t('mySub.paygError')))
+  } finally {
+    paygBusyId.value = null
   }
-
-  return t('userSubscriptions.resetIn', {
-    time: formatResetTime(subscription.daily_window_start, 24)
-  })
 }
 
-function formatResetTime(windowStart: string | null, windowHours: number): string {
-  if (!windowStart) return t('userSubscriptions.windowNotActive')
-
-  const start = new Date(windowStart)
-  const end = new Date(start.getTime() + windowHours * 60 * 60 * 1000)
-  const parts = getRemainingDurationParts(end)
-
-  return parts ? formatDurationParts(parts) : t('userSubscriptions.windowNotActive')
+// ── 重置卡 ──
+function askUseResetCard(sub: AccountSubscriptionStatus) {
+  resetPending.value = sub
 }
 
-onMounted(() => {
-  loadSubscriptions()
-})
+async function confirmUseResetCard() {
+  const sub = resetPending.value
+  if (!sub) return
+  resetBusyId.value = sub.id
+  try {
+    // 先请求后端，成功后才播放成功动画（禁止先播动画再等后端）
+    const result = await resetWithCard(sub.id, cryptoRandomKey())
+    resetUsedBefore.value = sub.weekly_usage_percent
+    resetNextEnd.value = result.weekly_period_ends_at
+    resetPending.value = null
+    // 重新拉取账户状态（0% + 剩余卡数），随后进入动画收尾
+    await load()
+    resetRemaining.value = resetCards.value
+    resetOverlayOpen.value = true
+  } catch (err) {
+    appStore.showError(extractErrorMessage(err, t('mySub.resetError')))
+  } finally {
+    resetBusyId.value = null
+  }
+}
+
+// ── 到期切换取消 ──
+function askCancelScheduled(sub: AccountSubscriptionStatus) {
+  cancelPending.value = sub
+}
+
+async function confirmCancelScheduled() {
+  const sub = cancelPending.value
+  if (!sub) return
+  cancelBusy.value = true
+  try {
+    await cancelScheduledDowngrade(sub.id)
+    cancelPending.value = null
+    const next = { ...scheduledBySubId.value }
+    delete next[sub.id]
+    scheduledBySubId.value = next
+    appStore.showSuccess(t('pricing.downgrade.cancelledToast'))
+  } catch (err) {
+    appStore.showError(extractErrorMessage(err, t('pricing.errors.cancelFailed')))
+  } finally {
+    cancelBusy.value = false
+  }
+}
+
+function goRecharge() {
+  void router.push('/purchase')
+}
+
+function goPricing() {
+  void router.push('/pricing')
+}
 </script>
+
+<style scoped>
+.muc-subs {
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100vh - 96px);
+  border-radius: 24px;
+  background: var(--muc-bg-primary);
+  color: var(--muc-text-primary);
+}
+
+/* 深色渐变背景：比 Pricing 克制，仅顶部极弱红晕 */
+.muc-subs__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(70% 40% at 50% 0%, rgba(200, 36, 51, 0.12), transparent 70%),
+    linear-gradient(180deg, var(--muc-bg-primary), var(--muc-bg-secondary));
+  pointer-events: none;
+}
+
+.muc-subs__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: clamp(28px, 5vh, 56px) clamp(16px, 4vw, 40px) 44px;
+}
+
+.muc-subs__header {
+  text-align: center;
+}
+
+.muc-subs__title {
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 700;
+}
+
+.muc-subs__subtitle {
+  margin-top: 8px;
+  font-size: 13.5px;
+  color: var(--muc-text-secondary);
+}
+
+.muc-subs__wallet {
+  padding: 4px;
+}
+
+.muc-subs__wallet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+}
+
+.muc-subs__wallet-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.muc-subs__wallet-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muc-text-muted);
+}
+
+.muc-subs__wallet-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.muc-subs__card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.muc-subs__card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.muc-subs__card-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.muc-subs__tier {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.muc-subs__price {
+  font-size: 13px;
+  color: var(--muc-text-secondary);
+  white-space: nowrap;
+}
+
+.muc-subs__usage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.muc-subs__usage-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.muc-subs__usage-label {
+  font-size: 12.5px;
+  color: var(--muc-text-secondary);
+}
+
+.muc-subs__usage-percent {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.muc-subs__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0;
+}
+
+.muc-subs__meta-item {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--muc-glass-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.muc-subs__meta-item dt {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muc-text-muted);
+}
+
+.muc-subs__meta-item dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.muc-subs__scheduled {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--muc-red-border);
+  background: var(--muc-red-soft);
+  font-size: 12.5px;
+}
+
+.muc-subs__scheduled-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--muc-red-bright);
+}
+
+.muc-subs__scheduled-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.muc-subs__scheduled-text p {
+  margin: 0;
+}
+
+.muc-subs__scheduled-at {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muc-text-muted);
+}
+
+.muc-subs__scheduled-cancel {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: var(--muc-red-bright);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.muc-subs__scheduled-cancel:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.muc-subs__payg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--muc-glass-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.muc-subs__payg-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.muc-subs__payg-hint {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--muc-text-muted);
+}
+
+.muc-subs__switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  border: 1px solid var(--muc-glass-border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.muc-subs__switch:hover:not(:disabled) {
+  border-color: var(--muc-red-border-hover);
+}
+
+.muc-subs__switch:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.muc-subs__switch-state {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--muc-text-secondary);
+}
+
+.muc-subs__switch-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--muc-text-muted);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.muc-subs__switch-knob--on {
+  background: var(--muc-red-bright);
+  box-shadow: 0 0 12px var(--muc-red-glow);
+}
+
+.muc-subs__reset {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(214, 180, 106, 0.35);
+  background: rgba(214, 180, 106, 0.05);
+}
+
+.muc-subs__reset-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.muc-subs__reset-count {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--muc-gold);
+}
+
+.muc-subs__reset-hint {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muc-text-muted);
+}
+
+@media (max-width: 640px) {
+  .muc-subs__meta {
+    grid-template-columns: 1fr;
+  }
+
+  .muc-subs__payg,
+  .muc-subs__reset {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .muc-subs__payg .muc-subs__switch,
+  .muc-subs__reset .muc-btn {
+    align-self: flex-start;
+  }
+}
+</style>

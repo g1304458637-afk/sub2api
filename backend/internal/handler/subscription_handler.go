@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -33,13 +36,99 @@ type SubscriptionProgressInfo struct {
 // SubscriptionHandler handles user subscription operations
 type SubscriptionHandler struct {
 	subscriptionService *service.SubscriptionService
+	accountStatus       *service.AccountStatusService
+	resetCards          *service.ResetCardService
 }
 
 // NewSubscriptionHandler creates a new user subscription handler
-func NewSubscriptionHandler(subscriptionService *service.SubscriptionService) *SubscriptionHandler {
+func NewSubscriptionHandler(subscriptionService *service.SubscriptionService, accountStatus *service.AccountStatusService, resetCards *service.ResetCardService) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
+		accountStatus:       accountStatus,
+		resetCards:          resetCards,
 	}
+}
+
+// UpdatePaygFallbackRequest PATCH /api/v1/subscriptions/:id/payg-fallback
+type UpdatePaygFallbackRequest struct {
+	Enabled *bool `json:"enabled" binding:"required"`
+}
+
+// UpdatePaygFallback 切换用户级 PAYG fallback（仅归属校验；Runtime 后续接线）。
+func (h *SubscriptionHandler) UpdatePaygFallback(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || subscriptionID <= 0 {
+		response.BadRequest(c, "Invalid subscription id")
+		return
+	}
+	var req UpdatePaygFallbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Enabled == nil {
+		response.BadRequest(c, "enabled is required")
+		return
+	}
+	if err := h.subscriptionService.UpdatePaygFallback(c.Request.Context(), subject.UserID, subscriptionID, *req.Enabled); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"subscription_id": subscriptionID, "payg_fallback": *req.Enabled})
+}
+
+// ResetWithCard 用户消费一张可用 Reset Card 重置指定订阅的周周期。
+// 幂等：必须携带 Idempotency-Key（双击/重试/超时重放只消费一张卡）。
+// POST /api/v1/subscriptions/:id/reset-with-card
+func (h *SubscriptionHandler) ResetWithCard(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || subscriptionID <= 0 {
+		response.BadRequest(c, "Invalid subscription id")
+		return
+	}
+	if h.resetCards == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("RESET_CARD_UNAVAILABLE", "reset card service is unavailable"))
+		return
+	}
+	result, err := h.resetCards.ConsumeForSubscription(
+		c.Request.Context(), subject.UserID, subscriptionID,
+		c.GetHeader("Idempotency-Key"),
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"subscription_id":       result.SubscriptionID,
+		"weekly_period_ends_at": result.WeeklyPeriodEndsAt,
+	})
+}
+
+// GetStatus 返回统一账户状态：Wallet + 全部 active subscriptions（净化视图，
+// 无任何内部 USD 额度/倍率；百分比与状态由服务端权威计算）。
+// GET /api/v1/subscriptions/status
+func (h *SubscriptionHandler) GetStatus(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	if h.accountStatus == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_STATUS_UNAVAILABLE", "account status service is unavailable"))
+		return
+	}
+	status, err := h.accountStatus.GetAccountStatus(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, status)
 }
 
 // List handles listing current user's subscriptions

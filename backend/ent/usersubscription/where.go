@@ -145,6 +145,16 @@ func AutoPaygFallback(v bool) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldAutoPaygFallback, v))
 }
 
+// PlanID applies equality check predicate on the "plan_id" field. It's identical to PlanIDEQ.
+func PlanID(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldPlanID, v))
+}
+
+// NextPlanID applies equality check predicate on the "next_plan_id" field. It's identical to NextPlanIDEQ.
+func NextPlanID(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldNextPlanID, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldCreatedAt, v))
@@ -885,6 +895,106 @@ func AutoPaygFallbackNEQ(v bool) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldNEQ(FieldAutoPaygFallback, v))
 }
 
+// PlanIDEQ applies the EQ predicate on the "plan_id" field.
+func PlanIDEQ(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldPlanID, v))
+}
+
+// PlanIDNEQ applies the NEQ predicate on the "plan_id" field.
+func PlanIDNEQ(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldPlanID, v))
+}
+
+// PlanIDIn applies the In predicate on the "plan_id" field.
+func PlanIDIn(vs ...int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldPlanID, vs...))
+}
+
+// PlanIDNotIn applies the NotIn predicate on the "plan_id" field.
+func PlanIDNotIn(vs ...int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldPlanID, vs...))
+}
+
+// PlanIDGT applies the GT predicate on the "plan_id" field.
+func PlanIDGT(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldPlanID, v))
+}
+
+// PlanIDGTE applies the GTE predicate on the "plan_id" field.
+func PlanIDGTE(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldPlanID, v))
+}
+
+// PlanIDLT applies the LT predicate on the "plan_id" field.
+func PlanIDLT(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldPlanID, v))
+}
+
+// PlanIDLTE applies the LTE predicate on the "plan_id" field.
+func PlanIDLTE(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldPlanID, v))
+}
+
+// PlanIDIsNil applies the IsNil predicate on the "plan_id" field.
+func PlanIDIsNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIsNull(FieldPlanID))
+}
+
+// PlanIDNotNil applies the NotNil predicate on the "plan_id" field.
+func PlanIDNotNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotNull(FieldPlanID))
+}
+
+// NextPlanIDEQ applies the EQ predicate on the "next_plan_id" field.
+func NextPlanIDEQ(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldNextPlanID, v))
+}
+
+// NextPlanIDNEQ applies the NEQ predicate on the "next_plan_id" field.
+func NextPlanIDNEQ(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldNextPlanID, v))
+}
+
+// NextPlanIDIn applies the In predicate on the "next_plan_id" field.
+func NextPlanIDIn(vs ...int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldNextPlanID, vs...))
+}
+
+// NextPlanIDNotIn applies the NotIn predicate on the "next_plan_id" field.
+func NextPlanIDNotIn(vs ...int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldNextPlanID, vs...))
+}
+
+// NextPlanIDGT applies the GT predicate on the "next_plan_id" field.
+func NextPlanIDGT(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldNextPlanID, v))
+}
+
+// NextPlanIDGTE applies the GTE predicate on the "next_plan_id" field.
+func NextPlanIDGTE(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldNextPlanID, v))
+}
+
+// NextPlanIDLT applies the LT predicate on the "next_plan_id" field.
+func NextPlanIDLT(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldNextPlanID, v))
+}
+
+// NextPlanIDLTE applies the LTE predicate on the "next_plan_id" field.
+func NextPlanIDLTE(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldNextPlanID, v))
+}
+
+// NextPlanIDIsNil applies the IsNil predicate on the "next_plan_id" field.
+func NextPlanIDIsNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIsNull(FieldNextPlanID))
+}
+
+// NextPlanIDNotNil applies the NotNil predicate on the "next_plan_id" field.
+func NextPlanIDNotNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotNull(FieldNextPlanID))
+}
+
 // HasUser applies the HasEdge predicate on the "user" edge.
 func HasUser() predicate.UserSubscription {
 	return predicate.UserSubscription(func(s *sql.Selector) {
@@ -969,6 +1079,29 @@ func HasUsageLogs() predicate.UserSubscription {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.UserSubscription {
 	return predicate.UserSubscription(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasTerms applies the HasEdge predicate on the "terms" edge.
+func HasTerms() predicate.UserSubscription {
+	return predicate.UserSubscription(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, TermsTable, TermsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTermsWith applies the HasEdge predicate on the "terms" edge with a given conditions (other predicates).
+func HasTermsWith(preds ...predicate.SubscriptionTerm) predicate.UserSubscription {
+	return predicate.UserSubscription(func(s *sql.Selector) {
+		step := newTermsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

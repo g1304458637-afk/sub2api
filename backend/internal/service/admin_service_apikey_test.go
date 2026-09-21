@@ -283,6 +283,11 @@ type userSubRepoStubForGroupUpdate struct {
 	calledGroupID int64
 }
 
+func (s *userSubRepoStubForGroupUpdate) GetMaxActiveGroupConcurrencyOverride(context.Context, int64) (int, error) {
+	return 0, nil
+
+}
+
 func (s *userSubRepoStubForGroupUpdate) GetActiveByUserIDAndGroupID(_ context.Context, userID, groupID int64) (*UserSubscription, error) {
 	s.called = true
 	s.calledUserID = userID

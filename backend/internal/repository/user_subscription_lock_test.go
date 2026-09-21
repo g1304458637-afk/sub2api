@@ -32,6 +32,8 @@ func TestUserSubscriptionGetByIDForUpdateLocksRow(t *testing.T) {
 		sqlmock.NewRows(usersubscription.Columns).AddRow(
 			int64(7), now, now, nil, int64(11), int64(13), now, now.AddDate(0, 0, 30), "active",
 			nil, nil, nil, 0.0, 0.0, 0.0, nil, now, "renewal",
+			// 239/241 追加列：auto_payg_fallback / plan_id / next_plan_id
+			false, nil, nil,
 		),
 	)
 

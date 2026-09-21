@@ -1,6 +1,9 @@
 package service
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // RewardGrantRepository reward_grants 表的持久化接口。
 type RewardGrantRepository interface {
@@ -23,4 +26,10 @@ type RewardGrantRepository interface {
 
 	// GetBySource 按来源（source_type + source_id）查询发放记录。
 	GetBySource(ctx context.Context, sourceType string, sourceID int64) ([]RewardGrant, error)
+
+	// ListAll 管理端查询：created_at 倒序 + 总数；userID 为 nil 时不过滤。
+	ListAll(ctx context.Context, userID *int64, limit, offset int) ([]RewardGrant, int64, error)
+
+	// StatsRange 统计时间范围内的发放笔数与总金额；userID 为 nil 时全局统计。
+	StatsRange(ctx context.Context, userID *int64, from, to time.Time) (count int64, amount float64, err error)
 }

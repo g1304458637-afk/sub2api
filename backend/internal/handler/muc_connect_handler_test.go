@@ -424,11 +424,11 @@ func TestMucExchange_RotationExactMatch_NoCollateralDelete(t *testing.T) {
 
 	// 预置：用户已有若干 Key，只有 "MUC Mac" 是本设备（重连场景）的旧 Key
 	seed := map[int64]string{
-		101: "MUC Mac",          // 应被轮换删除
-		102: "MUC MacBookPro",   // 其他设备，不能误删
-		103: "MUC Mac Studio",   // 其他设备，不能误删
-		104: "muc mac 备份钥匙",  // 用户手建，不能误删
-		105: "手工钥匙",          // 无关 Key
+		101: "MUC Mac",        // 应被轮换删除
+		102: "MUC MacBookPro", // 其他设备，不能误删
+		103: "MUC Mac Studio", // 其他设备，不能误删
+		104: "muc mac 备份钥匙",   // 用户手建，不能误删
+		105: "手工钥匙",           // 无关 Key
 	}
 	for id, name := range seed {
 		creator.live[id] = service.APIKey{ID: id, Key: "sk-" + name, Name: html.EscapeString(name)}

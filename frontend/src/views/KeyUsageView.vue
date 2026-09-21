@@ -606,6 +606,20 @@ const statusInfo = computed(() => {
   }
 })
 
+// Phase 4 合同优先：wallet / subscription_status / reset_cards；缺失时回退 legacy 字段
+function walletBalanceFromData(data: any): string | null {
+  if (data.wallet && typeof data.wallet.balance === 'string') {
+    const n = Number(data.wallet.balance)
+    return Number.isFinite(n) ? usd(n) : null
+  }
+  return data.balance != null ? usd(data.balance) : null
+}
+
+function resetCardsFromData(data: any): number {
+  const n = data.reset_cards?.available
+  return typeof n === 'number' && n > 0 ? n : 0
+}
+
 const ringItems = computed<RingItem[]>(() => {
   const data = resultData.value
   if (!data) return []
@@ -632,6 +646,25 @@ const ringItems = computed<RingItem[]>(() => {
       }
     }
   } else {
+    // 新合同：wallet + subscription_status（百分比/周期由服务端权威计算）
+    const walletAmount = walletBalanceFromData(data)
+    if (data.subscription_status) {
+      const ss = data.subscription_status
+      if (ss.usage_status !== 'unmetered' && ss.weekly_usage_percent != null) {
+        items.push({
+          title: t('keyUsage.weeklyUsage'),
+          pct: ss.weekly_usage_percent,
+          amount: ss.weekly_usage_percent + '%',
+          iconType: 'calendar',
+          resetAt: ss.weekly_period_ends_at ?? undefined,
+        })
+      }
+      if (walletAmount != null) {
+        items.push({ title: t('keyUsage.walletBalance'), pct: 0, amount: walletAmount, isBalance: true, iconType: 'dollar' })
+      }
+      return items
+    }
+    // legacy 回退（旧网关响应）
     if (data.subscription) {
       const sub = data.subscription
       const limits = [
@@ -732,7 +765,36 @@ const detailRows = computed<DetailRow[]>(() => {
       value: data.planName || t('keyUsage.walletBalance'), valueClass: '',
     })
 
-    if (data.subscription) {
+    if (data.subscription_status) {
+      const ss = data.subscription_status
+      if (ss.usage_status !== 'unmetered' && ss.weekly_usage_percent != null) {
+        const statusMap: Record<string, string> = {
+          normal: t('keyUsage.statusNormal'),
+          high: t('keyUsage.statusHigh'),
+          near_limit: t('keyUsage.statusNearLimit'),
+          exhausted: t('keyUsage.statusExhausted'),
+          unmetered: t('keyUsage.statusUnmetered'),
+        }
+        rows.push({
+          iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-500', iconSvg: ICON_CALENDAR,
+          label: t('keyUsage.weeklyUsage'),
+          value: `${ss.weekly_usage_percent}% · ${statusMap[ss.usage_status] || ss.usage_status}`,
+          valueClass: getUsageColor(ss.weekly_usage_percent),
+        })
+      }
+      if (ss.weekly_period_ends_at) {
+        rows.push({
+          iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', iconSvg: ICON_CALENDAR,
+          label: t('keyUsage.weeklyResets'), value: formatDate(ss.weekly_period_ends_at), valueClass: '',
+        })
+      }
+      if (ss.payg_fallback) {
+        rows.push({
+          iconBg: 'bg-gray-500/10', iconColor: 'text-gray-500', iconSvg: ICON_CHECK,
+          label: t('keyUsage.paygFallback'), value: t('keyUsage.enabled'), valueClass: '',
+        })
+      }
+    } else if (data.subscription) {
       const sub = data.subscription
       if (sub.daily_limit_usd > 0) {
         const pct = (sub.daily_usage_usd / sub.daily_limit_usd) * 100
@@ -763,13 +825,30 @@ const detailRows = computed<DetailRow[]>(() => {
       }
     }
 
+    const resetCards = resetCardsFromData(data)
+    if (resetCards > 0) {
+      rows.push({
+        iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', iconSvg: ICON_CALENDAR,
+        label: t('keyUsage.resetCards'), value: String(resetCards), valueClass: '',
+      })
+    }
+
+    // Wallet 优先（新合同），无 wallet 时回退 legacy remaining
+    const walletStr = walletBalanceFromData(data)
     const remainColor = data.remaining != null
       ? (data.remaining <= 0 ? 'text-rose-500' : data.remaining < 10 ? 'text-amber-500' : 'text-emerald-500')
       : ''
-    rows.push({
-      iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', iconSvg: ICON_SHIELD,
-      label: t('keyUsage.remainingQuota'), value: data.remaining != null ? usd(data.remaining) : '-', valueClass: remainColor,
-    })
+    if (walletStr != null && data.remaining == null) {
+      rows.push({
+        iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', iconSvg: ICON_SHIELD,
+        label: t('keyUsage.walletBalance'), value: walletStr, valueClass: '',
+      })
+    } else {
+      rows.push({
+        iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', iconSvg: ICON_SHIELD,
+        label: t('keyUsage.remainingQuota'), value: data.remaining != null ? usd(data.remaining) : '-', valueClass: remainColor,
+      })
+    }
   }
 
   return rows

@@ -86,6 +86,12 @@ func (UserSubscription) Fields() []ent.Field {
 		// 默认值即现行为：迁移后存量订阅零变化。
 		field.Bool("auto_payg_fallback").
 			Default(false),
+
+		// Plan 身份（Gate 1）：新购买/续费/升级履约写入；历史行为 NULL =
+		// plan_identity_unresolved，Upgrade Preview 拒绝并要求 Admin resolve。
+		field.Int64("plan_id").Optional().Nillable(),
+		// scheduled downgrade：term 结束后的下一档（Renewal 时生效）
+		field.Int64("next_plan_id").Optional().Nillable(),
 	}
 }
 
@@ -106,6 +112,8 @@ func (UserSubscription) Edges() []ent.Edge {
 			Field("assigned_by").
 			Unique(),
 		edge.To("usage_logs", UsageLog.Type),
+		// 已付 term 快照（Plan Change proration 的价格真相）
+		edge.To("terms", SubscriptionTerm.Type),
 		// Reset 应用记录：订阅硬删时随订阅级联清除（事件主记录经 RESTRICT 保留）
 		edge.To("reset_applications", SubscriptionResetApplication.Type),
 		// 使用本订阅消费的 Reset Card：订阅硬删时 used_subscription_id 置 NULL（卡历史保留）
@@ -125,6 +133,10 @@ func (UserSubscription) Indexes() []ent.Index {
 		// 唯一约束通过部分索引实现（WHERE deleted_at IS NULL），支持软删除后重新订阅
 		// 见迁移文件 016_soft_delete_partial_unique_indexes.sql
 		index.Fields("user_id", "group_id"),
+		// 单主套餐不变量（产品 RULE 1）：每用户至多一条 ACTIVE 订阅。
+		// 唯一性由部分索引实现（WHERE deleted_at IS NULL AND status='active'），
+		// 见迁移文件 242_user_subscriptions_single_active.sql；schema 仅作可读性对齐。
+		index.Fields("user_id"),
 		index.Fields("deleted_at"),
 	}
 }

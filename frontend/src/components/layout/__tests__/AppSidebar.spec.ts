@@ -73,10 +73,11 @@ describe('AppSidebar subscription feature flag', () => {
     expect(componentSource).toMatch(/path: '\/admin\/subscriptions'[^\n]*featureFlag: flagSubscription/)
   })
 
-  it('derives the purchase entry label from the site billing mode', () => {
+  it('keeps /purchase as a recharge-only entry and points subscription-only sites at /pricing', () => {
     expect(componentSource).toContain("import { resolveSiteBillingMode } from '@/utils/siteBillingMode'")
-    expect(componentSource).toMatch(/case 'recharge_only':\s*return t\('nav\.recharge'\)/)
-    expect(componentSource).toMatch(/case 'subscription_only':\s*return t\('nav\.subscribe'\)/)
-    expect(componentSource).toMatch(/path: '\/purchase'[^\n]*label: purchaseNavLabel\.value/)
+    // 套餐购买统一收敛到 /pricing 后，/purchase 仅保留充值入口
+    expect(componentSource).toMatch(/path: '\/purchase',\s*\n\s*label: t\('nav\.recharge'\)/)
+    expect(componentSource).toMatch(/isSubscriptionOnlySite\.value \? \[\] : \[\{\s*\n\s*path: '\/purchase'/)
+    expect(componentSource).toMatch(/path: '\/pricing', label: t\('nav\.pricing'\)/)
   })
 })

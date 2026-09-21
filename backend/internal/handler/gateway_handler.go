@@ -57,6 +57,7 @@ type GatewayHandler struct {
 	maxAccountSwitchesGemini  int
 	cfg                       *config.Config
 	settingService            *service.SettingService
+	accountStatus             *service.AccountStatusService
 }
 
 // NewGatewayHandler creates a new GatewayHandler
@@ -253,11 +254,21 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	}
 
 	// 2. 【新增】Wait后二次检查余额/订阅
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+
+	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+
+	if err != nil {
 		reqLog.Info("gateway.billing_eligibility_check_failed", zap.Error(err))
 		status, code, message, retryAfter := billingErrorDetails(err)
 		if retryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
+
+		}
+
+		if fallbackAdmitted {
+
+			subscription = nil
+
 		}
 		h.handleStreamingAwareError(c, status, code, message, streamStarted)
 		return
@@ -1003,10 +1014,20 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 							return
 						}
 						fallbackAPIKey := cloneAPIKeyWithGroup(apiKey, fallbackGroup)
-						if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), fallbackAPIKey.User, fallbackAPIKey, fallbackGroup, nil, service.PlatformFromAPIKey(fallbackAPIKey)); err != nil {
+
+						fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), fallbackAPIKey.User, fallbackAPIKey, fallbackGroup, nil, service.PlatformFromAPIKey(fallbackAPIKey))
+
+						if err != nil {
 							status, code, message, retryAfter := billingErrorDetails(err)
 							if retryAfter > 0 {
 								c.Header("Retry-After", strconv.Itoa(retryAfter))
+
+							}
+
+							if fallbackAdmitted {
+
+								subscription = nil
+
 							}
 							h.handleStreamingAwareError(c, status, code, message, streamStarted)
 							return
@@ -1724,6 +1745,11 @@ func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, 
 		resp["days_until_expiry"] = apiKey.GetDaysUntilExpiry()
 	}
 
+	// 统一钱包（Phase 4）：与 subscription quota 语义分离
+	if wallet := h.walletPayload(ctx, apiKey.UserID); wallet != nil {
+		resp["wallet"] = wallet
+	}
+
 	if usageData != nil {
 		resp["usage"] = usageData
 	}
@@ -1753,6 +1779,7 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		if ok {
 			remaining := h.calculateSubscriptionRemaining(apiKey.Group, subscription)
 			resp["remaining"] = remaining
+			// legacy 字段（Phase 4 Stage 1 兼容保留；普通用户 USD 净化在后续 Stage 收口）
 			resp["subscription"] = gin.H{
 				"daily_usage_usd":     subscription.DailyUsageUSD,
 				"weekly_usage_usd":    subscription.WeeklyUsageUSD,
@@ -1763,6 +1790,21 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 				"weekly_window_start": subscription.WeeklyWindowStart,
 				"expires_at":          subscription.ExpiresAt,
 			}
+		}
+
+		// Phase 4：统一钱包 + 净化订阅状态（与 Website /subscriptions/status 共享同一
+		// AccountStatusService，百分比/状态/周期由服务端权威计算；legacy 字段保留期后移除）
+		if wallet := h.walletPayload(ctx, subject.UserID); wallet != nil {
+			resp["wallet"] = wallet
+		}
+		if h.accountStatus != nil && apiKey.GroupID != nil {
+			if st, err := h.accountStatus.GetGroupSubscriptionStatus(ctx, subject.UserID, *apiKey.GroupID); err == nil && st != nil {
+				resp["subscription_status"] = st
+			}
+		}
+		// 账户级可用重置卡数（MUCODE 重置卡入口；只读计数，与 Website 合同同源）
+		if h.accountStatus != nil {
+			resp["reset_cards"] = gin.H{"available": h.accountStatus.CountAvailableResetCards(ctx, subject.UserID)}
 		}
 
 		if usageData != nil {
@@ -1793,6 +1835,10 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		"unit":      "USD",
 		"balance":   latestUser.Balance,
 	}
+	// Phase 4：统一钱包对象（legacy balance/remaining 保留兼容）
+	if wallet := h.walletPayload(ctx, subject.UserID); wallet != nil {
+		resp["wallet"] = wallet
+	}
 	if usageData != nil {
 		resp["usage"] = usageData
 	}
@@ -1803,6 +1849,22 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		resp["model_stats"] = modelStats
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// walletPayload 构建统一钱包对象（users.balance USD 账本，8 位小数字符串）。
+// best-effort：读取失败时返回 nil，不影响既有响应字段。
+func (h *GatewayHandler) walletPayload(ctx context.Context, userID int64) gin.H {
+	if h.accountStatus == nil {
+		return nil
+	}
+	wallet, err := h.accountStatus.GetWallet(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	return gin.H{
+		"balance":            wallet.Balance,
+		"canonical_currency": wallet.CanonicalCurrency,
+	}
 }
 
 // calculateSubscriptionRemaining 计算订阅剩余可用额度
@@ -2145,10 +2207,20 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 
 	// 校验 billing eligibility（订阅/余额）
 	// 【注意】不计算并发，但需要校验订阅/余额
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+
+	fallbackAdmitted, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+
+	if err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)
 		if retryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
+
+		}
+
+		if fallbackAdmitted {
+
+			subscription = nil
+
 		}
 		h.errorResponse(c, status, code, message)
 		return

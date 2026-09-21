@@ -14,6 +14,7 @@ import announcementsAPI from './announcements'
 import settingsAPI from './settings'
 import systemAPI from './system'
 import subscriptionsAPI from './subscriptions'
+import { resetEventsAPI, resetCardsAPI, rewardsAPI, planChangesAPI } from './subscriptionReset'
 import usageAPI from './usage'
 import geminiAPI from './gemini'
 import antigravityAPI from './antigravity'
@@ -53,6 +54,10 @@ export const adminAPI = {
   settings: settingsAPI,
   system: systemAPI,
   subscriptions: subscriptionsAPI,
+  resetEvents: resetEventsAPI,
+  rewards: rewardsAPI,
+  planChanges: planChangesAPI,
+  resetCards: resetCardsAPI,
   usage: usageAPI,
   gemini: geminiAPI,
   antigravity: antigravityAPI,

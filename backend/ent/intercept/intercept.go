@@ -41,9 +41,11 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionplanchange"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetevent"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionterm"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
@@ -975,6 +977,33 @@ func (f TraverseSubscriptionPlan) Traverse(ctx context.Context, q ent.Query) err
 	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionPlanQuery", q)
 }
 
+// The SubscriptionPlanChangeFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SubscriptionPlanChangeFunc func(context.Context, *ent.SubscriptionPlanChangeQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SubscriptionPlanChangeFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SubscriptionPlanChangeQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionPlanChangeQuery", q)
+}
+
+// The TraverseSubscriptionPlanChange type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSubscriptionPlanChange func(context.Context, *ent.SubscriptionPlanChangeQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSubscriptionPlanChange) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSubscriptionPlanChange) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SubscriptionPlanChangeQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionPlanChangeQuery", q)
+}
+
 // The SubscriptionResetApplicationFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SubscriptionResetApplicationFunc func(context.Context, *ent.SubscriptionResetApplicationQuery) (ent.Value, error)
 
@@ -1054,6 +1083,33 @@ func (f TraverseSubscriptionResetEvent) Traverse(ctx context.Context, q ent.Quer
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetEventQuery", q)
+}
+
+// The SubscriptionTermFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SubscriptionTermFunc func(context.Context, *ent.SubscriptionTermQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SubscriptionTermFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SubscriptionTermQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionTermQuery", q)
+}
+
+// The TraverseSubscriptionTerm type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSubscriptionTerm func(context.Context, *ent.SubscriptionTermQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSubscriptionTerm) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSubscriptionTerm) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SubscriptionTermQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionTermQuery", q)
 }
 
 // The TLSFingerprintProfileFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1366,12 +1422,16 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.SettingQuery, predicate.Setting, setting.OrderOption]{typ: ent.TypeSetting, tq: q}, nil
 	case *ent.SubscriptionPlanQuery:
 		return &query[*ent.SubscriptionPlanQuery, predicate.SubscriptionPlan, subscriptionplan.OrderOption]{typ: ent.TypeSubscriptionPlan, tq: q}, nil
+	case *ent.SubscriptionPlanChangeQuery:
+		return &query[*ent.SubscriptionPlanChangeQuery, predicate.SubscriptionPlanChange, subscriptionplanchange.OrderOption]{typ: ent.TypeSubscriptionPlanChange, tq: q}, nil
 	case *ent.SubscriptionResetApplicationQuery:
 		return &query[*ent.SubscriptionResetApplicationQuery, predicate.SubscriptionResetApplication, subscriptionresetapplication.OrderOption]{typ: ent.TypeSubscriptionResetApplication, tq: q}, nil
 	case *ent.SubscriptionResetCardQuery:
 		return &query[*ent.SubscriptionResetCardQuery, predicate.SubscriptionResetCard, subscriptionresetcard.OrderOption]{typ: ent.TypeSubscriptionResetCard, tq: q}, nil
 	case *ent.SubscriptionResetEventQuery:
 		return &query[*ent.SubscriptionResetEventQuery, predicate.SubscriptionResetEvent, subscriptionresetevent.OrderOption]{typ: ent.TypeSubscriptionResetEvent, tq: q}, nil
+	case *ent.SubscriptionTermQuery:
+		return &query[*ent.SubscriptionTermQuery, predicate.SubscriptionTerm, subscriptionterm.OrderOption]{typ: ent.TypeSubscriptionTerm, tq: q}, nil
 	case *ent.TLSFingerprintProfileQuery:
 		return &query[*ent.TLSFingerprintProfileQuery, predicate.TLSFingerprintProfile, tlsfingerprintprofile.OrderOption]{typ: ent.TypeTLSFingerprintProfile, tq: q}, nil
 	case *ent.UsageCleanupTaskQuery:

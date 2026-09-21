@@ -44,6 +44,8 @@ type AdminHandlers struct {
 	Compliance             *admin.ComplianceHandler
 	AuditLog               *admin.AuditLogHandler
 	Research               *admin.ResearchHandler
+	ResetEvent             *admin.AdminResetEventHandler
+	ResetCard              *admin.AdminSubscriptionResetHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -73,6 +75,8 @@ type Handlers struct {
 	BatchImage       *BatchImageHandler
 	MucConnect       *MucConnectHandler
 	Research         *ResearchApplicationHandler
+	PlanChange       *PlanChangeHandler
+	WalletLedger     *WalletLedgerHandler
 }
 
 // BuildInfo contains build-time information

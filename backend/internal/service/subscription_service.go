@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -35,6 +36,9 @@ var (
 	ErrSubscriptionNotRevoked      = infraerrors.Conflict("SUBSCRIPTION_NOT_REVOKED", "subscription is not revoked")
 	ErrSubscriptionRestoreConflict = infraerrors.Conflict("SUBSCRIPTION_RESTORE_CONFLICT", "subscription already exists for this user and group")
 	ErrGroupNotSubscriptionType    = infraerrors.BadRequest("GROUP_NOT_SUBSCRIPTION_TYPE", "group is not a subscription type")
+	// ErrPrimarySubscriptionExists 单主套餐不变量（产品 RULE 1）：用户在其他组已有
+	// ACTIVE 主订阅时，禁止再以购买/兑换/赠送路径创建第二份；应走升级/降级。
+	ErrPrimarySubscriptionExists = infraerrors.Conflict("PRIMARY_SUBSCRIPTION_EXISTS", "user already has an active primary subscription in another plan; use upgrade or downgrade instead")
 	ErrInvalidInput                = infraerrors.BadRequest("INVALID_INPUT", "at least one of resetDaily, resetWeekly, or resetMonthly must be true")
 	ErrDailyLimitExceeded          = infraerrors.TooManyRequests("DAILY_LIMIT_EXCEEDED", "daily usage limit exceeded")
 	ErrWeeklyLimitExceeded         = infraerrors.TooManyRequests("WEEKLY_LIMIT_EXCEEDED", "weekly usage limit exceeded")
@@ -57,6 +61,10 @@ type SubscriptionService struct {
 	// L1 缓存：加速中间件热路径的订阅查询
 	subCacheL1     *ristretto.Cache
 	subCacheGroup  singleflight.Group
+
+	// scheduledChangeSuperseder 续期取代 pending 预约降级的回调（PlanChangeService 实现，
+	// wire 经 SetScheduledChangeSuperseder 注入；nil 时为 no-op）。
+	scheduledChangeSuperseder ScheduledChangeSuperseder
 	subCacheTTL    time.Duration
 	subCacheJitter int // 抖动百分比
 
@@ -202,6 +210,8 @@ type AssignSubscriptionInput struct {
 	ValidityDays int
 	AssignedBy   int64
 	Notes        string
+	// PlanID 可选：来自订单的 SKU 身份（Gate 1）；管理员手动分配可为空。
+	PlanID *int64
 }
 
 // AssignSubscription 分配订阅给用户（不允许重复分配）
@@ -238,6 +248,26 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 	if err != nil {
 		// 不存在记录是正常情况，其他错误需要返回
 		existingSub = nil
+	}
+
+	if existingSub == nil {
+		// 单主套餐不变量（RULE 1）：目标组无既有行且用户在其他组已有 ACTIVE 主订阅
+		// 时拒绝创建第二份。同组续期不受影响。仓储未实现守卫能力（部分测试 stub）
+		// 时跳过，由数据库 partial unique index（迁移 242）兜底。
+		if guard, ok := s.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+			conflict, err := guard.FindActiveByUserIDExcludingGroup(ctx, input.UserID, input.GroupID)
+			if err != nil {
+				return nil, false, fmt.Errorf("check single-active invariant: %w", err)
+			}
+			if conflict != nil {
+				return nil, false, ErrPrimarySubscriptionExists
+			}
+			// 收敛本组外的惰性到期行（status=active 但 expires_at 已过），
+			// 否则随后的 create 会被 partial unique index 拒绝。
+			if _, err := guard.ExpireLapsedByUser(ctx, input.UserID, time.Now()); err != nil {
+				return nil, false, fmt.Errorf("expire lapsed subscriptions: %w", err)
+			}
+		}
 	}
 
 	validityDays := input.ValidityDays
@@ -292,6 +322,38 @@ func (s *SubscriptionService) maybeInvalidateAssignmentCaches(userID, groupID in
 	}
 }
 
+// ClosePendingChangeOnPaidRenewal 支付履约成功后按用户清除"下次续费"偏好
+// （superseded_by_renewal）。Phase 11B：这是除用户主动取消/改选外唯一的
+// 清除路径 —— 系统（到期/维护/对账任务）绝不允许调用本方法。
+// 必须在支付履约事务内调用（txCtx 传递）；hook 未注入（单测）时为 no-op。
+func (s *SubscriptionService) ClosePendingChangeOnPaidRenewal(ctx context.Context, userID int64) error {
+	if s.scheduledChangeSuperseder == nil {
+		return nil
+	}
+	return s.scheduledChangeSuperseder.SupersedeScheduledChangeForUser(ctx, userID)
+}
+
+// SetScheduledChangeSuperseder wire 注入续期取代回调（PlanChangeService 实现）。
+func (s *SubscriptionService) SetScheduledChangeSuperseder(superseder ScheduledChangeSuperseder) {
+	s.scheduledChangeSuperseder = superseder
+}
+
+// CheckPrimarySubscriptionAllowed 下单前置校验（RULE 1）：目标组已有 active 行 = 续期放行；
+// 其他组已有 active 主订阅 = 拒绝（ErrPrimarySubscriptionExists，提示走升级/降级）。
+// 仓储未实现守卫能力时放行（数据库 partial unique index 兜底）。
+func (s *SubscriptionService) CheckPrimarySubscriptionAllowed(ctx context.Context, userID, groupID int64) error {
+	if guard, ok := s.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+		conflict, err := guard.FindActiveByUserIDExcludingGroup(ctx, userID, groupID)
+		if err != nil {
+			return fmt.Errorf("check single-active invariant: %w", err)
+		}
+		if conflict != nil {
+			return ErrPrimarySubscriptionExists
+		}
+	}
+	return nil
+}
+
 func (s *SubscriptionService) updateExistingSubscriptionTerm(
 	ctx context.Context,
 	subscriptionID int64,
@@ -340,6 +402,7 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 		if err := s.userSubRepo.ExtendExpiry(txCtx, existingSub.ID, newExpiresAt); err != nil {
 			return fmt.Errorf("extend subscription: %w", err)
 		}
+
 
 		// 如果订阅被暂停，恢复为 active 状态
 		if existingSub.Status != SubscriptionStatusActive {
@@ -436,6 +499,7 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 		Status:     SubscriptionStatusActive,
 		AssignedAt: now,
 		Notes:      input.Notes,
+		PlanID:     input.PlanID,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
@@ -909,7 +973,7 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 		if _, err := s.ResetSubscriptionWeeklyPeriod(ctx, &WeeklyResetInput{
 			UserSubscriptionID:   subscriptionID,
 			EffectiveAt:          now,
-			Source:               domain.WeeklyResetSourceAdminManual,
+			Source:               domain.WeeklyResetSourceAdminDirect,
 			IgnoreLifecycleCheck: true,
 		}); err != nil {
 			return nil, err
@@ -1288,6 +1352,30 @@ func (s *SubscriptionService) ValidateSubscription(ctx context.Context, sub *Use
 		// 更新状态
 		_ = s.userSubRepo.UpdateStatus(ctx, sub.ID, SubscriptionStatusExpired)
 		return ErrSubscriptionExpired
+	}
+	return nil
+}
+
+// UpdatePaygFallback 用户级 PAYG fallback 开关（Phase 8：仅切换持久化配置，
+// Gateway Runtime 在独立阶段接线）。必须校验归属，防止跨用户修改。
+func (s *SubscriptionService) UpdatePaygFallback(ctx context.Context, userID, subscriptionID int64, enabled bool) error {
+	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil {
+		return err
+	}
+	if sub.UserID != userID {
+		return ErrSubscriptionNotFound
+	}
+	store, ok := s.userSubRepo.(SubscriptionPaygFallbackStore)
+	if !ok {
+		return errors.New("subscription repository does not support payg fallback updates")
+	}
+	if err := store.UpdatePaygFallback(ctx, subscriptionID, enabled); err != nil {
+		return err
+	}
+	// 失效订阅缓存（预检读取 fallback 标记）
+	if err := s.invalidateSubscriptionCaches(userID, sub.GroupID); err != nil {
+		return err
 	}
 	return nil
 }

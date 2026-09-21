@@ -1,0 +1,1389 @@
+<template>
+  <AppLayout>
+    <div class="muc-scope muc-pricing">
+      <PricingBackground />
+
+    <div class="muc-pricing__content">
+      <!-- 品牌水印：大字民大红渐变 + 小字 MUCODE 暖白 -->
+      <div class="muc-pricing__watermark" aria-hidden="true">
+        <span class="muc-pricing__watermark-caption">MUCODE</span>
+        <span class="muc-pricing__watermark-word">PRICING</span>
+      </div>
+
+      <header class="muc-pricing__header">
+        <h1 class="muc-pricing__title">{{ t('pricing.title') }}</h1>
+        <p class="muc-pricing__subtitle">{{ t('pricing.subtitle') }}</p>
+      </header>
+
+      <!-- 账户状态条：钱包 + 生效中订阅（服务端合同：整数百分比 + usage_status） -->
+      <section class="muc-status" data-testid="pricing-status-strip">
+        <div class="muc-status__wallet">
+          <span class="muc-status__label">{{ t('pricing.statusStrip.wallet') }}</span>
+          <span v-if="wallet" class="muc-status__wallet-value">
+            {{ walletDisplay }}
+          </span>
+          <span v-else class="muc-status__muted">—</span>
+        </div>
+
+        <div class="muc-status__divider" aria-hidden="true"></div>
+
+        <div v-if="!account" class="muc-status__muted">{{ t('pricing.statusStrip.loading') }}</div>
+        <!-- Phase 11B 预付费固定周期制：0 个 ACTIVE 合法；显示上次套餐 + 下次续费默认 -->
+        <div v-else-if="!activeSubscriptions.length" class="muc-status__subs">
+          <div class="muc-status__sub" data-testid="pricing-no-active">
+            <div class="muc-status__sub-head">
+              <span class="muc-status__sub-name">
+                {{ t('pricing.statusStrip.noActiveNow') }}
+              </span>
+              <span v-if="lastSubscription" class="muc-status__chip">
+                {{ t('pricing.statusStrip.lastPlan', { plan: lastSubscription.display_name }) }}
+              </span>
+            </div>
+            <div class="muc-status__sub-meta">
+              <span v-if="lastSubscription">
+                {{ t('pricing.statusStrip.lastExpires') }} {{ formatDate(lastSubscription.expires_at) }}
+              </span>
+              <span v-if="statusPendingChange">
+                {{
+                  t('pricing.statusStrip.renewDefault', { plan: statusPendingChange.to_plan_name })
+                }}
+              </span>
+              <span v-if="resetCards > 0">
+                {{ t('pricing.statusStrip.resetCards', { count: resetCards }) }}
+              </span>
+            </div>
+            <div
+              v-if="nextRenewalPlanRow"
+              class="muc-status__sub-meta muc-status__pending"
+              data-testid="pricing-renew-now"
+            >
+              <button
+                type="button"
+                class="muc-status__pending-cancel"
+                @click="onRenewDefault"
+              >
+                {{ t('pricing.statusStrip.renewNow', { plan: nextRenewalPlanRow.name }) }}
+              </button>
+              <button
+                type="button"
+                class="muc-status__pending-cancel"
+                @click="scrollToPlans"
+              >
+                {{ t('pricing.statusStrip.chooseOther') }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- 单主套餐不变量：当前套餐至多一个；下次续费套餐单独成行 -->
+        <div v-else-if="primarySub" class="muc-status__subs">
+          <div class="muc-status__sub">
+            <div class="muc-status__sub-head">
+              <span class="muc-status__sub-name">
+                {{ t('pricing.statusStrip.currentPlan', { plan: primarySub.display_name }) }}
+              </span>
+              <span class="muc-status__chip" :class="statusChipClass(primarySub.usage_status)">
+                {{ statusLabel(primarySub.usage_status) }}
+              </span>
+            </div>
+            <div class="muc-status__sub-bar-row">
+              <div class="muc-status__sub-bar">
+                <div
+                  class="muc-status__sub-bar-fill"
+                  :class="statusBarClass(primarySub.usage_status)"
+                  :style="{ width: `${Math.min(Math.max(primarySub.weekly_usage_percent ?? 0, 0), 100)}%` }"
+                ></div>
+              </div>
+              <span class="muc-status__sub-percent">
+                {{
+                  primarySub.weekly_usage_percent === null
+                    ? t('pricing.usageStatus.unmetered')
+                    : `${primarySub.weekly_usage_percent}%`
+                }}
+              </span>
+            </div>
+            <div class="muc-status__sub-meta">
+              <span v-if="primarySub.expires_at">
+                {{ t('pricing.statusStrip.expires') }} {{ formatDate(primarySub.expires_at) }}
+              </span>
+              <span v-if="resetCards > 0">
+                {{ t('pricing.statusStrip.resetCards', { count: resetCards }) }}
+              </span>
+            </div>
+            <div
+              v-if="statusPendingChange"
+              class="muc-status__sub-meta muc-status__pending"
+              data-testid="pricing-pending-change"
+            >
+              <span>
+                {{
+                  t('pricing.statusStrip.nextRenewalPlan', {
+                    plan: statusPendingChange.to_plan_name
+                  })
+                }}
+              </span>
+              <button
+                type="button"
+                class="muc-status__pending-cancel"
+                :disabled="busyKey === 'cancel-scheduled'"
+                @click="onCancelScheduled"
+              >
+                {{ t('pricing.statusStrip.cancelChange') }}
+              </button>
+            </div>
+          </div>
+          <div v-if="activeSubscriptions.length > 1" class="muc-status__muted" data-testid="pricing-multi-active-warning">
+            {{ t('pricing.statusStrip.multiActiveWarning', { count: activeSubscriptions.length }) }}
+          </div>
+        </div>
+      </section>
+
+      <!-- 套餐卡：移动端横向 scroll-snap，桌面端三列 -->
+      <div v-if="plansLoading" class="muc-pricing__state">
+        <LoadingSpinner />
+      </div>
+      <p v-else-if="!plans.length" class="muc-pricing__state muc-pricing__state--text">
+        {{ t('pricing.empty') }}
+      </p>
+      <section v-else class="muc-pricing__cards" data-testid="pricing-cards">
+        <MucPlanCard
+          v-for="plan in sortedPlans"
+          :key="plan.id"
+          class="muc-pricing__card"
+          :display="cardDisplay(plan)"
+          :variant="cardVariant(plan)"
+          :cta-kind="ctaKind(plan)"
+          :cta-label="ctaLabel(plan)"
+          :popular="isPopular(plan)"
+          :is-current="ctaKind(plan) === 'current'"
+          :scheduled-plan-name="scheduledTargetName"
+          :scheduled-effective-text="scheduledEffectiveText"
+          :busy="busyKey === 'cancel-scheduled'"
+          @cta="onCardCta(plan)"
+          @cancel-scheduled="onCancelScheduled"
+        />
+      </section>
+
+      <p class="muc-pricing__footer-note">{{ t('pricing.footerNote') }}</p>
+    </div>
+
+    <!-- 升级：服务端权威报价 + 支付方式 -->
+    <UpgradePreviewModal
+      v-model:selected-method="selectedMethod"
+      :open="upgradeModalOpen"
+      :quote="quote"
+      :quote-loading="quoteLoading"
+      :quote-error="quoteError"
+      :methods="methodOptions"
+      :confirming="creatingOrder"
+      @close="closeUpgradeModal"
+      @retry="fetchQuote"
+      @confirm="onConfirmUpgrade"
+    />
+
+    <!-- 新购：/pricing 是全站唯一套餐目录面，购买在此完成选择与确认 -->
+    <MucPlanPurchaseModal
+      v-model:selected-method="purchaseMethod"
+      :open="purchaseModalOpen"
+      :plan="purchaseModalPlan"
+      :methods="purchaseMethods"
+      :confirming="creatingPurchase"
+      :display-price="purchaseDisplayPrice"
+      :fee-rate-percent="purchaseFeeRate"
+      :validity-text="purchaseValidityText"
+      @close="closePurchaseModal"
+      @confirm="onConfirmPurchase"
+    />
+
+    <!-- 到期切换确认 -->
+    <Teleport to="body">
+      <Transition name="muc-modal">
+        <div
+          v-if="downgradeTarget"
+          class="muc-scope muc-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="t('pricing.downgrade.title')"
+          @click.self="downgradeTarget = null"
+        >
+          <div class="muc-dialog">
+            <h3 class="muc-dialog__title">{{ t('pricing.downgrade.title') }}</h3>
+            <p class="muc-dialog__body">
+              {{
+                t('pricing.downgrade.body', {
+                  date: formatDate(primarySub?.expires_at ?? ''),
+                  plan: downgradeTarget.name
+                })
+              }}
+            </p>
+            <div class="muc-dialog__actions">
+              <button type="button" class="muc-dialog__dismiss" @click="downgradeTarget = null">
+                {{ t('common.cancel') }}
+              </button>
+              <button
+                type="button"
+                class="muc-dialog__confirm"
+                :disabled="schedulingDowngrade"
+                @click="onConfirmDowngrade"
+              >
+                {{ schedulingDowngrade ? t('pricing.downgrade.confirming') : t('pricing.downgrade.confirm') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- 取消到期切换确认 -->
+    <Teleport to="body">
+      <Transition name="muc-modal">
+        <div
+          v-if="cancelTarget"
+          class="muc-scope muc-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="t('pricing.downgrade.cancelTitle')"
+          @click.self="cancelTarget = false"
+        >
+          <div class="muc-dialog">
+            <h3 class="muc-dialog__title">{{ t('pricing.downgrade.cancelTitle') }}</h3>
+            <p class="muc-dialog__body">
+              {{ t('pricing.downgrade.cancelBody', { plan: currentPlanName }) }}
+            </p>
+            <div class="muc-dialog__actions">
+              <button type="button" class="muc-dialog__dismiss" @click="cancelTarget = false">
+                {{ t('common.cancel') }}
+              </button>
+              <button
+                type="button"
+                class="muc-dialog__confirm"
+                :disabled="cancellingDowngrade"
+                @click="onConfirmCancelScheduled"
+              >
+                {{ t('pricing.downgrade.cancelConfirm') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+  </div>
+  </AppLayout>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import AppLayout from '@/components/layout/AppLayout.vue'
+import '@/components/pricing/muc-tokens.css'
+import PricingBackground from '@/components/pricing/PricingBackground.vue'
+import MucPlanCard, {
+  type MucPlanCardDisplay
+} from '@/components/pricing/MucPlanCard.vue'
+import UpgradePreviewModal from '@/components/pricing/UpgradePreviewModal.vue'
+import MucPlanPurchaseModal from '@/components/pricing/MucPlanPurchaseModal.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { paymentAPI } from '@/api/payment'
+import { usePaymentStore } from '@/stores/payment'
+import {
+  createUpgrade,
+  getAccountStatus,
+  cancelScheduledDowngrade,
+  previewUpgrade,
+  scheduleDowngrade,
+  type AccountStatus,
+  type AccountSubscriptionStatus,
+  type PlanChangeQuote,
+  type UsageStatus
+} from '@/api/subscriptions'
+import type { CheckoutInfoResponse, CreateOrderResult, SubscriptionPlan } from '@/types/payment'
+import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'
+import {
+  buildCreateOrderPayload,
+  decidePaymentLaunch,
+  getVisibleMethods,
+  normalizeVisibleMethod
+} from '@/components/payment/paymentFlow'
+import { buildWechatOAuthAuthorizeUrl } from '@/components/payment/wechatOAuthUrl'
+import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
+import {
+  DEFAULT_PAYMENT_CURRENCY,
+  formatPaymentAmount,
+  normalizePaymentCurrency
+} from '@/components/payment/currency'
+import { planValiditySuffix } from '@/components/payment/validity'
+import { isMobileDevice } from '@/utils/device'
+import { useAppStore } from '@/stores'
+
+// 客户端仅做展示排序的 tier 近似（sort_order）；升/降级真值以后端 tier_rank 校验为准。
+type MucPlanRow = SubscriptionPlan
+
+type CtaKind = 'buy' | 'upgrade' | 'downgrade' | 'scheduled' | 'current' | 'unavailable'
+
+const router = useRouter()
+const route = useRoute()
+const { t, tm, locale } = useI18n()
+const appStore = useAppStore()
+const paymentStore = usePaymentStore()
+
+const plans = ref<MucPlanRow[]>([])
+const plansLoading = ref(true)
+const checkout = ref<CheckoutInfoResponse | null>(null)
+const account = ref<AccountStatus | null>(null)
+
+const upgradeModalOpen = ref(false)
+const modalPlan = ref<MucPlanRow | null>(null)
+const quote = ref<PlanChangeQuote | null>(null)
+const quoteLoading = ref(false)
+const quoteError = ref('')
+const selectedMethod = ref('')
+const creatingOrder = ref(false)
+
+const downgradeTarget = ref<MucPlanRow | null>(null)
+const schedulingDowngrade = ref(false)
+const cancelTarget = ref(false)
+const cancellingDowngrade = ref(false)
+/** 进行中的卡片动作（禁用对应按钮），形如 `cancel-{planId}` */
+const busyKey = ref('')
+
+const sortedPlans = computed(() => plans.value)
+
+const activeSubscriptions = computed(() => account.value?.subscriptions ?? [])
+const wallet = computed(() => account.value?.wallet ?? null)
+const resetCards = computed(() => account.value?.reset_cards.available ?? 0)
+/** 服务端合同里的"下次续费套餐"（Phase 11B 预付费固定周期制，用户级指针） */
+const statusPendingChange = computed(() => account.value?.pending_change ?? null)
+/** 上一份已结束的套餐（0 ACTIVE 时的"上次套餐"展示） */
+const lastSubscription = computed(() => account.value?.last_subscription ?? null)
+/** 下次续费目标对应的在售套餐卡（存在时提供 [续费 {plan}] 入口） */
+const nextRenewalPlanRow = computed(() => {
+  const id = account.value?.next_renewal_plan_id
+  if (!id) return null
+  return sortedPlans.value.find((p) => p.id === id) ?? null
+})
+
+const walletDisplay = computed(() => {
+  const w = wallet.value
+  if (!w) return '—'
+  const value = parseFloat(w.balance)
+  return formatPaymentAmount(
+    Number.isFinite(value) ? value : 0,
+    normalizePaymentCurrency(w.canonical_currency),
+    typeof locale.value === 'string' ? locale.value : undefined
+  )
+})
+
+const planByGroup = computed(() => {
+  const map = new Map<number, MucPlanRow>()
+  for (const plan of sortedPlans.value) map.set(plan.group_id, plan)
+  return map
+})
+
+function planForSub(sub: AccountSubscriptionStatus): MucPlanRow | undefined {
+  return planByGroup.value.get(sub.group_id)
+}
+
+/** Plan Change 作用的主订阅：取可映射到在售套餐中档位（sort_order）最高的一条。 */
+const primarySub = computed<AccountSubscriptionStatus | null>(() => {
+  const mapped = activeSubscriptions.value.filter((s) => planForSub(s))
+  if (!mapped.length) return activeSubscriptions.value[0] ?? null
+  return [...mapped].sort(
+    (a, b) => (planForSub(b)?.sort_order ?? 0) - (planForSub(a)?.sort_order ?? 0)
+  )[0]
+})
+
+const currentGroupIds = computed(() => new Set(activeSubscriptions.value.map((s) => s.group_id)))
+
+const currentPlanName = computed(() => {
+  const sub = primarySub.value
+  return (sub && planForSub(sub)?.name) || sub?.display_name || ''
+})
+
+/** 已设为下次续费的目标套餐名（状态合同单一来源；无自动生效语义） */
+const scheduledTargetName = computed(() => statusPendingChange.value?.to_plan_name ?? '')
+const scheduledEffectiveText = computed(() => null)
+
+// ── 支付方式（与购买页同源 checkout-info）──
+const methodOptions = computed<PaymentMethodOption[]>(() => {
+  const visible = checkout.value ? getVisibleMethods(checkout.value.methods) : {}
+  return Object.entries(visible).map(([type, ml]) => ({
+    type,
+    display_name: ml.display_name,
+    fee_rate: ml.fee_rate ?? 0,
+    available: ml.available !== false
+  }))
+})
+
+// ── 数据加载 ──
+async function loadAll() {
+  const [plansRes, checkoutRes, statusRes] = await Promise.allSettled([
+    paymentAPI.getPlans(),
+    paymentAPI.getCheckoutInfo(),
+    getAccountStatus()
+  ])
+  if (plansRes.status === 'fulfilled') {
+    plans.value = plansRes.value
+      .data
+      .map((p) => ({ ...p, features: parseFeatures(p.features) }))
+      .sort((a, b) => a.sort_order - b.sort_order || a.price - b.price)
+  }
+  if (checkoutRes.status === 'fulfilled') checkout.value = checkoutRes.value.data
+  if (statusRes.status === 'fulfilled') account.value = statusRes.value
+  plansLoading.value = false
+}
+
+/** /payment/plans 的 features 是原始 JSON 字符串，checkout-info 才解析；这里自行容错解析。 */
+function parseFeatures(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((f): f is string => typeof f === 'string')
+  if (typeof raw !== 'string' || !raw.trim()) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((f): f is string => typeof f === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+onMounted(async () => {
+  await loadAll()
+  // 深链：/pricing?plan=<id> 直接打开该套餐的购买确认（历史 /purchase?tab=subscription 入口的重定向落点）
+  const planParam = typeof route.query.plan === 'string' ? Number(route.query.plan) : Number.NaN
+  if (Number.isFinite(planParam) && planParam > 0) {
+    const target = plans.value.find((p) => p.id === planParam)
+    if (target) openPurchaseModal(target)
+  }
+})
+
+// ── CTA 判定 ──
+function ctaKind(plan: MucPlanRow): CtaKind {
+  if (currentGroupIds.value.has(plan.group_id)) return 'current'
+  const primary = primarySub.value
+  const primaryPlan = primary ? planForSub(primary) : undefined
+  if (!primary || !primaryPlan) return 'buy'
+  if (plan.sort_order > primaryPlan.sort_order) return 'upgrade'
+  if (plan.sort_order < primaryPlan.sort_order) return 'downgrade'
+  return 'buy'
+}
+
+function ctaLabel(plan: MucPlanRow): string {
+  // "已设为下次续费套餐"判定来自状态合同（next_plan_id 用户级指针）
+  const scheduled =
+    ctaKind(plan) === 'downgrade' &&
+    statusPendingChange.value?.to_plan_id === plan.id
+  switch (scheduled ? 'scheduled' : ctaKind(plan)) {
+    case 'upgrade':
+      return t('pricing.cta.upgradeTo', { plan: plan.name })
+    case 'downgrade':
+      return t('pricing.cta.downgrade')
+    case 'scheduled':
+      return t('pricing.cta.scheduled')
+    case 'current':
+      return t('pricing.cta.current')
+    case 'unavailable':
+      return t('pricing.cta.unavailable')
+    default:
+      return t('pricing.cta.buy')
+  }
+}
+
+/** 档位视觉：0=Basic 黑灰，中位=Pro 红，末位=Max 红+少量金 */
+function cardVariant(plan: MucPlanRow): 'basic' | 'pro' | 'max' {
+  const list = sortedPlans.value
+  const idx = list.findIndex((p) => p.id === plan.id)
+  if (list.length >= 3) {
+    if (idx === list.length - 1) return 'max'
+    if (idx > 0) return 'pro'
+    return 'basic'
+  }
+  return idx === list.length - 1 ? 'pro' : 'basic'
+}
+
+function isPopular(plan: MucPlanRow): boolean {
+  return cardVariant(plan) === 'pro'
+}
+
+function cardDisplay(plan: MucPlanRow): MucPlanCardDisplay {
+  return {
+    name: plan.name,
+    description: plan.description || undefined,
+    price: priceDisplay(plan),
+    originalPrice: plan.original_price ? priceDisplay({ ...plan, price: plan.original_price }) : undefined,
+    validitySuffix: t('pricing.perValidity', { validity: planValiditySuffix(plan, t) }),
+    // 后端 features 为空时使用定性文案（不编造具体数值）
+    features: plan.features.length ? plan.features : fallbackFeatures(plan)
+  }
+}
+
+/** 后端无 features 时的定性权益文案（i18n 以 | 分隔，叶子须为字符串以满足键完整性测试）。 */
+function fallbackFeatures(plan: MucPlanRow): string[] {
+  const variant = cardVariant(plan)
+  const messages = tm('pricing.fallbackFeatures') as Record<string, unknown> | undefined
+  const raw = messages?.[variant]
+  return typeof raw === 'string' && raw.trim()
+    ? raw.split('|').map((f) => f.trim()).filter(Boolean)
+    : []
+}
+
+/** 套餐价 USD 语义：配置了折算汇率则按 CNY 展示（与购买页口径严格镜像）。 */
+function priceDisplay(plan: MucPlanRow): string {
+  const rate = checkout.value?.subscription_usd_to_cny_rate ?? 0
+  const loc = typeof locale.value === 'string' ? locale.value : undefined
+  if (rate > 0) return formatPaymentAmount(plan.price * rate, DEFAULT_PAYMENT_CURRENCY, loc)
+  return formatPaymentAmount(plan.price, normalizePaymentCurrency(plan.currency), loc)
+}
+
+// ── 卡片动作 ──
+function onCardCta(plan: MucPlanRow) {
+  switch (ctaKind(plan)) {
+    case 'current':
+      break
+    case 'upgrade':
+      openUpgradeModal(plan)
+      break
+    case 'downgrade':
+      downgradeTarget.value = plan
+      break
+    default:
+      // 新购在 /pricing 内完成选择与确认（全站唯一套餐目录面）
+      openPurchaseModal(plan)
+  }
+}
+
+// ── 新购（购买确认 + 支付启动；无活跃订阅时的唯一购买路径）──
+const purchaseModalOpen = ref(false)
+const purchaseModalPlan = ref<MucPlanRow | null>(null)
+const purchaseMethod = ref('')
+const creatingPurchase = ref(false)
+
+const purchaseFeeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
+const purchaseDisplayPrice = computed(() =>
+  purchaseModalPlan.value ? priceDisplay(purchaseModalPlan.value) : ''
+)
+const purchaseValidityText = computed(() =>
+  purchaseModalPlan.value
+    ? t('pricing.perValidity', { validity: planValiditySuffix(purchaseModalPlan.value, t) })
+    : ''
+)
+
+/** 与原购买页订阅 Tab 同语义：按网关限额标记方式可用性。 */
+const purchaseMethods = computed<PaymentMethodOption[]>(() => {
+  const plan = purchaseModalPlan.value
+  if (!plan || !checkout.value) return []
+  const visible = getVisibleMethods(checkout.value.methods)
+  const rate = checkout.value.subscription_usd_to_cny_rate ?? 0
+  return Object.entries(visible).map(([type, ml]) => {
+    const currency = normalizePaymentCurrency(ml?.currency)
+    const paymentAmount =
+      rate > 0 && currency === DEFAULT_PAYMENT_CURRENCY
+        ? Math.round(plan.price * rate * 100) / 100
+        : Math.round(plan.price * 100) / 100
+    const total =
+      purchaseFeeRate.value > 0 && paymentAmount > 0
+        ? Math.round(
+            (paymentAmount + Math.ceil(((paymentAmount * purchaseFeeRate.value) / 100) * 100) / 100) * 100
+          ) / 100
+        : paymentAmount
+    const fits =
+      (ml?.single_min ?? 0) <= 0 || total >= (ml?.single_min ?? 0)
+    const fitsMax =
+      (ml?.single_max ?? 0) <= 0 || total <= (ml?.single_max ?? 0)
+    return {
+      type,
+      display_name: ml?.display_name,
+      fee_rate: ml?.fee_rate ?? 0,
+      available: ml?.available !== false && fits && fitsMax
+    }
+  })
+})
+
+function openPurchaseModal(plan: MucPlanRow) {
+  purchaseModalPlan.value = plan
+  purchaseMethod.value =
+    purchaseMethods.value.find((m) => m.available)?.type ?? ''
+  purchaseModalOpen.value = true
+}
+
+function closePurchaseModal() {
+  purchaseModalOpen.value = false
+  purchaseModalPlan.value = null
+}
+
+async function onConfirmPurchase(paymentType: string) {
+  const plan = purchaseModalPlan.value
+  if (!plan || !paymentType) return
+  creatingPurchase.value = true
+  try {
+    const isMobile = isMobileDevice()
+    const isWechatBrowser =
+      typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent)
+    const forceQRCode = !!(
+      checkout.value?.alipay_force_qrcode
+      && normalizeVisibleMethod(paymentType) === 'alipay'
+    )
+    const payload = buildCreateOrderPayload({
+      amount: plan.price,
+      paymentType,
+      orderType: 'subscription',
+      planId: plan.id,
+      origin: typeof window !== 'undefined' ? window.location.origin : '',
+      isMobile,
+      isWechatBrowser,
+      forceQRCode,
+      mobilePrecreateDeepLink: checkout.value?.alipay_mobile_precreate_deep_link === true,
+    })
+    const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
+    await launchPurchaseOrder(result, plan, { isMobile, isWechatBrowser, forceQRCode })
+    closePurchaseModal()
+  } catch (err) {
+    appStore.showError(extractErrorMessage(err, t('pricing.errors.upgradeFailed')))
+  } finally {
+    creatingPurchase.value = false
+  }
+}
+
+/** 支付启动执行器：与支付落地页（QR/结果/Stripe/Airwallex/微信恢复链）复用同一套编排。 */
+async function launchPurchaseOrder(
+  result: CreateOrderResult & { resume_token?: string },
+  plan: MucPlanRow,
+  ctx: { isMobile: boolean; isWechatBrowser: boolean; forceQRCode: boolean }
+): Promise<void> {
+  const visibleMethod = normalizeVisibleMethod(result.payment_type ?? '') || ''
+  const method = visibleMethod || 'alipay'
+  const stripeMethod = visibleMethod === 'stripe'
+    ? ''
+    : visibleMethod === 'wxpay' ? 'wechat_pay' : 'alipay'
+  const stripeRouteUrl = result.client_secret && visibleMethod !== 'airwallex'
+    ? router.resolve({
+      path: '/payment/stripe',
+      query: {
+        order_id: String(result.order_id),
+        client_secret: result.client_secret,
+        method: stripeMethod || undefined,
+        resume_token: result.resume_token || undefined,
+      },
+    }).href
+    : ''
+  const airwallexRouteUrl = result.client_secret && result.intent_id
+    ? router.resolve({
+      path: '/payment/airwallex',
+      query: {
+        order_id: String(result.order_id),
+        out_trade_no: result.out_trade_no || undefined,
+        resume_token: result.resume_token || undefined,
+      },
+    }).href
+    : ''
+  const decision = decidePaymentLaunch(result, {
+    visibleMethod: method,
+    orderType: 'subscription',
+    isMobile: ctx.isMobile,
+    isWechatBrowser: ctx.isWechatBrowser,
+    forceQRCode: ctx.forceQRCode,
+    mobilePrecreateDeepLink: result.alipay_mobile_precreate_deep_link === true,
+    stripePopupUrl: stripeRouteUrl,
+    stripeRouteUrl,
+    airwallexRouteUrl,
+  })
+
+  const openWindow = (url: string) => {
+    const win = window.open(url, 'paymentPopup', getPaymentPopupFeatures())
+    if (!win || win.closed) {
+      window.location.href = url
+    }
+  }
+  const goToResult = () => router.push({
+    path: '/payment/result',
+    query: { order_id: String(result.order_id) },
+  })
+
+  switch (decision.kind) {
+    case 'wechat_oauth':
+      if (decision.oauth?.authorize_url) {
+        window.location.href = buildWechatOAuthAuthorizeUrl(decision.oauth.authorize_url, {
+          paymentType: method,
+          orderType: 'subscription',
+          planId: plan.id,
+          orderAmount: plan.price,
+        })
+      }
+      return
+    case 'stripe_popup':
+      openWindow(decision.paymentState.payUrl)
+      await goToResult()
+      return
+    case 'stripe_route':
+    case 'airwallex_route':
+      window.location.href = decision.paymentState.payUrl
+      return
+    case 'alipay_deep_link':
+      window.location.href = decision.paymentState.qrCode
+      return
+    case 'redirect_waiting':
+      if (ctx.isMobile) {
+        window.location.href = decision.paymentState.payUrl
+        return
+      }
+      openWindow(decision.paymentState.payUrl)
+      await goToResult()
+      return
+    case 'qr_waiting':
+      await router.push({
+        path: '/payment/qrcode',
+        query: {
+          order_id: String(result.order_id),
+          qr: decision.paymentState.qrCode,
+          payment_type: decision.paymentState.paymentType,
+        },
+      })
+      return
+    default:
+      // 微信 JSAPI 恢复链仅存在于 /purchase 的回调恢复路径；此处兜底跳结果页轮询。
+      await goToResult()
+  }
+}
+
+// ── 升级（服务端报价）──
+async function openUpgradeModal(plan: MucPlanRow) {
+  modalPlan.value = plan
+  quote.value = null
+  quoteError.value = ''
+  selectedMethod.value = methodOptions.value.find((m) => m.available)?.type ?? ''
+  upgradeModalOpen.value = true
+  await fetchQuote()
+}
+
+async function fetchQuote() {
+  const sub = primarySub.value
+  const plan = modalPlan.value
+  if (!sub || !plan) return
+  quoteLoading.value = true
+  quoteError.value = ''
+  try {
+    quote.value = await previewUpgrade(sub.id, plan.id)
+  } catch (err) {
+    quote.value = null
+    quoteError.value = extractErrorMessage(err, t('pricing.upgradeModal.quoteError'))
+  } finally {
+    quoteLoading.value = false
+  }
+}
+
+async function onConfirmUpgrade(paymentType: string) {
+  const sub = primarySub.value
+  const plan = modalPlan.value
+  if (!sub || !plan || !paymentType) return
+  creatingOrder.value = true
+  try {
+    const order = await createUpgrade(
+      sub.id,
+      plan.id,
+      paymentType,
+      cryptoRandomKey()
+    )
+    closeUpgradeModal()
+    dispatchOrder(order)
+  } catch (err) {
+    const reason = extractErrorReason(err)
+    if (reason === 'PLAN_QUOTE_EXPIRED') {
+      appStore.showInfo(t('pricing.errors.quoteExpired'))
+      await fetchQuote()
+    } else {
+      appStore.showError(
+        extractErrorMessage(err, t('pricing.errors.upgradeFailed'))
+      )
+    }
+  } finally {
+    creatingOrder.value = false
+  }
+}
+
+/** 升级下单返回的订单沿用既有支付落地页（QR / 跳转 / 结果轮询）。 */
+function dispatchOrder(order: { order_id: number; qr_code?: string; pay_url?: string; payment_type?: string }) {
+  if (order.qr_code) {
+    void router.push({
+      path: '/payment/qrcode',
+      query: {
+        order_id: String(order.order_id),
+        qr: order.qr_code,
+        payment_type: order.payment_type ?? ''
+      }
+    })
+    return
+  }
+  if (order.pay_url) {
+    window.location.href = order.pay_url
+    return
+  }
+  void router.push({ path: '/payment/result', query: { order_id: String(order.order_id) } })
+}
+
+function closeUpgradeModal() {
+  upgradeModalOpen.value = false
+  modalPlan.value = null
+  quote.value = null
+  quoteError.value = ''
+}
+
+// ── 到期切换（scheduled downgrade）──
+async function onConfirmDowngrade() {
+  const sub = primarySub.value
+  const plan = downgradeTarget.value
+  if (!sub || !plan) return
+  schedulingDowngrade.value = true
+  try {
+    await scheduleDowngrade(sub.id, plan.id, cryptoRandomKey())
+    downgradeTarget.value = null
+    appStore.showSuccess(t('pricing.downgrade.scheduledToast'))
+    // 状态合同为"下次续费套餐"唯一来源：预约后整卡刷新
+    try {
+      account.value = await getAccountStatus()
+    } catch {
+      /* 刷新失败不阻断成功提示 */
+    }
+  } catch (err) {
+    appStore.showError(extractErrorMessage(err, t('pricing.errors.scheduleFailed')))
+  } finally {
+    schedulingDowngrade.value = false
+  }
+}
+
+function onCancelScheduled() {
+  if (!statusPendingChange.value || !primarySub.value) return
+  cancelTarget.value = true
+}
+
+/** [续费 {plan}]：0 ACTIVE 时按默认目标（或用户改选）直接进入购买确认 */
+function onRenewDefault() {
+  if (!nextRenewalPlanRow.value) return
+  openPurchaseModal(nextRenewalPlanRow.value)
+}
+
+/** [选择其他套餐]：滚动到套餐卡区，由用户自选目标 */
+function scrollToPlans() {
+  document
+    .querySelector('[data-testid="pricing-cards"]')
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+async function onConfirmCancelScheduled() {
+  const sub = primarySub.value
+  if (!sub) return
+  cancellingDowngrade.value = true
+  busyKey.value = 'cancel-scheduled'
+  try {
+    await cancelScheduledDowngrade(sub.id)
+    cancelTarget.value = false
+    // 状态条 pending 区来自 /subscriptions/status 合同，取消后需同步刷新
+    try {
+      account.value = await getAccountStatus()
+    } catch {
+      /* 状态刷新失败不阻断取消成功提示 */
+    }
+    appStore.showSuccess(t('pricing.downgrade.cancelledToast'))
+  } catch (err) {
+    appStore.showError(extractErrorMessage(err, t('pricing.errors.cancelFailed')))
+  } finally {
+    cancellingDowngrade.value = false
+    busyKey.value = ''
+  }
+}
+
+// ── 工具 ──
+function cryptoRandomKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `pricing-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function extractErrorReason(err: unknown): string {
+  if (err && typeof err === 'object' && 'reason' in err) {
+    return String((err as { reason?: unknown }).reason ?? '')
+  }
+  return ''
+}
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = String((err as { message?: unknown }).message ?? '').trim()
+    if (message && message !== 'Unknown error') return message
+  }
+  return fallback
+}
+
+function formatDate(iso: string): string {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  } catch {
+    return iso
+  }
+}
+
+function statusLabel(status: UsageStatus): string {
+  return t(`pricing.usageStatus.${status}`)
+}
+
+/** 业务状态色与品牌红分层：exhausted 才用高饱和警示红（--muc-danger）。 */
+function statusChipClass(status: UsageStatus): string {
+  switch (status) {
+    case 'exhausted':
+      return 'muc-chip--exhausted'
+    case 'near_limit':
+      return 'muc-chip--near-limit'
+    case 'high':
+      return 'muc-chip--high'
+    case 'unmetered':
+      return 'muc-chip--unmetered'
+    default:
+      return 'muc-chip--normal'
+  }
+}
+
+function statusBarClass(status: UsageStatus): string {
+  switch (status) {
+    case 'exhausted':
+      return 'muc-bar--exhausted'
+    case 'near_limit':
+      return 'muc-bar--near-limit'
+    case 'high':
+      return 'muc-bar--high'
+    case 'unmetered':
+      return 'muc-bar--unmetered'
+    default:
+      return 'muc-bar--normal'
+  }
+}
+</script>
+
+<style scoped>
+/* token 定义见 components/pricing/muc-tokens.css（.muc-scope）——Teleport 浮层同样挂该 class */
+.muc-pricing {
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100vh - 96px);
+  border-radius: 24px;
+  background: var(--muc-bg-primary);
+  color: var(--muc-text-primary);
+}
+
+.muc-pricing__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: clamp(32px, 6vh, 72px) clamp(18px, 4vw, 40px) 40px;
+}
+
+/* ── 水印 ── */
+.muc-pricing__watermark {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: clamp(4px, 2vh, 28px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  user-select: none;
+}
+
+.muc-pricing__watermark-caption {
+  font-size: clamp(11px, 1.2vw, 14px);
+  font-weight: 600;
+  letter-spacing: 0.55em;
+  text-indent: 0.55em;
+  color: rgba(255, 226, 228, 0.55);
+}
+
+.muc-pricing__watermark-word {
+  font-size: clamp(88px, 15vw, 250px);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  background: var(--muc-watermark-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0.42;
+}
+
+/* 窄屏收窄水印，避免字母在视口两侧被裁切 */
+@media (max-width: 640px) {
+  .muc-pricing__watermark-word {
+    font-size: clamp(40px, 18.5vw, 88px);
+  }
+}
+
+.muc-pricing__header {
+  position: relative;
+  margin-top: clamp(64px, 14vh, 150px);
+  text-align: center;
+}
+
+.muc-pricing__title {
+  font-size: clamp(26px, 3.4vw, 38px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.muc-pricing__subtitle {
+  margin-top: 10px;
+  font-size: clamp(13px, 1.4vw, 15px);
+  color: var(--muc-text-secondary);
+}
+
+/* ── 账户状态条 ── */
+.muc-status {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--muc-glass-border);
+  background: var(--muc-glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.muc-status__wallet {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 128px;
+}
+
+.muc-status__label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muc-text-muted);
+}
+
+.muc-status__wallet-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.muc-status__divider {
+  width: 1px;
+  background: var(--muc-glass-border);
+}
+
+.muc-status__muted {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muc-text-muted);
+}
+
+.muc-status__subs {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.muc-status__sub {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.muc-status__sub-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.muc-status__sub-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.muc-status__chip {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid transparent;
+}
+
+.muc-chip--normal {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.muc-chip--high {
+  color: #ecc94b;
+  border-color: rgba(236, 201, 75, 0.4);
+  background: rgba(236, 201, 75, 0.1);
+}
+
+.muc-chip--near-limit {
+  color: #f08c3a;
+  border-color: rgba(240, 140, 58, 0.45);
+  background: rgba(240, 140, 58, 0.1);
+}
+
+.muc-chip--exhausted {
+  color: var(--muc-danger);
+  border-color: rgba(255, 69, 80, 0.55);
+  background: rgba(255, 69, 80, 0.12);
+}
+
+.muc-chip--unmetered {
+  color: var(--muc-gold);
+  border-color: rgba(214, 180, 106, 0.4);
+  background: rgba(214, 180, 106, 0.08);
+}
+
+.muc-status__sub-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.muc-status__sub-bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.muc-status__sub-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* normal=柔和浅色（不用品牌红表达进度） */
+.muc-bar--normal {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.muc-bar--high {
+  background: #ecc94b;
+}
+
+.muc-bar--near-limit {
+  background: #f08c3a;
+}
+
+.muc-bar--exhausted {
+  background: var(--muc-danger);
+}
+
+.muc-bar--unmetered {
+  background: linear-gradient(to right, var(--muc-gold), rgba(214, 180, 106, 0.35));
+}
+
+.muc-status__sub-percent {
+  flex-shrink: 0;
+  min-width: 40px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muc-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.muc-status__sub-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--muc-text-muted);
+}
+
+.muc-status__pending {
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 5px 8px;
+  border: 1px dashed color-mix(in srgb, var(--muc-primary, #b91c1c) 40%, transparent);
+  border-radius: 8px;
+  color: var(--muc-text-secondary);
+}
+
+.muc-status__pending-cancel {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 11.5px;
+  color: var(--muc-primary, #b91c1c);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.muc-status__pending-cancel:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* ── 套餐卡区：移动端 snap 横滑 ── */
+.muc-pricing__cards {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 2px 12px;
+  scrollbar-width: none;
+}
+
+.muc-pricing__cards::-webkit-scrollbar {
+  display: none;
+}
+
+.muc-pricing__card {
+  flex: 0 0 min(84%, 340px);
+  scroll-snap-align: center;
+}
+
+@media (min-width: 900px) {
+  .muc-pricing__cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 22px;
+    overflow: visible;
+    align-items: stretch;
+  }
+
+  .muc-pricing__card {
+    flex: initial;
+  }
+}
+
+.muc-pricing__state {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+  color: var(--muc-text-muted);
+}
+
+.muc-pricing__state--text {
+  font-size: 14px;
+}
+
+.muc-pricing__footer-note {
+  text-align: center;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--muc-text-muted);
+}
+
+/* ── 小确认弹窗（到期切换 / 取消预约）── */
+.muc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(4, 4, 5, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.muc-dialog {
+  width: min(420px, 100%);
+  border-radius: 18px;
+  border: 1px solid var(--muc-glass-border-strong);
+  background: linear-gradient(175deg, rgba(24, 24, 27, 0.94), rgba(12, 12, 14, 0.97));
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), 0 0 40px rgba(238, 56, 72, 0.1);
+  padding: 22px;
+  color: var(--muc-text-primary);
+}
+
+.muc-dialog__title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.muc-dialog__body {
+  margin-top: 10px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--muc-text-secondary);
+}
+
+.muc-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.muc-dialog__dismiss {
+  border: none;
+  background: none;
+  padding: 9px 14px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  color: var(--muc-text-muted);
+  cursor: pointer;
+}
+
+.muc-dialog__dismiss:hover {
+  color: var(--muc-text-primary);
+}
+
+.muc-dialog__confirm {
+  padding: 9px 16px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  background: #fff;
+  color: #0a0a0b;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.muc-dialog__confirm:hover:not(:disabled) {
+  box-shadow: 0 6px 26px rgba(238, 56, 72, 0.3);
+}
+
+.muc-dialog__confirm:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.muc-modal-enter-active,
+.muc-modal-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.muc-modal-enter-active .muc-dialog,
+.muc-modal-leave-active .muc-dialog {
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
+
+.muc-modal-enter-from,
+.muc-modal-leave-to {
+  opacity: 0;
+}
+
+.muc-modal-enter-from .muc-dialog,
+.muc-modal-leave-to .muc-dialog {
+  transform: translateY(10px) scale(0.98);
+  opacity: 0;
+}
+</style>

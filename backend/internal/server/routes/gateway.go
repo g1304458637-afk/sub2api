@@ -230,6 +230,11 @@ func RegisterGatewayRoutes(
 		// Single-model discovery never selects the Codex client_version manifest.
 		gateway.GET("/models/:model", h.Gateway.Models)
 		gateway.GET("/usage", h.Gateway.Usage)
+		// MUC Harness 桌面端重置卡通道：与 Website POST /subscriptions/:id/reset-with-card
+		// 复用同一 handler/service（幂等/限张/重置语义完全一致），仅传输层换为 API Key 认证
+		//（MUCODE 只持有 per-device API Key，无网站 JWT）。订阅 ID 来自 /v1/usage 的
+		// subscription_status 合同，服务端仍校验 Key 归属用户的订阅，不可跨用户消费。
+		gateway.POST("/muc/reset-with-card/:id", h.Subscription.ResetWithCard)
 		gateway.POST("/live", h.OpenAIGateway.Live)
 		gateway.GET("/live/:call_id", h.OpenAIGateway.LiveSideband)
 		// OpenAI Responses API: auto-route based on group platform

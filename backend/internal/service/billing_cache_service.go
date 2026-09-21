@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -732,48 +733,65 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID int64, plat
 // 余额模式：检查缓存余额 > 0
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 // platform 为请求的目标平台（如 "anthropic"），传空串 "" 时跳过 user × platform quota 检查。
-func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
+// 返回值 fallback=true 表示本次请求已按 PAYG fallback 准入（钱包计费）：
+// 调用方必须把 subscription 置空传播到结算层（UsageBilling → BalanceCost）。
+func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) (bool, error) {
+	fallbackAdmitted := false
 	// 简易模式：跳过所有计费检查
 	if s.cfg.RunMode == config.RunModeSimple {
-		return nil
+		return false, nil
 	}
 	if s.circuitBreaker != nil && !s.circuitBreaker.Allow() {
-		return ErrBillingServiceUnavailable
+		return false, ErrBillingServiceUnavailable
 	}
 
 	// 判断计费模式
 	isSubscriptionMode := group != nil && group.IsSubscriptionType() && subscription != nil
 
 	if isSubscriptionMode {
-		if err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription); err != nil {
-			return err
+		err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription)
+		if err != nil {
+			// Phase 8 PAYG fallback：仅当限额超限（非失效/过期）且用户显式开启时，
+			// 降级为钱包计费准入。模型权限/Key 限窗/RPM/并发等其余闸门不受影响。
+			gateExceeded := errors.Is(err, ErrDailyLimitExceeded) ||
+				errors.Is(err, ErrWeeklyLimitExceeded) ||
+				errors.Is(err, ErrMonthlyLimitExceeded)
+			if gateExceeded && subscription.AutoPaygFallback {
+				if berr := s.checkBalanceEligibility(ctx, user.ID); berr != nil {
+					return false, berr
+				}
+				fallbackAdmitted = true
+			} else {
+				return false, err
+			}
 		}
 	} else {
 		if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	// user × platform quota 仅在 standard（余额）模式生效；订阅模式豁免
-	if !isSubscriptionMode {
+	// user × platform quota 仅在 standard（余额）模式生效；订阅模式豁免。
+	// fallback 准入视同 standard：platform quota 必须继续生效。
+	if !isSubscriptionMode || fallbackAdmitted {
 		if err := s.checkUserPlatformQuotaEligibility(ctx, user.ID, platform); err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	// Check API Key rate limits (applies to both billing modes)
 	if apiKey != nil && apiKey.HasRateLimits() {
 		if err := s.checkAPIKeyRateLimits(ctx, apiKey); err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	// RPM 限流：级联回落（Override → Group → User），放在最后以避免为注定失败的请求增加计数。
 	if err := s.checkRPM(ctx, user, group); err != nil {
-		return err
+		return false, err
 	}
 
-	return nil
+	return false, nil
 }
 
 // checkRPM 执行并行 RPM 限流，所有适用的限制同时生效，任一超限即拒绝：

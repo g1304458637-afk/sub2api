@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionterm"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -320,6 +321,60 @@ func (_u *UserSubscriptionUpdate) SetNillableAutoPaygFallback(v *bool) *UserSubs
 	return _u
 }
 
+// SetPlanID sets the "plan_id" field.
+func (_u *UserSubscriptionUpdate) SetPlanID(v int64) *UserSubscriptionUpdate {
+	_u.mutation.ResetPlanID()
+	_u.mutation.SetPlanID(v)
+	return _u
+}
+
+// SetNillablePlanID sets the "plan_id" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillablePlanID(v *int64) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetPlanID(*v)
+	}
+	return _u
+}
+
+// AddPlanID adds value to the "plan_id" field.
+func (_u *UserSubscriptionUpdate) AddPlanID(v int64) *UserSubscriptionUpdate {
+	_u.mutation.AddPlanID(v)
+	return _u
+}
+
+// ClearPlanID clears the value of the "plan_id" field.
+func (_u *UserSubscriptionUpdate) ClearPlanID() *UserSubscriptionUpdate {
+	_u.mutation.ClearPlanID()
+	return _u
+}
+
+// SetNextPlanID sets the "next_plan_id" field.
+func (_u *UserSubscriptionUpdate) SetNextPlanID(v int64) *UserSubscriptionUpdate {
+	_u.mutation.ResetNextPlanID()
+	_u.mutation.SetNextPlanID(v)
+	return _u
+}
+
+// SetNillableNextPlanID sets the "next_plan_id" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableNextPlanID(v *int64) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetNextPlanID(*v)
+	}
+	return _u
+}
+
+// AddNextPlanID adds value to the "next_plan_id" field.
+func (_u *UserSubscriptionUpdate) AddNextPlanID(v int64) *UserSubscriptionUpdate {
+	_u.mutation.AddNextPlanID(v)
+	return _u
+}
+
+// ClearNextPlanID clears the value of the "next_plan_id" field.
+func (_u *UserSubscriptionUpdate) ClearNextPlanID() *UserSubscriptionUpdate {
+	_u.mutation.ClearNextPlanID()
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *UserSubscriptionUpdate) SetUser(v *User) *UserSubscriptionUpdate {
 	return _u.SetUserID(v.ID)
@@ -362,6 +417,21 @@ func (_u *UserSubscriptionUpdate) AddUsageLogs(v ...*UsageLog) *UserSubscription
 		ids[i] = v[i].ID
 	}
 	return _u.AddUsageLogIDs(ids...)
+}
+
+// AddTermIDs adds the "terms" edge to the SubscriptionTerm entity by IDs.
+func (_u *UserSubscriptionUpdate) AddTermIDs(ids ...int64) *UserSubscriptionUpdate {
+	_u.mutation.AddTermIDs(ids...)
+	return _u
+}
+
+// AddTerms adds the "terms" edges to the SubscriptionTerm entity.
+func (_u *UserSubscriptionUpdate) AddTerms(v ...*SubscriptionTerm) *UserSubscriptionUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTermIDs(ids...)
 }
 
 // AddResetApplicationIDs adds the "reset_applications" edge to the SubscriptionResetApplication entity by IDs.
@@ -436,6 +506,27 @@ func (_u *UserSubscriptionUpdate) RemoveUsageLogs(v ...*UsageLog) *UserSubscript
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearTerms clears all "terms" edges to the SubscriptionTerm entity.
+func (_u *UserSubscriptionUpdate) ClearTerms() *UserSubscriptionUpdate {
+	_u.mutation.ClearTerms()
+	return _u
+}
+
+// RemoveTermIDs removes the "terms" edge to SubscriptionTerm entities by IDs.
+func (_u *UserSubscriptionUpdate) RemoveTermIDs(ids ...int64) *UserSubscriptionUpdate {
+	_u.mutation.RemoveTermIDs(ids...)
+	return _u
+}
+
+// RemoveTerms removes "terms" edges to SubscriptionTerm entities.
+func (_u *UserSubscriptionUpdate) RemoveTerms(v ...*SubscriptionTerm) *UserSubscriptionUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTermIDs(ids...)
 }
 
 // ClearResetApplications clears all "reset_applications" edges to the SubscriptionResetApplication entity.
@@ -616,6 +707,24 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.AutoPaygFallback(); ok {
 		_spec.SetField(usersubscription.FieldAutoPaygFallback, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.PlanID(); ok {
+		_spec.SetField(usersubscription.FieldPlanID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPlanID(); ok {
+		_spec.AddField(usersubscription.FieldPlanID, field.TypeInt64, value)
+	}
+	if _u.mutation.PlanIDCleared() {
+		_spec.ClearField(usersubscription.FieldPlanID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.NextPlanID(); ok {
+		_spec.SetField(usersubscription.FieldNextPlanID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedNextPlanID(); ok {
+		_spec.AddField(usersubscription.FieldNextPlanID, field.TypeInt64, value)
+	}
+	if _u.mutation.NextPlanIDCleared() {
+		_spec.ClearField(usersubscription.FieldNextPlanID, field.TypeInt64)
+	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -741,6 +850,51 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TermsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.TermsTable,
+			Columns: []string{usersubscription.TermsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionterm.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTermsIDs(); len(nodes) > 0 && !_u.mutation.TermsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.TermsTable,
+			Columns: []string{usersubscription.TermsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionterm.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TermsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.TermsTable,
+			Columns: []string{usersubscription.TermsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionterm.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -1145,6 +1299,60 @@ func (_u *UserSubscriptionUpdateOne) SetNillableAutoPaygFallback(v *bool) *UserS
 	return _u
 }
 
+// SetPlanID sets the "plan_id" field.
+func (_u *UserSubscriptionUpdateOne) SetPlanID(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.ResetPlanID()
+	_u.mutation.SetPlanID(v)
+	return _u
+}
+
+// SetNillablePlanID sets the "plan_id" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillablePlanID(v *int64) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetPlanID(*v)
+	}
+	return _u
+}
+
+// AddPlanID adds value to the "plan_id" field.
+func (_u *UserSubscriptionUpdateOne) AddPlanID(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddPlanID(v)
+	return _u
+}
+
+// ClearPlanID clears the value of the "plan_id" field.
+func (_u *UserSubscriptionUpdateOne) ClearPlanID() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearPlanID()
+	return _u
+}
+
+// SetNextPlanID sets the "next_plan_id" field.
+func (_u *UserSubscriptionUpdateOne) SetNextPlanID(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.ResetNextPlanID()
+	_u.mutation.SetNextPlanID(v)
+	return _u
+}
+
+// SetNillableNextPlanID sets the "next_plan_id" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableNextPlanID(v *int64) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetNextPlanID(*v)
+	}
+	return _u
+}
+
+// AddNextPlanID adds value to the "next_plan_id" field.
+func (_u *UserSubscriptionUpdateOne) AddNextPlanID(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddNextPlanID(v)
+	return _u
+}
+
+// ClearNextPlanID clears the value of the "next_plan_id" field.
+func (_u *UserSubscriptionUpdateOne) ClearNextPlanID() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearNextPlanID()
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *UserSubscriptionUpdateOne) SetUser(v *User) *UserSubscriptionUpdateOne {
 	return _u.SetUserID(v.ID)
@@ -1187,6 +1395,21 @@ func (_u *UserSubscriptionUpdateOne) AddUsageLogs(v ...*UsageLog) *UserSubscript
 		ids[i] = v[i].ID
 	}
 	return _u.AddUsageLogIDs(ids...)
+}
+
+// AddTermIDs adds the "terms" edge to the SubscriptionTerm entity by IDs.
+func (_u *UserSubscriptionUpdateOne) AddTermIDs(ids ...int64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddTermIDs(ids...)
+	return _u
+}
+
+// AddTerms adds the "terms" edges to the SubscriptionTerm entity.
+func (_u *UserSubscriptionUpdateOne) AddTerms(v ...*SubscriptionTerm) *UserSubscriptionUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTermIDs(ids...)
 }
 
 // AddResetApplicationIDs adds the "reset_applications" edge to the SubscriptionResetApplication entity by IDs.
@@ -1261,6 +1484,27 @@ func (_u *UserSubscriptionUpdateOne) RemoveUsageLogs(v ...*UsageLog) *UserSubscr
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearTerms clears all "terms" edges to the SubscriptionTerm entity.
+func (_u *UserSubscriptionUpdateOne) ClearTerms() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearTerms()
+	return _u
+}
+
+// RemoveTermIDs removes the "terms" edge to SubscriptionTerm entities by IDs.
+func (_u *UserSubscriptionUpdateOne) RemoveTermIDs(ids ...int64) *UserSubscriptionUpdateOne {
+	_u.mutation.RemoveTermIDs(ids...)
+	return _u
+}
+
+// RemoveTerms removes "terms" edges to SubscriptionTerm entities.
+func (_u *UserSubscriptionUpdateOne) RemoveTerms(v ...*SubscriptionTerm) *UserSubscriptionUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTermIDs(ids...)
 }
 
 // ClearResetApplications clears all "reset_applications" edges to the SubscriptionResetApplication entity.
@@ -1471,6 +1715,24 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 	if value, ok := _u.mutation.AutoPaygFallback(); ok {
 		_spec.SetField(usersubscription.FieldAutoPaygFallback, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.PlanID(); ok {
+		_spec.SetField(usersubscription.FieldPlanID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPlanID(); ok {
+		_spec.AddField(usersubscription.FieldPlanID, field.TypeInt64, value)
+	}
+	if _u.mutation.PlanIDCleared() {
+		_spec.ClearField(usersubscription.FieldPlanID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.NextPlanID(); ok {
+		_spec.SetField(usersubscription.FieldNextPlanID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedNextPlanID(); ok {
+		_spec.AddField(usersubscription.FieldNextPlanID, field.TypeInt64, value)
+	}
+	if _u.mutation.NextPlanIDCleared() {
+		_spec.ClearField(usersubscription.FieldNextPlanID, field.TypeInt64)
+	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -1596,6 +1858,51 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TermsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.TermsTable,
+			Columns: []string{usersubscription.TermsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionterm.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTermsIDs(); len(nodes) > 0 && !_u.mutation.TermsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.TermsTable,
+			Columns: []string{usersubscription.TermsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionterm.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TermsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.TermsTable,
+			Columns: []string{usersubscription.TermsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionterm.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

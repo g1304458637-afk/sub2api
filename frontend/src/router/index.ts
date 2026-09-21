@@ -374,15 +374,39 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/pricing',
+    name: 'Pricing',
+    component: () => import('@/views/user/PricingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Pricing',
+      titleKey: 'nav.pricing',
+      requiresPayment: true
+    }
+  },
+  {
     path: '/purchase',
     name: 'PurchaseSubscription',
     component: () => import('@/views/user/PaymentView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Purchase Subscription',
-      titleKey: 'nav.buySubscription',
-      descriptionKey: 'purchase.description',
+      title: 'Recharge',
+      titleKey: 'nav.recharge',
+      descriptionKey: 'purchase.rechargeDescription',
+      requiresPayment: true
+    }
+  },
+  {
+    path: '/wallet',
+    name: 'Wallet',
+    component: () => import('@/views/user/WalletView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Wallet',
+      titleKey: 'nav.wallet',
       requiresPayment: true
     }
   },
@@ -583,6 +607,28 @@ const routes: RouteRecordRaw[] = [
       title: 'Subscription Management',
       titleKey: 'admin.subscriptions.title',
       descriptionKey: 'admin.subscriptions.description'
+    }
+  },
+  {
+    path: '/admin/reset-center',
+    name: 'AdminResetCenter',
+    component: () => import('@/views/admin/ResetCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Reset Center',
+      titleKey: 'admin.resetCenter.title'
+    }
+  },
+  {
+    path: '/admin/reward-center',
+    name: 'AdminRewardCenter',
+    component: () => import('@/views/admin/RewardCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Reward Center',
+      titleKey: 'admin.rewardCenter.title'
     }
   },
   {

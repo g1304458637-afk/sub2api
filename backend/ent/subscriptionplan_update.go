@@ -237,6 +237,27 @@ func (_u *SubscriptionPlanUpdate) AddSortOrder(v int) *SubscriptionPlanUpdate {
 	return _u
 }
 
+// SetTierRank sets the "tier_rank" field.
+func (_u *SubscriptionPlanUpdate) SetTierRank(v int) *SubscriptionPlanUpdate {
+	_u.mutation.ResetTierRank()
+	_u.mutation.SetTierRank(v)
+	return _u
+}
+
+// SetNillableTierRank sets the "tier_rank" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableTierRank(v *int) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetTierRank(*v)
+	}
+	return _u
+}
+
+// AddTierRank adds value to the "tier_rank" field.
+func (_u *SubscriptionPlanUpdate) AddTierRank(v int) *SubscriptionPlanUpdate {
+	_u.mutation.AddTierRank(v)
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *SubscriptionPlanUpdate) SetUpdatedAt(v time.Time) *SubscriptionPlanUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -374,6 +395,12 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedSortOrder(); ok {
 		_spec.AddField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.TierRank(); ok {
+		_spec.SetField(subscriptionplan.FieldTierRank, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTierRank(); ok {
+		_spec.AddField(subscriptionplan.FieldTierRank, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(subscriptionplan.FieldUpdatedAt, field.TypeTime, value)
@@ -607,6 +634,27 @@ func (_u *SubscriptionPlanUpdateOne) AddSortOrder(v int) *SubscriptionPlanUpdate
 	return _u
 }
 
+// SetTierRank sets the "tier_rank" field.
+func (_u *SubscriptionPlanUpdateOne) SetTierRank(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetTierRank()
+	_u.mutation.SetTierRank(v)
+	return _u
+}
+
+// SetNillableTierRank sets the "tier_rank" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableTierRank(v *int) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetTierRank(*v)
+	}
+	return _u
+}
+
+// AddTierRank adds value to the "tier_rank" field.
+func (_u *SubscriptionPlanUpdateOne) AddTierRank(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddTierRank(v)
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *SubscriptionPlanUpdateOne) SetUpdatedAt(v time.Time) *SubscriptionPlanUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -774,6 +822,12 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.AddedSortOrder(); ok {
 		_spec.AddField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.TierRank(); ok {
+		_spec.SetField(subscriptionplan.FieldTierRank, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTierRank(); ok {
+		_spec.AddField(subscriptionplan.FieldTierRank, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(subscriptionplan.FieldUpdatedAt, field.TypeTime, value)

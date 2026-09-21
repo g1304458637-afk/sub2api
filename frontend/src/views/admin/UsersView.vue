@@ -683,6 +683,15 @@
         <div class="py-1">
           <template v-for="user in users" :key="user.id">
             <template v-if="user.id === activeMenuId">
+              <!-- Customer 360 详情（Final Frontend） -->
+              <button
+                @click="openUser360(user); closeActionMenu()"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+              >
+                <Icon name="userCircle" size="sm" class="text-[#c82433]" :stroke-width="2" />
+                {{ t('admin.users.u360') }}
+              </button>
+
               <!-- View API Keys -->
               <button
                 @click="handleViewApiKeys(user); closeActionMenu()"
@@ -797,6 +806,7 @@
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
+    <User360Drawer :user="u360User" @close="u360User = null" />
   </AppLayout>
 </template>
 
@@ -833,6 +843,7 @@ import UserPlatformQuotaCell from '@/components/user/UserPlatformQuotaCell.vue'
 import UserCreateModal from '@/components/admin/user/UserCreateModal.vue'
 import UserEditModal from '@/components/admin/user/UserEditModal.vue'
 import BulkEditUserModal from '@/components/admin/user/BulkEditUserModal.vue'
+import User360Drawer, { type User360Target } from '@/components/admin/User360Drawer.vue'
 import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaModal.vue'
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserEducationEmailModal from '@/components/admin/user/UserEducationEmailModal.vue'
@@ -1356,6 +1367,10 @@ const showDeleteDialog = ref(false)
 const bulkDeleteIds = ref<number[]>([])
 const bulkDeleting = ref(false)
 const showApiKeysModal = ref(false)
+const u360User = ref<User360Target | null>(null)
+function openUser360(user: { id: number; email: string; status?: string; balance?: number; created_at?: string }) {
+  u360User.value = { ...user }
+}
 const showEducationEmailModal = ref(false)
 const showAttributesModal = ref(false)
 const showPlatformQuotaModal = ref(false)
