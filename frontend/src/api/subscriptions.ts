@@ -241,6 +241,31 @@ export async function getSubscriptionChanges(subscriptionId: number): Promise<Pl
   return response.data
 }
 
+/** 使用重置卡（幂等：Idempotency-Key 必带；重放只消费一张卡）。 */
+export async function resetWithCard(
+  subscriptionId: number,
+  idempotencyKey: string
+): Promise<{ subscription_id: number; weekly_period_ends_at: string }> {
+  const response = await apiClient.post<{ subscription_id: number; weekly_period_ends_at: string }>(
+    `/subscriptions/${subscriptionId}/reset-with-card`,
+    {},
+    { headers: { 'Idempotency-Key': idempotencyKey } }
+  )
+  return response.data
+}
+
+/** 开关「额度用完后继续使用」（后端语义：PAYG fallback）。 */
+export async function updatePaygFallback(
+  subscriptionId: number,
+  enabled: boolean
+): Promise<{ subscription_id: number; payg_fallback: boolean }> {
+  const response = await apiClient.patch<{ subscription_id: number; payg_fallback: boolean }>(
+    `/subscriptions/${subscriptionId}/payg-fallback`,
+    { enabled }
+  )
+  return response.data
+}
+
 export default {
   getMySubscriptions,
   getActiveSubscriptions,
@@ -252,5 +277,7 @@ export default {
   createUpgrade,
   scheduleDowngrade,
   cancelScheduledDowngrade,
-  getSubscriptionChanges
+  getSubscriptionChanges,
+  resetWithCard,
+  updatePaygFallback
 }
