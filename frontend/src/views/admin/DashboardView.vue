@@ -7,6 +7,8 @@
       </div>
 
       <template v-else-if="stats">
+        <!-- Final Frontend: 订阅运营面板（核心数字/需要处理/订阅健康/Reset 操作） -->
+        <SubscriptionOpsPanel />
         <!-- Row 1: Core Stats -->
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <!-- Total API Keys -->
@@ -362,6 +364,7 @@ import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
+import SubscriptionOpsPanel from '@/components/admin/SubscriptionOpsPanel.vue'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 
 import {
