@@ -33,6 +33,8 @@ export interface BrandConfig {
   /** 登录页标语（AuthLayout） */
   authTagline: string
   authTaglineColor: string
+  /** 聊天页欢迎语整行（可选；缺省回退 i18n chat.welcome.motto，MUC 保持历史文案） */
+  chatMottoLine?: string
   /** 登录页背景图 */
   authBg: string
   /** 品牌页 hero 图 */
@@ -128,6 +130,7 @@ const hubu: BrandConfig = {
   downloadLabel: '下载 HUBU',
   authTagline: '湖北大学 · 日思日睿 笃志笃行',
   authTaglineColor: '#8a6d2f',
+  chatMottoLine: '湖北大学 · 日思日睿 笃志笃行',
   authBg: hubuHeroImg,
   heroImg: hubuHeroImg,
   heroAlt: '湖北大学',
