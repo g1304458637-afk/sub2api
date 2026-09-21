@@ -12,6 +12,7 @@
       <router-link
         :to="homePath"
         class="sidebar-logo flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl shadow-glow transition-opacity hover:opacity-80"
+        :class="{ 'sidebar-logo-glow': true }"
         @click="handleMenuItemClick(homePath)"
       >
         <img v-if="settingsLoaded" :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
@@ -192,7 +193,7 @@
     </nav>
 
     <!-- Bottom Section -->
-    <div class="mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
+    <div class="sidebar-bottom mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
       <!-- Theme Toggle -->
       <button
         @click="toggleTheme"
@@ -1192,12 +1193,9 @@ function handleGroupClick(item: NavItem) {
   groupExpandOverrides.value.set(item.path, true)
 }
 
-// Initialize theme
+// Initialize theme（与 main.ts 同规则：默认 dark，显式 light 才回浅色）
 const savedTheme = localStorage.getItem('theme')
-if (
-  savedTheme === 'dark' ||
-  (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-) {
+if (savedTheme !== 'light') {
   isDark.value = true
   document.documentElement.classList.add('dark')
 }
@@ -1241,6 +1239,22 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* 品牌区：logo 轻民大红 glow（dark Shell 下） */
+.sidebar-logo-glow {
+  position: relative;
+}
+
+:global(.dark) .sidebar-logo-glow {
+  box-shadow:
+    0 0 18px rgba(200, 36, 51, 0.28),
+    inset 0 0 0 1px rgba(238, 56, 72, 0.25);
+}
+
+/* 底部操作区发丝分隔线（dark Shell） */
+:global(.dark) .sidebar-bottom {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
 .sidebar-logo {
   flex: 0 0 2.25rem;
   min-width: 2.25rem;
@@ -1317,7 +1331,7 @@ onBeforeUnmount(() => {
 }
 
 .dark .sidebar-section-title::after {
-  background: rgb(55 65 81);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-section-title-text-collapsed {

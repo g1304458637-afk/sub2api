@@ -11,7 +11,7 @@
             :aria-selected="activeTab === tab"
             class="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
             :class="activeTab === tab
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+              ? 'bg-gray-900 text-white dark:bg-white/10 dark:text-white'
               : 'text-gray-600 hover:bg-gray-100 dark:text-dark-300 dark:hover:bg-dark-700'"
             @click="activeTab = tab"
           >
@@ -80,7 +80,7 @@
             </div>
             <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
               <div
-                class="h-2 rounded-full bg-gray-900 transition-all dark:bg-white"
+                class="h-2 rounded-full bg-gray-900 transition-all dark:bg-white/80"
                 :style="{ width: `${progressPct}%` }"
               ></div>
             </div>

@@ -7,6 +7,8 @@ import { useAppStore } from '@/stores/app'
 import { updateFavicon } from '@/utils/branding'
 import { isIOSDevice } from '@/utils/device'
 import './style.css'
+// MUCODE 全站设计 tokens（--muc-*）随主样式一并加载，Shell 与功能页共用
+import './components/pricing/muc-tokens.css'
 
 function initIOSViewportZoomFix() {
   // iOS Safari 在输入框字号小于 16px 时聚焦会自动放大页面，且失焦后不会恢复。
@@ -23,10 +25,10 @@ function initIOSViewportZoomFix() {
 }
 
 function initThemeClass() {
+  // MUCODE 民大版默认 Dark Brand Theme：未做过明暗选择的用户直接进入深色；
+  // 显式保存过 light 的用户保持 light（旧开关保留，功能不破坏）。
   const savedTheme = localStorage.getItem('theme')
-  const shouldUseDark =
-    savedTheme === 'dark' ||
-    (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const shouldUseDark = savedTheme !== 'light'
   document.documentElement.classList.toggle('dark', shouldUseDark)
 }
 

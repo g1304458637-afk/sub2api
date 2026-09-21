@@ -1,9 +1,11 @@
 /*
- * MUCODE 民大版 Design Tokens（Pricing 页体系，后续 我的订阅/Wallet/MUCODE Status/Admin 复用）。
- * 用法：把 `muc-scope` class 加在「深色舞台根节点或任意 Teleport 出 body 的浮层根节点」上，
- * 其子树内的 var(--muc-*) 即可用。集中声明一次，拿到学校官方 VI 色值后此处一键替换。
+ * MUCODE 民大版 Design Tokens（全站 Dark Brand Theme 单一来源）。
+ * :root 声明让任意组件（含全局 Shell/功能页）直接使用 var(--muc-*)；
+ * `.muc-scope` 兼容保留（Pricing/Teleport 浮层已挂该 class）。
+ * 集中声明一次，拿到学校官方 VI 色值后此处一键替换。
  * 注意：这些是设计 token，不声称是学校官方 VI 精确色值。
  */
+:root,
 .muc-scope {
   --muc-red: #c82433;
   --muc-red-bright: #e23848;
@@ -38,4 +40,13 @@
     #c82433 67%,
     #ff5967 100%
   );
+
+  /* 全站容器节奏：用户页统一内容边界；Admin 可用更宽 max */
+  --muc-content-max: 1200px;
+  --muc-content-max-wide: 1400px;
+  --muc-page-padding: 24px;
+  --muc-section-gap: 24px;
+
+  /* 全站统一动效曲线（Pricing Hero 专属时长不在此列） */
+  --muc-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }

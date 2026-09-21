@@ -179,10 +179,10 @@
                 }}</span>
                 <span
                   v-if="keyEntitlement(row.group?.id)"
-                  class="ml-1 inline-flex max-w-[240px] items-center truncate rounded-full border border-[rgba(238,56,72,0.45)] bg-[rgba(200,36,51,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#c82433] dark:bg-[rgba(200,36,51,0.18)] dark:text-[#ff8b96]"
+                  class="ml-1 inline-flex max-w-[140px] min-w-0 items-center rounded-full border border-[rgba(238,56,72,0.45)] bg-[rgba(200,36,51,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#c82433] dark:bg-[rgba(200,36,51,0.18)] dark:text-[#ff8b96] sm:max-w-[240px]"
                   :title="t('keys.entitlementTip')"
                 >
-                  {{ keyEntitlement(row.group?.id) }}
+                  <span class="truncate">{{ keyEntitlement(row.group?.id) }}</span>
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
                 <svg

@@ -716,6 +716,13 @@ function statusBarClass(status: UsageStatus): string {
   opacity: 0.42;
 }
 
+/* 窄屏收窄水印，避免字母在视口两侧被裁切 */
+@media (max-width: 640px) {
+  .muc-pricing__watermark-word {
+    font-size: clamp(40px, 18.5vw, 88px);
+  }
+}
+
 .muc-pricing__header {
   position: relative;
   margin-top: clamp(64px, 14vh, 150px);

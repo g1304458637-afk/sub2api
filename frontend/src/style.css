@@ -546,6 +546,12 @@
     transition-property: width, transform;
   }
 
+  /* MUC Dark Shell：品牌侧栏（规格 rgba(8,8,10,.96) + 右缘发丝线） */
+  .dark .sidebar {
+    background: rgba(8, 8, 10, 0.96);
+    border-right-color: rgba(255, 255, 255, 0.08);
+  }
+
   .sidebar-header {
     @apply h-16 px-6;
     @apply flex items-center gap-3;
@@ -553,6 +559,10 @@
     transition:
       padding 0.2s ease,
       gap 0.2s ease;
+  }
+
+  .dark .sidebar-header {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
   }
 
   .sidebar-nav {
@@ -571,10 +581,26 @@
     padding-right: 0.875rem;
   }
 
+  /* MUC Dark Shell：hover 低对比白、active 民大红低饱和底 + 亮红字 */
+  .dark .sidebar-link {
+    transition: all 0.2s var(--muc-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  }
+
+  .dark .sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+  }
+
   .sidebar-link-active {
     @apply bg-primary-50 dark:bg-primary-900/20;
     @apply text-primary-600 dark:text-primary-400;
     @apply hover:bg-primary-100 dark:hover:bg-primary-900/30;
+  }
+
+  .dark .sidebar-link-active,
+  .dark .sidebar-link-active:hover {
+    background: rgba(200, 36, 51, 0.14);
+    color: var(--muc-red-bright, #e23848);
   }
 
   .sidebar-section {
@@ -744,6 +770,106 @@
   /* 表头固定时添加底部阴影，增强视觉层次 */
   .table-wrapper thead.sticky {
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  }
+
+  /* ============================================================
+     MUC Dark Shell —— 全站深色精修（仅 .dark 作用域，light 不受影响）
+     依据 GLOBAL VISUAL CONSISTENCY PASS 规格：
+     header 玻璃 / dropdown / modal / dialog / toast 统一深色玻璃材质
+     ============================================================ */
+
+  /* 顶栏玻璃：rgba(8,8,10,.72) + blur(18px) */
+  .dark .glass {
+    background: rgba(8, 8, 10, 0.72);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+
+  .dark header.glass {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* 下拉菜单：深色玻璃 + 发丝边 */
+  .dark .dropdown {
+    background: rgba(15, 15, 17, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  }
+
+  .dark .dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  /* 模态框：深色玻璃材质 + rgba(0,0,0,.6) 背板 */
+  .dark .modal-overlay,
+  .dark .dialog-overlay {
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .dark .modal-content {
+    background: rgba(15, 15, 17, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+  }
+
+  .dark .modal-header {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .modal-footer {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .dialog-container {
+    background: rgba(15, 15, 17, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+  }
+
+  .dark .dialog-header {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .dialog-footer {
+    border-top-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  /* Toast：深色玻璃 */
+  .dark .toast {
+    background: rgba(15, 15, 17, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-left-width: 4px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  }
+
+  /* 卡片：dark 下贴近 MUC 玻璃材质（保留原有 hover 位移） */
+  .dark .card {
+    border-color: rgba(255, 255, 255, 0.09);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .card-hover:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  /* 统一缓动（card / tab / button 等 transition-all 场景继承） */
+  .dark .card,
+  .dark .card-hover,
+  .dark .btn,
+  .dark .tab {
+    transition-timing-function: var(--muc-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  }
+
+  /* Tabs：深色轨道 + 白色活动片 */
+  .dark .tabs {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .tab-active {
+    background: rgba(255, 255, 255, 0.1);
   }
 }
 
