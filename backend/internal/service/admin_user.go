@@ -38,6 +38,17 @@ func (s *adminServiceImpl) ListUsers(ctx context.Context, page, pageSize int, fi
 				users[i].LastUsedAt = lastUsedByUserID[users[i].ID]
 			}
 		}
+		// 批量加载已认证校园邮箱（列表认证徽标展示用），避免 N+1
+		if s.userRepo != nil {
+			emailsByUser, emailErr := s.userRepo.ListVerifiedEducationEmailsByUserIDs(ctx, userIDs)
+			if emailErr != nil {
+				logger.LegacyPrintf("service.admin", "failed to load verified education emails in batch: err=%v", emailErr)
+			} else {
+				for i := range users {
+					users[i].EducationEmails = emailsByUser[users[i].ID]
+				}
+			}
+		}
 	}
 	// 批量加载用户专属分组倍率
 	if s.userGroupRateRepo != nil && len(users) > 0 {
@@ -1049,6 +1060,19 @@ func redeemCodeHistoryTime(code RedeemCode) time.Time {
 		return *code.UsedAt
 	}
 	return code.CreatedAt
+}
+
+// RevokeUserEducationEmail 撤销指定用户的全部校园邮箱认证记录。
+// 不做 IsEducationEmailVerificationEnabled 门控：功能关闭后管理员仍需清理历史认证记录。
+func (s *adminServiceImpl) RevokeUserEducationEmail(ctx context.Context, userID int64) (int64, error) {
+	if userID <= 0 {
+		return 0, infraerrors.BadRequest("INVALID_INPUT", "user_id must be greater than 0")
+	}
+	// 校验用户存在：不存在时透传 ent NotFound，handler 层映射为 404。
+	if _, err := s.userRepo.GetByID(ctx, userID); err != nil {
+		return 0, err
+	}
+	return s.userRepo.RevokeUserEducationEmailIdentities(ctx, userID)
 }
 
 func (s *adminServiceImpl) BindUserAuthIdentity(ctx context.Context, userID int64, input AdminBindAuthIdentityInput) (*AdminBoundAuthIdentity, error) {

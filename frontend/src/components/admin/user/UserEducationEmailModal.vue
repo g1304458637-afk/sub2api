@@ -48,6 +48,15 @@
                 <dd class="text-gray-900 dark:text-white">{{ verifiedAt }}</dd>
               </div>
             </dl>
+            <button
+              type="button"
+              class="btn btn-danger mt-4 w-full"
+              :disabled="revoking"
+              @click="showRevokeConfirm = true"
+            >
+              <Icon name="trash" size="sm" :class="revoking ? 'animate-spin' : ''" />
+              {{ t('admin.users.educationEmail.revoke') }}
+            </button>
           </template>
           <p v-else class="mt-3 text-sm text-gray-500 dark:text-dark-400">
             {{ t('admin.users.educationEmail.noRecord') }}
@@ -59,6 +68,15 @@
         </p>
       </template>
     </div>
+
+    <ConfirmDialog
+      :show="showRevokeConfirm"
+      :title="t('admin.users.educationEmail.revokeConfirmTitle')"
+      :message="t('admin.users.educationEmail.revokeConfirmMessage', { email: status?.education_email.display_name })"
+      :danger="true"
+      @confirm="handleRevoke"
+      @cancel="showRevokeConfirm = false"
+    />
   </BaseDialog>
 </template>
 
@@ -66,10 +84,12 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
+import { useAppStore } from '@/stores/app'
 import type { EducationEmailStatus } from '@/api/admin/users'
 import type { AdminUser } from '@/types'
 import { formatDateTime } from '@/utils/format'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const props = defineProps<{
@@ -77,11 +97,14 @@ const props = defineProps<{
   user: AdminUser | null
 }>()
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; success: [] }>()
 const { t } = useI18n()
+const appStore = useAppStore()
 const loading = ref(false)
 const loadError = ref('')
 const status = ref<EducationEmailStatus | null>(null)
+const revoking = ref(false)
+const showRevokeConfirm = ref(false)
 
 const verifiedAt = computed(() => {
   const value = status.value?.education_email.verified_at
@@ -102,5 +125,26 @@ async function load(): Promise<void> {
   }
 }
 
-watch(() => [props.show, props.user?.id] as const, () => { void load() }, { immediate: true })
+// 确认撤销：调撤销接口后重载 modal 数据并通知列表刷新。
+// 先刷新自身数据再 emit('success')，保证父级列表更新时 modal 仍持有有效状态。
+async function handleRevoke(): Promise<void> {
+  if (!props.user || revoking.value) return
+  revoking.value = true
+  try {
+    const result = await adminAPI.users.revokeEducationEmail(props.user.id)
+    appStore.showSuccess(t('admin.users.educationEmail.revokeSuccess', { count: result.revoked_count }))
+    showRevokeConfirm.value = false
+    await load()
+    emit('success')
+  } catch (error) {
+    appStore.showError((error as { message?: string }).message || t('admin.users.educationEmail.revokeFailed'))
+  } finally {
+    revoking.value = false
+  }
+}
+
+watch(() => [props.show, props.user?.id] as const, () => {
+  showRevokeConfirm.value = false
+  void load()
+}, { immediate: true })
 </script>

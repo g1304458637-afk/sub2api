@@ -320,6 +320,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		users.GET("", h.Admin.User.List)
 		users.GET("/:id", h.Admin.User.GetByID)
 		users.GET("/:id/education-email", h.Admin.User.GetEducationEmailStatus)
+		users.DELETE("/:id/education-email", h.Admin.User.RevokeEducationEmail)
 		users.POST("/:id/auth-identities", h.Admin.User.BindAuthIdentity)
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)

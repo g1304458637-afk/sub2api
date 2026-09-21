@@ -116,6 +116,14 @@ func (s *userRepoStubForGroupUpdate) UnbindUserAuthProvider(context.Context, int
 	panic("unexpected")
 }
 
+func (s *userRepoStubForGroupUpdate) RevokeUserEducationEmailIdentities(context.Context, int64) (int64, error) {
+	panic("unexpected")
+}
+
+func (s *userRepoStubForGroupUpdate) ListVerifiedEducationEmailsByUserIDs(context.Context, []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func (s *userRepoStubForGroupUpdate) GetLatestUsedAtByUserIDs(context.Context, []int64) (map[int64]*time.Time, error) {
 	panic("unexpected")
 }

@@ -30,6 +30,9 @@ type AdminService interface {
 	// Also returns totalRecharged (sum of all positive balance top-ups).
 	GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, codeType string) ([]RedeemCode, int64, float64, error)
 	BindUserAuthIdentity(ctx context.Context, userID int64, input AdminBindAuthIdentityInput) (*AdminBoundAuthIdentity, error)
+	// RevokeUserEducationEmail 撤销指定用户的全部校园邮箱认证记录，返回删除条数。
+	// 不做功能开关门控（功能关闭后管理员仍需清理历史记录）；用户不存在返回 ent NotFound。
+	RevokeUserEducationEmail(ctx context.Context, userID int64) (int64, error)
 
 	// Group management
 	ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool, sortBy, sortOrder string) ([]Group, int64, error)
@@ -160,16 +163,16 @@ func ValidateSimpleModeGroupOperation(cfg *config.Config, operation AdminGroupOp
 
 // CreateUserInput represents input for creating a new user via admin operations.
 type CreateUserInput struct {
-	Email                string
-	Password             string
-	Username             string
-	Notes                string
-	Role                 string // 空字符串表示使用默认角色(user);合法值 admin/user
-	Balance              *float64
+	Email    string
+	Password string
+	Username string
+	Notes    string
+	Role     string // 空字符串表示使用默认角色(user);合法值 admin/user
+	Balance  *float64
 	// Concurrency 为 nil（字段未提供）时使用 default_concurrency 设置；
 	// 显式 0 = 管理员明确要求不限并发（Runtime 语义：<=0 → unlimited）。
-	Concurrency *int
-	RPMLimit    int
+	Concurrency          *int
+	RPMLimit             int
 	AllowedGroups        []int64
 	RestrictPublicGroups bool
 	// ActorAdminID 执行本次操作的管理员ID(来自JWT)，仅用于权限敏感操作的审计日志。

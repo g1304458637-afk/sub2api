@@ -72,6 +72,19 @@
               />
             </div>
 
+            <!-- Education Email Verified Filter (visible when enabled) -->
+            <div v-if="visibleFilters.has('educationVerified')" class="w-full sm:w-40">
+              <Select
+                v-model="filters.educationVerified"
+                :options="[
+                  { value: '', label: t('admin.users.allEducationEmail') },
+                  { value: 'true', label: t('admin.users.educationEmail.verified') },
+                  { value: 'false', label: t('admin.users.educationEmail.notVerified') }
+                ]"
+                @change="applyFilter"
+              />
+            </div>
+
             <!-- Dynamic Attribute Filters -->
             <template v-for="(value, attrId) in activeAttributeFilters" :key="attrId">
               <div
@@ -290,7 +303,7 @@
           @sort="handleSort"
           @update:selected-keys="handleSelectedKeysUpdate"
         >
-          <template #cell-email="{ value }">
+          <template #cell-email="{ row, value }">
             <div class="flex items-center gap-2">
               <div
                 class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30"
@@ -300,6 +313,13 @@
                 </span>
               </div>
               <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+              <span
+                v-if="row.education_emails?.length"
+                class="badge badge-success shrink-0"
+                :title="row.education_emails.join(', ')"
+              >
+                {{ t('admin.users.educationEmail.verifiedBadge') }}
+              </span>
             </div>
           </template>
 
@@ -791,7 +811,7 @@
       @success="loadUsers"
     />
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
-    <UserEducationEmailModal :show="showEducationEmailModal" :user="educationEmailUser" @close="closeEducationEmailModal" />
+    <UserEducationEmailModal :show="showEducationEmailModal" :user="educationEmailUser" @close="closeEducationEmailModal" @success="loadUsers" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
     <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
@@ -1140,7 +1160,8 @@ const filters = reactive({
   role: '',
   status: '',
   group: '',  // group name for fuzzy match, '' = all
-  apiKeyGroup: null as number | null  // group id bound to the user's API keys, null = all
+  apiKeyGroup: null as number | null,  // group id bound to the user's API keys, null = all
+  educationVerified: '' as '' | 'true' | 'false'  // campus-email verification status, '' = all
 })
 const activeAttributeFilters = reactive<Record<number, string>>({})
 
@@ -1170,7 +1191,8 @@ const builtInFilters = computed(() => [
   { key: 'role', name: t('admin.users.columns.role'), type: 'select' as const },
   { key: 'status', name: t('admin.users.columns.status'), type: 'select' as const },
   { key: 'group', name: t('admin.users.authorizedGroupFilter'), type: 'select' as const },
-  { key: 'apiKeyGroup', name: t('admin.users.apiKeyGroupFilter'), type: 'select' as const }
+  { key: 'apiKeyGroup', name: t('admin.users.apiKeyGroupFilter'), type: 'select' as const },
+  { key: 'educationVerified', name: t('admin.users.educationEmailFilter'), type: 'select' as const }
 ])
 
 // Load saved filters from localStorage
@@ -1190,6 +1212,7 @@ const loadSavedFilters = () => {
       if (parsed.status) filters.status = parsed.status
       if (parsed.group) filters.group = parsed.group
       if (typeof parsed.apiKeyGroup === 'number') filters.apiKeyGroup = parsed.apiKeyGroup
+      if (parsed.educationVerified === 'true' || parsed.educationVerified === 'false') filters.educationVerified = parsed.educationVerified
       if (parsed.attributes) {
         Object.assign(activeAttributeFilters, parsed.attributes)
       }
@@ -1210,6 +1233,7 @@ const saveFiltersToStorage = () => {
       status: filters.status,
       group: filters.group,
       apiKeyGroup: filters.apiKeyGroup,
+      educationVerified: filters.educationVerified,
       attributes: activeAttributeFilters
     }
     localStorage.setItem(FILTER_VALUES_KEY, JSON.stringify(values))
@@ -1618,6 +1642,7 @@ const loadUsers = async () => {
         search: searchQuery.value || undefined,
         group_name: filters.group || undefined,
         api_key_group_id: filters.apiKeyGroup ?? undefined,
+        education_email_verified: filters.educationVerified || undefined,
         attributes: Object.keys(attrFilters).length > 0 ? attrFilters : undefined,
         // 始终请求 subscriptions：列隐藏时仍需用于 UserPlatformQuotaModal 的 active-subscription 警示 banner
         include_subscriptions: true,
@@ -1709,6 +1734,7 @@ const toggleBuiltInFilter = (key: string) => {
     if (key === 'status') filters.status = ''
     if (key === 'group') filters.group = ''
     if (key === 'apiKeyGroup') filters.apiKeyGroup = null
+    if (key === 'educationVerified') filters.educationVerified = ''
   } else {
     visibleFilters.add(key)
     if (key === 'group') loadAllGroups()

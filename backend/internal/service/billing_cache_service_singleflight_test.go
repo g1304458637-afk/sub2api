@@ -122,6 +122,14 @@ func (s *balanceLoadUserRepoStub) UnbindUserAuthProvider(context.Context, int64,
 	return nil
 }
 
+func (s *balanceLoadUserRepoStub) RevokeUserEducationEmailIdentities(context.Context, int64) (int64, error) {
+	return 0, nil
+}
+
+func (s *balanceLoadUserRepoStub) ListVerifiedEducationEmailsByUserIDs(context.Context, []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func TestBillingCacheServiceGetUserBalance_Singleflight(t *testing.T) {
 	cache := &billingCacheMissStub{}
 	userRepo := &balanceLoadUserRepoStub{

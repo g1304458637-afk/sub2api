@@ -23,6 +23,9 @@ type stubAdminService struct {
 	redeems                             []service.RedeemCode
 	boundAuthIdentity                   *service.AdminBindAuthIdentityInput
 	boundAuthIdentityFor                int64
+	revokedEducationEmailFor            []int64
+	revokedEducationEmailCount          int64
+	revokeEducationEmailErr             error
 	createdAccounts                     []*service.CreateAccountInput
 	createdGroups                       []*service.CreateGroupInput
 	updatedGroups                       []*service.UpdateGroupInput
@@ -271,6 +274,14 @@ func (s *stubAdminService) BindUserAuthIdentity(ctx context.Context, userID int6
 		}
 	}
 	return result, nil
+}
+
+func (s *stubAdminService) RevokeUserEducationEmail(ctx context.Context, userID int64) (int64, error) {
+	if s.revokeEducationEmailErr != nil {
+		return 0, s.revokeEducationEmailErr
+	}
+	s.revokedEducationEmailFor = append(s.revokedEducationEmailFor, userID)
+	return s.revokedEducationEmailCount, nil
 }
 
 func (s *stubAdminService) ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool, sortBy, sortOrder string) ([]service.Group, int64, error) {

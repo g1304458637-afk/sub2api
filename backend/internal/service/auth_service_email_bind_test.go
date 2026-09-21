@@ -1165,6 +1165,14 @@ func (s *emailBindUserRepoStub) UnbindUserAuthProvider(context.Context, int64, s
 	return nil
 }
 
+func (s *emailBindUserRepoStub) RevokeUserEducationEmailIdentities(context.Context, int64) (int64, error) {
+	return 0, nil
+}
+
+func (s *emailBindUserRepoStub) ListVerifiedEducationEmailsByUserIDs(context.Context, []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func (s *emailBindUserRepoStub) UpdateTotpSecret(context.Context, int64, *string) error { return nil }
 func (s *emailBindUserRepoStub) EnableTotp(context.Context, int64) error                { return nil }
 func (s *emailBindUserRepoStub) DisableTotp(context.Context, int64) error               { return nil }

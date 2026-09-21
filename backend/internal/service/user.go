@@ -64,6 +64,10 @@ type User struct {
 	// 避免每请求查 DB。字段不持久化到数据库。
 	UserGroupRPMOverride *int
 
+	// EducationEmails 该用户已认证的校园邮箱地址（muc.edu.cn），列表页展示认证徽标用。
+	// 仅管理端列表接口批量填充，其他路径不保证有值。
+	EducationEmails []string
+
 	APIKeys       []APIKey
 	Subscriptions []UserSubscription
 }

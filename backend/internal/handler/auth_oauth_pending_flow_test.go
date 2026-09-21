@@ -3455,6 +3455,14 @@ func (r *oauthPendingFlowUserRepo) UnbindUserAuthProvider(context.Context, int64
 	panic("unexpected UnbindUserAuthProvider call")
 }
 
+func (r *oauthPendingFlowUserRepo) RevokeUserEducationEmailIdentities(ctx context.Context, userID int64) (int64, error) {
+	panic("unexpected RevokeUserEducationEmailIdentities call")
+}
+
+func (r *oauthPendingFlowUserRepo) ListVerifiedEducationEmailsByUserIDs(ctx context.Context, userIDs []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func (r *oauthPendingFlowUserRepo) UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error {
 	update := r.client.User.UpdateOneID(userID)
 	if encryptedSecret == nil {

@@ -78,6 +78,7 @@ export async function list(
     search?: string
     group_name?: string         // fuzzy filter by allowed group name
     api_key_group_id?: number   // filter users by the group their API keys are bound to
+    education_email_verified?: 'true' | 'false'  // filter users by campus-email verification status
     attributes?: Record<number, string>  // attributeId -> value
     include_subscriptions?: boolean
     sort_by?: string
@@ -96,6 +97,7 @@ export async function list(
     search: filters?.search,
     group_name: filters?.group_name,
     api_key_group_id: filters?.api_key_group_id,
+    education_email_verified: filters?.education_email_verified,
     include_subscriptions: filters?.include_subscriptions,
     sort_by: filters?.sort_by,
     sort_order: filters?.sort_order
@@ -131,6 +133,19 @@ export async function getById(id: number, includeDeleted = false): Promise<Admin
 /** Read a user's campus-email verification record for administrative review. */
 export async function getEducationEmailStatus(userId: number): Promise<EducationEmailStatus> {
   const { data } = await apiClient.get<EducationEmailStatus>(`/admin/users/${userId}/education-email`)
+  return data
+}
+
+export interface RevokeEducationEmailResponse {
+  user_id: number
+  revoked_count: number
+}
+
+/** Revoke every campus-email verification identity of one user. */
+export async function revokeEducationEmail(userId: number): Promise<RevokeEducationEmailResponse> {
+  const { data } = await apiClient.delete<RevokeEducationEmailResponse>(
+    `/admin/users/${userId}/education-email`
+  )
   return data
 }
 
@@ -415,6 +430,7 @@ export const usersAPI = {
   list,
   getById,
   getEducationEmailStatus,
+  revokeEducationEmail,
   create,
   update,
   delete: deleteUser,

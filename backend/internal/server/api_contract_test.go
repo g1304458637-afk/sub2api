@@ -1737,6 +1737,14 @@ func (r *stubUserRepo) UnbindUserAuthProvider(context.Context, int64, string) er
 	return errors.New("not implemented")
 }
 
+func (r *stubUserRepo) RevokeUserEducationEmailIdentities(ctx context.Context, userID int64) (int64, error) {
+	return 0, nil
+}
+
+func (r *stubUserRepo) ListVerifiedEducationEmailsByUserIDs(ctx context.Context, userIDs []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func (r *stubUserRepo) GetLatestUsedAtByUserIDs(ctx context.Context, userIDs []int64) (map[int64]*time.Time, error) {
 	return map[int64]*time.Time{}, nil
 }
