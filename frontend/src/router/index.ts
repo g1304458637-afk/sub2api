@@ -360,9 +360,9 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Purchase Subscription',
-      titleKey: 'nav.buySubscription',
-      descriptionKey: 'purchase.description',
+      title: 'Recharge',
+      titleKey: 'nav.recharge',
+      descriptionKey: 'purchase.rechargeDescription',
       requiresPayment: true
     }
   },

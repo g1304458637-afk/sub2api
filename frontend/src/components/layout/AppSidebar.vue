@@ -887,17 +887,9 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
 
-// 购买入口文案随站点计费模式切换：仅充值 → 「充值」，仅订阅 → 「订阅」，否则「充值/订阅」。
-const purchaseNavLabel = computed(() => {
-  switch (resolveSiteBillingMode(appStore.cachedPublicSettings)) {
-    case 'recharge_only':
-      return t('nav.recharge')
-    case 'subscription_only':
-      return t('nav.subscribe')
-    default:
-      return t('nav.buySubscription')
-  }
-})
+// 购买入口收敛：套餐浏览/购买/升降级统一在 /pricing；/purchase 仅保留余额充值。
+// 仅订阅站点（subscription_only）没有充值能力，隐藏充值入口，订阅入口即 /pricing。
+const isSubscriptionOnlySite = computed(() => resolveSiteBillingMode(appStore.cachedPublicSettings) === 'subscription_only')
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
@@ -941,7 +933,13 @@ function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
     { path: '/wallet', label: t('nav.wallet'), icon: MucWalletIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/pricing', label: t('nav.pricing'), icon: PricingTagIcon, hideInSimpleMode: true, featureFlag: flagPayment },
-    { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
+    ...(isSubscriptionOnlySite.value ? [] : [{
+      path: '/purchase',
+      label: t('nav.recharge'),
+      icon: RechargeSubscriptionIcon,
+      hideInSimpleMode: true,
+      featureFlag: flagPayment,
+    } as NavItem]),
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },

@@ -12,3 +12,7 @@ dist/
 # 忽略缓存
 .cache/
 .vite/
+
+# 样式文件不走 js lint
+src/style.css
+src/styles/*.css
