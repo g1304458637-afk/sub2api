@@ -51,6 +51,7 @@ export default {
     more: '更多',
     close: '关闭',
     toggleMenu: '切换菜单',
+    language: '语言',
     userMenu: '用户菜单',
     pageNotFound: '页面不存在',
     enabled: '已启用',

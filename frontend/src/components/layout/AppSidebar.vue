@@ -99,14 +99,20 @@
               <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
             </router-link>
           </template>
+
+          <!-- 简易模式没有个人区，语言/退出收在管理列表尾部 -->
+          <SidebarUserActions v-if="authStore.isSimpleMode && !sidebarCollapsed" class="mt-1" />
         </div>
 
         <!-- Personal Section for Admin (hidden in simple mode) -->
         <div v-if="!authStore.isSimpleMode" class="sidebar-section">
-          <div class="sidebar-section-title" :class="{ 'sidebar-section-title-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
-            <span class="sidebar-section-title-text" :class="{ 'sidebar-section-title-text-collapsed': sidebarCollapsed }">
-              {{ t('nav.myAccount') }}
-            </span>
+          <!-- 用户卡片：头像 + 用户名 + 余额（替代原「我的账户」标题） -->
+          <div
+            class="sidebar-link mb-1 w-full cursor-default"
+            :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
+            :title="sidebarCollapsed ? displayName : undefined"
+          >
+            <SidebarUserIdentity :collapsed="sidebarCollapsed" />
           </div>
 
           <router-link
@@ -123,6 +129,9 @@
             <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
             <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
           </router-link>
+
+          <!-- 语言 / 货币 / 退出登录 -->
+          <SidebarUserActions v-if="!sidebarCollapsed" class="mt-1" />
         </div>
       </template>
 
@@ -146,21 +155,41 @@
                 :title="sidebarCollapsed ? item.label : undefined"
                 @click="handleGroupClick(item)"
               >
-                <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-                <span
-                  class="sidebar-label sidebar-label-flex"
-                  :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"
-                  :aria-hidden="sidebarCollapsed ? 'true' : 'false'"
-                >
-                  <span class="min-w-0 truncate">{{ item.label }}</span>
-                  <ChevronDownIcon
-                    class="h-4 w-4 flex-shrink-0 transition-transform duration-200"
-                    :class="isGroupExpanded(item) ? 'rotate-180' : ''"
-                  />
-                </span>
+                <!-- 「我的」组头即用户卡片：头像 + 用户名 + 余额（原顶栏信息收敛于此） -->
+                <template v-if="item.path === 'group-my-account'">
+                  <SidebarUserIdentity :collapsed="sidebarCollapsed">
+                    <template #chevron>
+                      <ChevronDownIcon
+                        class="h-4 w-4 shrink-0 transition-transform duration-200"
+                        :class="isGroupExpanded(item) ? 'rotate-180' : ''"
+                      />
+                    </template>
+                  </SidebarUserIdentity>
+                </template>
+                <template v-else>
+                  <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+                  <span
+                    class="sidebar-label sidebar-label-flex"
+                    :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"
+                    :aria-hidden="sidebarCollapsed ? 'true' : 'false'"
+                  >
+                    <span class="min-w-0 truncate">{{ item.label }}</span>
+                    <ChevronDownIcon
+                      class="h-4 w-4 flex-shrink-0 transition-transform duration-200"
+                      :class="isGroupExpanded(item) ? 'rotate-180' : ''"
+                    />
+                  </span>
+                </template>
               </button>
               <!-- Children -->
               <div v-if="!sidebarCollapsed && isGroupExpanded(item)" class="mb-1 ml-4 border-l border-gray-200 pl-2 dark:border-dark-600">
+                <!-- 语言 / 货币 / 退出登录：紧贴卡片，展开即可见（原顶栏功能收敛进「我的」） -->
+                <SidebarUserActions v-if="item.path === 'group-my-account'" class="mb-1" />
+                <div
+                  v-if="item.path === 'group-my-account'"
+                  class="mb-1 border-t border-gray-100 dark:border-dark-800"
+                  aria-hidden="true"
+                ></div>
                 <router-link
                   v-for="child in item.children"
                   :key="child.path"
@@ -170,7 +199,7 @@
                   :data-tour="child.path === '/keys' ? 'sidebar-my-keys' : undefined"
                   @click="handleMenuItemClick(child.path)"
                 >
-                  <span v-if="child.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(child.iconSvg)"></span>
+                  <span v-if="child.iconSvg" class="h-4 w-4 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(child.iconSvg)"></span>
                   <component v-else :is="child.icon" class="h-4 w-4 flex-shrink-0" />
                   <span>{{ child.label }}</span>
                 </router-link>
@@ -249,6 +278,8 @@ import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 // 直接从 store 模块导入（不经过 @/stores 桶文件），保持 sidebar → store → api 的单向依赖
 import { useWebChatStore } from '@/stores/webChat'
 import SidebarChatHistory from './SidebarChatHistory.vue'
+import SidebarUserIdentity from './SidebarUserIdentity.vue'
+import SidebarUserActions from './SidebarUserActions.vue'
 
 interface NavItem {
   path: string
@@ -311,6 +342,13 @@ const sidebarNavRef = ref<HTMLElement | null>(null)
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
 const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
+
+// 用户卡片展示信息（原顶栏用户区收敛到侧边栏）
+const displayName = computed(() => {
+  const user = authStore.user
+  if (!user) return ''
+  return user.username || user.email?.split('@')[0] || ''
+})
 
 // Per-group expand/collapse overrides. A group with no entry follows the
 // automatic behavior (expanded while the active route is one of its children);

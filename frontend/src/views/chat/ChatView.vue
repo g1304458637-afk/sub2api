@@ -1,7 +1,7 @@
 <template>
   <!-- ChatGPT 式扁平布局：无卡片框架，消息直接铺在页面背景上（AppLayout flush 去内边距） -->
   <AppLayout flush>
-  <div class="flex h-[calc(100vh-4rem)] flex-col">
+  <div class="flex h-screen flex-col">
     <!-- Main column -->
     <section class="flex h-full min-w-0 flex-1 flex-col">
       <!-- Loading state -->
