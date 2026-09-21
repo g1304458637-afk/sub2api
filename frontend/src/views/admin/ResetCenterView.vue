@@ -233,6 +233,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { createMutationAttempt } from '@/utils/mutationAttempt'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Select from '@/components/common/Select.vue'
@@ -330,6 +331,9 @@ function extractMessage(err: unknown, fallback: string): string {
   return fallback
 }
 
+const directAttempt = createMutationAttempt('reset-event')
+const cardAttempt = createMutationAttempt('reset-grant')
+
 // ── 直接重置 ──
 async function previewDirect() {
   previewing.value = true
@@ -345,13 +349,12 @@ async function previewDirect() {
 }
 
 async function executeDirect() {
+  if (executing.value) return
   executing.value = true
   try {
-    const { data } = await adminAPI.resetEvents.create({
-      ...targetPayload(directForm.value),
-      reason: directForm.value.reason || undefined,
-      idempotency_key: `rc-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    })
+    const payload = { ...targetPayload(directForm.value), reason: directForm.value.reason || undefined }
+    const { data } = await adminAPI.resetEvents.create({ ...payload, idempotency_key: directAttempt.keyFor(payload) })
+    directAttempt.clear()
     previewSummary.value = null
     activeEvent.value = data
     appStore.showSuccess(t('resetCenter.executed'))
@@ -365,11 +368,17 @@ async function executeDirect() {
 }
 
 let pollTimer = 0
+let pollRequest = 0
 function pollEvent(id: number) {
+  const request = ++pollRequest
+  let pending = false
   if (pollTimer) clearInterval(pollTimer)
   pollTimer = window.setInterval(async () => {
+    if (pending) return
+    pending = true
     try {
       const { data } = await adminAPI.resetEvents.get(id)
+      if (request !== pollRequest) return
       activeEvent.value = data
       if (data.status !== 'running' && data.status !== 'pending') {
         clearInterval(pollTimer)
@@ -377,9 +386,8 @@ function pollEvent(id: number) {
         await loadEvents()
       }
     } catch {
-      clearInterval(pollTimer)
-      pollTimer = 0
-    }
+      if (request === pollRequest) { clearInterval(pollTimer); pollTimer = 0 }
+    } finally { pending = false }
   }, 1500)
 }
 
@@ -429,12 +437,12 @@ function cardPayload(): { target_mode: import('@/api/admin/subscriptionReset').C
 }
 
 async function grantCards() {
+  if (grantingCards.value) return
   grantingCards.value = true
   try {
-    const { data } = await adminAPI.resetCards.grant({
-      ...cardPayload(),
-      idempotency_key: `card-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    })
+    const payload = cardPayload()
+    const { data } = await adminAPI.resetCards.grant({ ...payload, idempotency_key: cardAttempt.keyFor(payload) })
+    cardAttempt.clear()
     appStore.showSuccess(t('resetCenter.granted', { count: data.TotalCards }))
     cardPreview.value = null
     await loadCards()
@@ -496,6 +504,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  ++pollRequest
   if (pollTimer) clearInterval(pollTimer)
 })
 </script>
