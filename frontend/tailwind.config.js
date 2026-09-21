@@ -120,7 +120,7 @@ export default {
           'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
         // 功能页背景装饰（dark 下可见）：民大红低饱和 radial，克制不抢信息
         'mesh-gradient':
-          'radial-gradient(at 75% 0%, rgba(200, 36, 51, 0.09) 0px, transparent 36%), radial-gradient(at 10% 80%, rgba(127, 22, 34, 0.07) 0px, transparent 30%)'
+          'radial-gradient(at 75% 0%, rgba(var(--muc-red-rgb, 200, 36, 51), 0.09) 0px, transparent 36%), radial-gradient(at 10% 80%, rgba(var(--muc-red-deep-rgb, 127, 22, 34), 0.07) 0px, transparent 30%)'
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
