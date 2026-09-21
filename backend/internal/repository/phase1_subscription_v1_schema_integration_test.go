@@ -92,7 +92,7 @@ func TestPhase1ExistingRowsKeepBaselineDefaults(t *testing.T) {
 	// 新建行同样取默认值（NOT NULL DEFAULT false）。
 	// 注：service.UserSubscription 结构体刻意不在 Phase 1 增加 fallback 字段
 	// （无运行时消费）；这里直接经 ent 读回验证 DB 层默认值。
-	// 每分组只允许一条活跃订阅（部分唯一索引），第二条订阅建在独立分组上。
+	// 每用户只允许一条 ACTIVE；第二条使用历史订阅以验证字段默认值。
 	group2 := mustCreateGroup(t, client, &service.Group{
 		Name:             "phase0-sub-group-2-" + uuid.NewString(),
 		SubscriptionType: service.SubscriptionTypeSubscription,
@@ -100,7 +100,7 @@ func TestPhase1ExistingRowsKeepBaselineDefaults(t *testing.T) {
 	t.Cleanup(func() {
 		_, _ = integrationDB.Exec("DELETE FROM groups WHERE id = $1", group2.ID)
 	})
-	sub2 := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: group2.ID})
+	sub2 := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: group2.ID, Status: service.SubscriptionStatusExpired})
 	sub2Ent, err := client.UserSubscription.Get(ctx, sub2.ID)
 	require.NoError(t, err)
 	require.False(t, sub2Ent.AutoPaygFallback)
@@ -280,7 +280,7 @@ func TestPhase1FKDeleteSemantics(t *testing.T) {
 	t.Cleanup(func() {
 		_, _ = integrationDB.Exec("DELETE FROM groups WHERE id = $1", group2.ID)
 	})
-	sub2 := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: group2.ID})
+	sub2 := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: group2.ID, Status: service.SubscriptionStatusExpired})
 	ev := phase1MustEvent(t, client, &user.ID, domain.ResetEventTypeGlobalReset)
 	phase1CleanupEvents(t, ev.ID)
 	phase0CleanupStack(t, user.ID, group.ID, 0)

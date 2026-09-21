@@ -121,7 +121,7 @@ func TestPhase41ResetCardCountAvailability(t *testing.T) {
 	require.Equal(t, 2, n, "used/revoked cards must not count toward available")
 }
 
-// 账户级卡语义：多订阅用户的 reset_cards 在 Account 级一份，订阅条目不含卡字段；
+// 账户级卡语义：有历史订阅的用户 reset_cards 在 Account 级一份，订阅条目不含卡字段；
 // display_name 来自 Group（无 plan identity）。
 func TestPhase41AccountLevelResetCardsAndDisplayName(t *testing.T) {
 	ctx := context.Background()
@@ -145,7 +145,7 @@ func TestPhase41AccountLevelResetCardsAndDisplayName(t *testing.T) {
 	t.Cleanup(func() { _, _ = integrationDB.Exec("DELETE FROM groups WHERE id = $1", gMax.ID) })
 
 	subPro := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: gPro.ID})
-	_ = mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: gMax.ID})
+	_ = mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: gMax.ID, Status: service.SubscriptionStatusExpired})
 	phase0SetWeeklyWindow(t, subPro.ID, time.Now().Add(-24*time.Hour), 6.3)
 
 	// 发两张卡（模拟 campaign 赠送：直接落卡，Runtime 属后续 Phase）
@@ -168,18 +168,17 @@ func TestPhase41AccountLevelResetCardsAndDisplayName(t *testing.T) {
 
 	// 账户级一份：2 张卡 ≠ 每订阅各 2 张
 	require.Equal(t, 2, status.ResetCards.Available)
-	require.Len(t, status.Subscriptions, 2)
+	require.Len(t, status.Subscriptions, 1)
 
-	// display_name 契约：来自 Group 名（Pro/Max），与任何 Plan SKU 名无关；
+	// display_name 契约：来自当前 Group 名，与任何 Plan SKU 名无关；
 	// 编译期即不存在订阅级卡字段（卡计数只在 Account 级 reset_cards）。
 	byGroup := map[int64]service.AccountSubscriptionStatus{}
 	for _, st := range status.Subscriptions {
 		byGroup[st.GroupID] = st
 	}
 	require.Equal(t, "Pro", byGroup[gPro.ID].DisplayName)
-	require.Equal(t, "Max", byGroup[gMax.ID].DisplayName)
+	require.NotContains(t, byGroup, gMax.ID, "historical subscription is excluded from active account status")
 	require.Equal(t, 63, *byGroup[gPro.ID].WeeklyUsagePercent) // 仅 Pro 有 6.3/10
-	require.Equal(t, 0, *byGroup[gMax.ID].WeeklyUsagePercent)
 }
 
 // 配置兜底回读：monitorOnly=true 的只读服务（不跑维护写入）同样返回正确状态。

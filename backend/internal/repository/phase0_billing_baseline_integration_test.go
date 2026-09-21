@@ -587,9 +587,9 @@ func TestPhase0AdminResetQuotaReAnchorsWeeklyPeriod(t *testing.T) {
 	require.InDelta(t, before.MonthlyUsageUSD, monthly, 1e-8)
 }
 
-// ---- §16 多订阅并存 ----
+// ---- 历史订阅隔离与 single-active ----
 
-func TestPhase0MultipleSubscriptionsIndependentWindows(t *testing.T) {
+func TestPhase0HistoricalSubscriptionKeepsIndependentWindow(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
 	subRepo := NewUserSubscriptionRepository(client)
@@ -613,17 +613,18 @@ func TestPhase0MultipleSubscriptionsIndependentWindows(t *testing.T) {
 
 	anchorPro := time.Now().Add(-72 * time.Hour).Truncate(time.Microsecond)
 	anchorMax := time.Now().Add(-2 * time.Hour).Truncate(time.Microsecond)
-	subPro := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: groupPro.ID})
+	subPro := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: groupPro.ID, Status: service.SubscriptionStatusExpired})
 	subMax := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: groupMax.ID})
 	phase0SetWeeklyWindow(t, subPro.ID, anchorPro, 5)
 	phase0SetWeeklyWindow(t, subMax.ID, anchorMax, 1)
 
-	// 两订阅并存且 anchor / usage 完全独立
+	// 历史订阅与当前订阅的 anchor / usage 独立，只有 Max ACTIVE。
 	active, err := subRepo.ListActiveByUserID(ctx, user.ID)
 	require.NoError(t, err)
-	require.Len(t, active, 2, "Pro and Max subscriptions coexist in parallel")
+	require.Len(t, active, 1, "only the current subscription is active")
+	require.Equal(t, subMax.ID, active[0].ID)
 
-	byPro, err := subRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, groupPro.ID)
+	byPro, err := subRepo.GetByID(ctx, subPro.ID)
 	require.NoError(t, err)
 	require.InDelta(t, 5, byPro.WeeklyUsageUSD, 1e-8)
 	require.Equal(t, anchorPro.Format(time.RFC3339Nano), byPro.WeeklyWindowStart.Format(time.RFC3339Nano))
@@ -635,7 +636,7 @@ func TestPhase0MultipleSubscriptionsIndependentWindows(t *testing.T) {
 
 	// 增量只落在对应分组的订阅上
 	require.NoError(t, subRepo.IncrementUsage(ctx, subPro.ID, 2))
-	byPro, _ = subRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, groupPro.ID)
+	byPro, _ = subRepo.GetByID(ctx, subPro.ID)
 	byMax, _ = subRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, groupMax.ID)
 	require.InDelta(t, 7, byPro.WeeklyUsageUSD, 1e-8)
 	require.InDelta(t, 1, byMax.WeeklyUsageUSD, 1e-8)

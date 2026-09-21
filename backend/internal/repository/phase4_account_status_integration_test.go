@@ -106,7 +106,7 @@ func TestPhase4AccountStatusSubscriptionWithWalletAndPercent(t *testing.T) {
 		st.WeeklyPeriodEndsAt.Format(time.RFC3339Nano))
 }
 
-func TestPhase4AccountStatusMultipleSubscriptions(t *testing.T) {
+func TestPhase4AccountStatusExcludesHistoricalSubscription(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
 	limit := 10.0
@@ -124,7 +124,7 @@ func TestPhase4AccountStatusMultipleSubscriptions(t *testing.T) {
 	phase0CleanupStack(t, user.ID, g1.ID, 0)
 	t.Cleanup(func() { _, _ = integrationDB.Exec("DELETE FROM groups WHERE id = $1", g2.ID) })
 
-	sub := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: g1.ID})
+	sub := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: g1.ID, Status: service.SubscriptionStatusExpired})
 	_ = mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: g2.ID})
 	phase0SetWeeklyWindow(t, sub.ID, time.Now().Add(-24*time.Hour), 2)
 	// 第二条订阅（Pro 组）由下方百分比断言隐式覆盖；锚点 + 9/10 用量
@@ -136,13 +136,13 @@ func TestPhase4AccountStatusMultipleSubscriptions(t *testing.T) {
 	svc, _ := phase4NewStatusService(t, client)
 	status, err := svc.GetAccountStatus(ctx, user.ID)
 	require.NoError(t, err)
-	require.Len(t, status.Subscriptions, 2, "Basic + Pro subscriptions coexist (§10)")
+	require.Len(t, status.Subscriptions, 1, "historical Basic is excluded; only Pro is active")
 
 	byGroup := map[int64]service.AccountSubscriptionStatus{}
 	for _, st := range status.Subscriptions {
 		byGroup[st.GroupID] = st
 	}
-	require.Equal(t, 20, *byGroup[g1.ID].WeeklyUsagePercent)
+	require.NotContains(t, byGroup, g1.ID)
 	require.Equal(t, 90, *byGroup[g2.ID].WeeklyUsagePercent)
 	require.Equal(t, service.UsageStatusNearLimit, byGroup[g2.ID].UsageStatus)
 }

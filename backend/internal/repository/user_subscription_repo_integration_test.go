@@ -328,11 +328,12 @@ func (s *UserSubscriptionRepoSuite) TestList_FilterByUserID() {
 
 func (s *UserSubscriptionRepoSuite) TestList_FilterByGroupID() {
 	user := s.mustCreateUser("grpfilter@test.com", service.RoleUser)
+	otherUser := s.mustCreateUser("testlist_filterbygroupid-other@test.com", service.RoleUser)
 	g1 := s.mustCreateGroup("g-f1")
 	g2 := s.mustCreateGroup("g-f2")
 
 	s.mustCreateSubscription(user.ID, g1.ID, nil)
-	s.mustCreateSubscription(user.ID, g2.ID, nil)
+	s.mustCreateSubscription(otherUser.ID, g2.ID, nil)
 
 	subs, _, err := s.repo.List(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, nil, &g1.ID, "", "", "", "")
 	s.Require().NoError(err)
@@ -631,13 +632,14 @@ func (s *UserSubscriptionRepoSuite) TestUpdateNotes() {
 
 func (s *UserSubscriptionRepoSuite) TestListExpired() {
 	user := s.mustCreateUser("listexp@test.com", service.RoleUser)
+	otherUser := s.mustCreateUser("testlistexpired-other@test.com", service.RoleUser)
 	groupActive := s.mustCreateGroup("g-listexp-active")
 	groupExpired := s.mustCreateGroup("g-listexp-expired")
 
 	s.mustCreateSubscription(user.ID, groupActive.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetExpiresAt(time.Now().Add(24 * time.Hour))
 	})
-	s.mustCreateSubscription(user.ID, groupExpired.ID, func(c *dbent.UserSubscriptionCreate) {
+	s.mustCreateSubscription(otherUser.ID, groupExpired.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetExpiresAt(time.Now().Add(-24 * time.Hour))
 	})
 
@@ -648,13 +650,14 @@ func (s *UserSubscriptionRepoSuite) TestListExpired() {
 
 func (s *UserSubscriptionRepoSuite) TestBatchUpdateExpiredStatus() {
 	user := s.mustCreateUser("batch@test.com", service.RoleUser)
+	otherUser := s.mustCreateUser("testbatchupdateexpiredstatus-other@test.com", service.RoleUser)
 	groupFuture := s.mustCreateGroup("g-batch-future")
 	groupPast := s.mustCreateGroup("g-batch-past")
 
 	active := s.mustCreateSubscription(user.ID, groupFuture.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetExpiresAt(time.Now().Add(24 * time.Hour))
 	})
-	expiredActive := s.mustCreateSubscription(user.ID, groupPast.ID, func(c *dbent.UserSubscriptionCreate) {
+	expiredActive := s.mustCreateSubscription(otherUser.ID, groupPast.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetExpiresAt(time.Now().Add(-24 * time.Hour))
 	})
 
@@ -759,13 +762,14 @@ func (s *UserSubscriptionRepoSuite) TestDeleteByGroupID() {
 
 func (s *UserSubscriptionRepoSuite) TestActiveExpiredBoundaries_UsageAndReset_BatchUpdateExpiredStatus() {
 	user := s.mustCreateUser("subr@example.com", service.RoleUser)
+	otherUser := s.mustCreateUser("testactiveexpiredboundaries_usageandreset_batchupdateexpiredstatus-other@test.com", service.RoleUser)
 	groupActive := s.mustCreateGroup("g-subr-active")
 	groupExpired := s.mustCreateGroup("g-subr-expired")
 
 	active := s.mustCreateSubscription(user.ID, groupActive.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetExpiresAt(time.Now().Add(2 * time.Hour))
 	})
-	expiredActive := s.mustCreateSubscription(user.ID, groupExpired.ID, func(c *dbent.UserSubscriptionCreate) {
+	expiredActive := s.mustCreateSubscription(otherUser.ID, groupExpired.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetExpiresAt(time.Now().Add(-2 * time.Hour))
 	})
 
