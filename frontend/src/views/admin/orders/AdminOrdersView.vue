@@ -1,6 +1,26 @@
 <template>
   <AppLayout>
     <div class="space-y-4">
+      <!-- Finance Center: 订单 / 套餐变更 / 钱包流水（Final Frontend C8） -->
+      <div class="card p-1">
+        <div class="flex gap-1" role="tablist">
+          <button
+            v-for="tab in ['orders', 'changes', 'ledger'] as const"
+            :key="tab"
+            role="tab"
+            :aria-selected="financeTab === tab"
+            class="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
+            :class="financeTab === tab
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+              : 'text-gray-600 hover:bg-gray-100 dark:text-dark-300 dark:hover:bg-dark-700'"
+            @click="switchFinanceTab(tab)"
+          >
+            {{ t('payment.admin.financeTab.' + tab) }}
+          </button>
+        </div>
+      </div>
+
+      <template v-if="financeTab === 'orders'">
       <!-- Filters -->
       <div class="card p-4">
         <div class="flex flex-wrap items-center gap-3">
@@ -57,6 +77,33 @@
         </template>
       </OrderTable>
       <Pagination v-if="orderPagination.total > 0" :page="orderPagination.page" :total="orderPagination.total" :page-size="orderPagination.page_size" @update:page="handleOrderPageChange" @update:pageSize="handleOrderPageSizeChange" />
+      </template>
+
+      <!-- Tab 2: 套餐变更（plan_change 订单；scheduled downgrade 非支付订单，admin 审计端点暂缺 — BLOCKED #3） -->
+      <template v-else-if="financeTab === 'changes'">
+        <div class="card p-4 text-xs text-gray-500 dark:text-dark-400">{{ t('payment.admin.financeChangesNote') }}</div>
+        <OrderTable :orders="planChangeOrders" :loading="changesLoading" show-user show-type />
+      </template>
+
+      <!-- Tab 3: 钱包流水（全局 ledger 后端暂缺 — BLOCKED #1；先提供按用户查询） -->
+      <template v-else>
+        <div class="card p-4 space-y-3">
+          <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('payment.admin.financeLedgerNote') }}</p>
+          <div class="flex flex-wrap items-center gap-2">
+            <input v-model.number="ledgerUserId" type="number" min="1" :placeholder="t('payment.admin.ledgerUserId')" class="input w-48" />
+            <button class="btn btn-secondary" :disabled="!ledgerUserId || ledgerLoading" @click="loadLedger">
+              {{ ledgerLoading ? t('common.processing') : t('common.view') }}
+            </button>
+          </div>
+          <p v-if="ledgerError" class="text-sm text-red-500">{{ ledgerError }}</p>
+          <ul v-if="ledgerRows.length" class="space-y-1.5 text-sm">
+            <li v-for="(row, i) in ledgerRows" :key="i" class="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 dark:border-dark-700">
+              <span class="truncate font-mono text-xs">{{ row.code || '#' + (row.id ?? i) }}</span>
+              <span class="text-xs text-gray-500">{{ fmtLedgerDate(row.created_at) }}</span>
+            </li>
+          </ul>
+        </div>
+      </template>
     </div>
 
     <!-- Order Detail Dialog -->
@@ -148,6 +195,52 @@ const ordersLoading = ref(false)
 const orders = ref<PaymentOrder[]>([])
 const orderSearch = ref('')
 const orderFilters = reactive({ status: '', payment_type: '', order_type: '' })
+
+// ── Finance Center tabs（Final Frontend C8）──
+const financeTab = ref<'orders' | 'changes' | 'ledger'>('orders')
+const planChangeOrders = ref<PaymentOrder[]>([])
+const changesLoading = ref(false)
+const ledgerUserId = ref<number>()
+const ledgerLoading = ref(false)
+const ledgerRows = ref<Array<{ id?: number; code?: string; created_at?: string }>>([])
+const ledgerError = ref('')
+
+async function switchFinanceTab(tab: 'orders' | 'changes' | 'ledger') {
+  financeTab.value = tab
+  if (tab === 'changes' && planChangeOrders.value.length === 0) {
+    changesLoading.value = true
+    try {
+      const res = await adminPaymentAPI.getOrders({ page: 1, page_size: 30, order_type: 'plan_change' })
+      planChangeOrders.value = res.data.items ?? []
+    } finally {
+      changesLoading.value = false
+    }
+  }
+}
+
+async function loadLedger() {
+  if (!ledgerUserId.value) return
+  ledgerLoading.value = true
+  ledgerError.value = ''
+  ledgerRows.value = []
+  try {
+    const res = await adminPaymentAPI.getOrders({ page: 1, page_size: 1, user_id: ledgerUserId.value })
+    void res
+    const { getUserBalanceHistory } = await import('@/api/admin/users')
+    const history = await getUserBalanceHistory(ledgerUserId.value, 1, 20)
+    ledgerRows.value = (history.items ?? []).slice(0, 20)
+    if (ledgerRows.value.length === 0) ledgerError.value = t('payment.admin.ledgerEmpty')
+  } catch {
+    ledgerError.value = t('payment.admin.ledgerFailed')
+  } finally {
+    ledgerLoading.value = false
+  }
+}
+
+function fmtLedgerDate(iso?: string): string {
+  if (!iso) return '—'
+  try { return new Date(iso).toLocaleString() } catch { return iso }
+}
 const orderPagination = reactive({ page: 1, page_size: 20, total: 0 })
 const selectedOrder = ref<PaymentOrder | null>(null)
 const showDetailDialog = ref(false)
