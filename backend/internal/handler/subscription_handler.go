@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -274,4 +275,36 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 	}
 
 	response.Success(c, summary)
+}
+
+func (h *SubscriptionHandler) ReconcileResetCard(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "Invalid subscription id")
+		return
+	}
+	if h.resetCards == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("RESET_CARD_UNAVAILABLE", "reset card service unavailable"))
+		return
+	}
+	var operation *service.ResetCardOperation
+	if strings.HasSuffix(c.FullPath(), "/prepare") {
+		operation, err = h.resetCards.PrepareResetOperation(c.Request.Context(), subject.UserID, id, c.GetHeader("Idempotency-Key"))
+	} else {
+		operation, err = h.resetCards.ReconcileResetOperation(c.Request.Context(), subject.UserID, id, c.GetHeader("Idempotency-Key"))
+	}
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	result := gin.H{"status": operation.Status}
+	if operation.Result != nil {
+		result["weekly_period_ends_at"] = operation.Result.WeeklyPeriodEndsAt
+	}
+	response.Success(c, result)
 }

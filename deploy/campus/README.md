@@ -45,3 +45,20 @@ All payment, quota, wallet, reward, research and media flags retain their shared
 Core implementations and separate per-deployment settings.
 
 This template is for local validation, not production release or DNS changes.
+
+
+Desktop exchange requires exactly one active primary subscription and binds its group.
+Wallet-only exchange is disabled unless `CAMPUS_PAYG_GROUP_ID` explicitly identifies an
+active standard (non-subscription) group; the user must have positive balance and permission
+to bind that group. Lookup failures never select a different group.
+
+MUC defaults to `https://admin.wuxuexi.top`. Credential exchange rejects an origin mismatch;
+reverse proxies must preserve Host and set X-Forwarded-Proto to the external scheme.
+HTTP endpoints require `CAMPUS_LOCAL_BUILD=1` and loopback hosts. The local compose file
+sets this explicitly; do not copy it into a production deployment.
+
+Migration 243 adds durable reset receipts/cancellation fences. Deploy the backend before
+new desktop builds: v2 desktop operations require the prepare endpoint before spending.
+Expired journals reconcile before retry. Legacy operations with no surviving receipt or
+idempotency result remain unknown and require operator audit; never delete their journals
+as a workaround. No receipt or cancellation fence may be pruned while a client can retry it.

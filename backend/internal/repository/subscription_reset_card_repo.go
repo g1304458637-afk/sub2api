@@ -2,7 +2,11 @@ package repository
 
 import (
 	"context"
+	"crypto/sha256"
 	stdsql "database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -242,4 +246,71 @@ func txClientFromContext(ctx context.Context, def *dbent.Client) *dbent.Client {
 // txExecContext 在事务（或默认连接）上执行 raw SQL。
 func txExecContext(ctx context.Context, def *dbent.Client, query string, args ...any) (stdsql.Result, error) {
 	return txClientFromContext(ctx, def).ExecContext(ctx, query, args...)
+}
+
+func (r *subscriptionResetCardRepository) LockOperation(ctx context.Context, userID, subscriptionID int64, key, initial string) (*service.ResetCardOperation, error) {
+	sum := sha256.Sum256([]byte(key))
+	hash := hex.EncodeToString(sum[:])
+	client := txClientFromContext(ctx, r.client)
+	if initial != "" {
+		_, err := client.ExecContext(ctx, `INSERT INTO subscription_reset_operations(user_id,key_hash,subscription_id,status) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,key_hash) DO NOTHING`, userID, hash, subscriptionID, initial)
+		if err != nil {
+			return nil, err
+		}
+	}
+	rows, err := client.QueryContext(ctx, `SELECT subscription_id,status,result FROM subscription_reset_operations WHERE user_id=$1 AND key_hash=$2 FOR UPDATE`, userID, hash)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+		return &service.ResetCardOperation{Status: "unknown"}, nil
+	}
+	var storedSub int64
+	var status string
+	var data []byte
+	if err := rows.Scan(&storedSub, &status, &data); err != nil {
+		return nil, err
+	}
+	if storedSub != subscriptionID {
+		return nil, service.ErrIdempotencyKeyConflict
+	}
+	operation := &service.ResetCardOperation{Status: status}
+	if status == "succeeded" {
+		if err := json.Unmarshal(data, &operation.Result); err != nil {
+			return nil, err
+		}
+		if operation.Result == nil {
+			return nil, errors.New("missing reset receipt")
+		}
+	}
+	return operation, nil
+}
+func (r *subscriptionResetCardRepository) CompleteOperation(ctx context.Context, userID int64, key string, result *service.ConsumeResetCardResult) error {
+	sum := sha256.Sum256([]byte(key))
+	data, err := json.Marshal(result)
+	if err != nil {
+		return err
+	}
+	updated, err := txExecContext(ctx, r.client, `UPDATE subscription_reset_operations SET status='succeeded',result=$3 WHERE user_id=$1 AND key_hash=$2 AND status='pending'`, userID, hex.EncodeToString(sum[:]), data)
+	if err != nil {
+		return err
+	}
+	count, err := updated.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return errors.New("reset receipt not pending")
+	}
+	return nil
+}
+
+func (r *subscriptionResetCardRepository) CancelOperation(ctx context.Context, userID int64, key string) error {
+	sum := sha256.Sum256([]byte(key))
+	_, err := txExecContext(ctx, r.client, `UPDATE subscription_reset_operations SET status='cancelled' WHERE user_id=$1 AND key_hash=$2 AND status='pending'`, userID, hex.EncodeToString(sum[:]))
+	return err
 }

@@ -40,7 +40,8 @@ type Brand struct {
 
 // MUC 中央民族大学（既有品牌，字段与历史行为逐字节对齐，勿改动取值）。
 var MUC = Brand{
-	SiteName: "中央民族大学 AI 服务平台", Logo: "/campus-assets/muc.svg", Favicon: "/campus-assets/muc.svg", PrimaryColor: "#AC0E0F",
+	GatewayURL: "https://admin.wuxuexi.top",
+	SiteName:   "中央民族大学 AI 服务平台", Logo: "/campus-assets/muc.svg", Favicon: "/campus-assets/muc.svg", PrimaryColor: "#AC0E0F",
 	ManifestPath: "/downloads/latest-mucode.json", EducationDomain: "muc.edu.cn", DeploymentNamespace: "muc",
 
 	ID:             "muc",
@@ -110,6 +111,12 @@ func Current() Brand {
 			parsed, err := url.Parse(value)
 			if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 				panic(fmt.Sprintf("invalid %s_%s", prefix, name))
+			}
+			if parsed.Scheme == "http" && !(os.Getenv("CAMPUS_LOCAL_BUILD") == "1" && (parsed.Hostname() == "localhost" || parsed.Hostname() == "127.0.0.1" || parsed.Hostname() == "::1")) {
+				panic("campus endpoints require HTTPS")
+			}
+			if name == "GATEWAY_URL" && (parsed.Path != "" && parsed.Path != "/" || parsed.RawQuery != "") {
+				panic("campus gateway must be an origin")
 			}
 			*destination = strings.TrimRight(value, "/")
 		}

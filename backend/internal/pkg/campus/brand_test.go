@@ -23,10 +23,23 @@ func TestDeploymentIdentity(t *testing.T) {
 
 func TestExplicitDeploymentURLsAndEmailPolicy(t *testing.T) {
 	t.Setenv("BRAND", "hubu")
+	t.Setenv("CAMPUS_LOCAL_BUILD", "1")
 	t.Setenv("HUBU_GATEWAY_URL", "http://127.0.0.1:18102")
 	t.Setenv("HUBU_EDUCATION_EMAIL_DOMAIN", "test.hubu.example")
 	require.Equal(t, "http://127.0.0.1:18102", Current().GatewayURL)
 	require.Equal(t, "test.hubu.example", Current().EducationDomain)
 	t.Setenv("HUBU_GATEWAY_URL", "https://user:password@example.org")
 	require.Panics(t, func() { Current() })
+}
+
+func TestProductionGatewayRequiresHTTPS(t *testing.T) {
+	t.Setenv("BRAND", "muc")
+	t.Setenv("MUC_GATEWAY_URL", "")
+	t.Setenv("CAMPUS_LOCAL_BUILD", "")
+	require.Equal(t, "https://admin.wuxuexi.top", Current().GatewayURL)
+	for _, local := range []string{"", "1"} {
+		t.Setenv("CAMPUS_LOCAL_BUILD", local)
+		t.Setenv("MUC_GATEWAY_URL", "http://admin.wuxuexi.top")
+		require.Panics(t, func() { Current() })
+	}
 }
