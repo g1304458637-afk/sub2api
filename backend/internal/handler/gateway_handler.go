@@ -1802,6 +1802,10 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 				resp["subscription_status"] = st
 			}
 		}
+		// 账户级可用重置卡数（MUCODE 重置卡入口；只读计数，与 Website 合同同源）
+		if h.accountStatus != nil {
+			resp["reset_cards"] = gin.H{"available": h.accountStatus.CountAvailableResetCards(ctx, subject.UserID)}
+		}
 
 		if usageData != nil {
 			resp["usage"] = usageData
