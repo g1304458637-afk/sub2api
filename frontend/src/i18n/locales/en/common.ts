@@ -199,6 +199,8 @@ export default {
     mySubscriptions: 'My Subscriptions',
     wallet: 'Wallet',
     pricing: 'Pricing',
+    resetCenter: 'Reset Center',
+    rewardCenter: 'Reward Center',
     buySubscription: 'Recharge / Subscription',
     recharge: 'Recharge',
     subscribe: 'Subscription',

@@ -271,7 +271,14 @@ func (s *ResetEventService) createOnce(ctx context.Context, in *CreateResetEvent
 
 // PreviewResetTargets Direct Reset 预览（无任何写入）。
 func (s *ResetEventService) PreviewResetTargets(ctx context.Context, selector DirectResetSelector) (*ResetTargetSummary, error) {
-	summary, err := s.targets.DescribeTargets(ctx, selector.TargetMode, selector.SubscriptionIDs, selector.GroupIDs)
+	// users 模式按 user_ids 过滤、subscription_ids 模式按订阅 id 过滤：
+	// repo 层 DescribeTargets 的第二个参数语义是「订阅 id / 用户 id（依 mode 而定）」，
+	// 这里按 mode 选择正确的 id 集合（修复 users 模式预览恒报 user_ids required 的问题）。
+	idsForTarget := selector.UserIDs
+	if selector.TargetMode == domain.ResetTargetModeSubscriptionIDs {
+		idsForTarget = selector.SubscriptionIDs
+	}
+	summary, err := s.targets.DescribeTargets(ctx, selector.TargetMode, idsForTarget, selector.GroupIDs)
 	if err != nil {
 		return nil, err
 	}

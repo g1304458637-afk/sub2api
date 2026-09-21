@@ -199,6 +199,8 @@ export default {
     mySubscriptions: '我的订阅',
     wallet: '钱包',
     pricing: '套餐',
+    resetCenter: '重置中心',
+    rewardCenter: '奖励中心',
     buySubscription: '充值/订阅',
     recharge: '充值',
     subscribe: '订阅',
