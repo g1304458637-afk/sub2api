@@ -314,7 +314,9 @@ func runOpenAIWSCodexThreadPair(t *testing.T, threadA, threadB string) (serverEr
 	cancelA()
 	if aReadErr == nil {
 		require.Equal(t, "resp_thread_a", gjson.GetBytes(completedA, "response.id").String())
-		require.NoError(t, connA.Close(coderws.StatusNormalClosure, "done"))
+		// The same-thread case may receive the expected preemption close between
+		// reading the terminal event and sending our normal close handshake.
+		_ = connA.Close(coderws.StatusNormalClosure, "done")
 	}
 	require.NoError(t, connB.Close(coderws.StatusNormalClosure, "done"))
 

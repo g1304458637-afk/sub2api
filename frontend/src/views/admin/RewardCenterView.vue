@@ -157,7 +157,7 @@ const form = ref({ enabled: false, amount: 0, campaign: '' })
 
 const previewAmount = computed(() => `+$${Number(form.value.amount || 0).toFixed(2)}`)
 const loc = computed(() => (typeof locale.value === 'string' ? locale.value : undefined))
-void loc
+void loc.value
 
 onMounted(async () => {
   try {

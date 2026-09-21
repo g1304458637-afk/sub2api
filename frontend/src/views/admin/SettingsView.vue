@@ -7854,7 +7854,7 @@
         </div>
 
         <!-- MUC: 网页聊天设置 -->
-        <WebChatSettings :form="form" />
+        <WebChatSettings :form="form" @change="Object.assign(form, $event)" />
 
         </div><!-- /Tab: Features -->
 
@@ -10014,7 +10014,7 @@ const studentRewardAmountCnyHint = computed(() => {
   return t("admin.settings.defaults.studentVerificationRewardApproxCny", {
     amount: `¥${(amount * rate).toFixed(2)}`,
   })
-});;
+});
 
 // 人机验证 UI 状态：单卡片「总开关 + 服务商单选」，落库仍是三个独立
 // enabled 键（与上游一致），由下面的映射保证同一时间至多一家启用。
