@@ -131,8 +131,22 @@ func RegisterAdminRoutes(
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
 
+		// 科研优惠登记审核
+		registerResearchRoutes(admin, h)
+
 		// 网页聊天（管理端只读：可用模型并集）
 		admin.GET("/web-chat/available-models", h.WebChat.AdminAvailableModels)
+	}
+}
+
+// registerResearchRoutes 科研优惠登记审核路由
+func registerResearchRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	research := admin.Group("/research-applications")
+	{
+		research.GET("", h.Admin.Research.List)
+		research.GET("/:aid/attachments/:attId", h.Admin.Research.DownloadAttachment)
+		research.POST("/:aid/approve", h.Admin.Research.Approve)
+		research.POST("/:aid/reject", h.Admin.Research.Reject)
 	}
 }
 

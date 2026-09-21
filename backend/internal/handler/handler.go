@@ -43,6 +43,7 @@ type AdminHandlers struct {
 	Affiliate              *admin.AffiliateHandler
 	Compliance             *admin.ComplianceHandler
 	AuditLog               *admin.AuditLogHandler
+	Research               *admin.ResearchHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -70,6 +71,7 @@ type Handlers struct {
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
 	MucConnect       *MucConnectHandler
+	Research         *ResearchApplicationHandler
 }
 
 // BuildInfo contains build-time information

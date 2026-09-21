@@ -6,9 +6,22 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/muccode"
 	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/setup"
 
 	"github.com/google/wire"
 )
+
+// ProvideResearchApplicationService 构造科研优惠登记服务。
+// DATA_DIR 在本装配层解析（internal/setup 依赖 internal/service，反向 import 会成环），
+// 附件统一存放在 DATA_DIR/uploads/research/ 下。
+func ProvideResearchApplicationService(
+	appRepo service.ResearchApplicationRepository,
+	uploadRepo service.ResearchAttachmentUploadRepository,
+	redeemService *service.RedeemService,
+	userService *service.UserService,
+) *service.ResearchApplicationService {
+	return service.NewResearchApplicationService(appRepo, uploadRepo, redeemService, userService, setup.GetDataDir())
+}
 
 // ProvideAdminHandlers creates the AdminHandlers struct
 func ProvideAdminHandlers(
@@ -48,6 +61,7 @@ func ProvideAdminHandlers(
 	affiliateHandler *admin.AffiliateHandler,
 	complianceHandler *admin.ComplianceHandler,
 	auditLogHandler *admin.AuditLogHandler,
+	researchHandler *admin.ResearchHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 ) *AdminHandlers {
@@ -90,6 +104,7 @@ func ProvideAdminHandlers(
 		Affiliate:              affiliateHandler,
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
+		Research:               researchHandler,
 	}
 }
 
@@ -197,6 +212,7 @@ func ProvideHandlers(
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
 	mucConnectHandler *MucConnectHandler,
+	researchHandler *ResearchApplicationHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -225,6 +241,7 @@ func ProvideHandlers(
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
 		MucConnect:       mucConnectHandler,
+		Research:         researchHandler,
 	}
 }
 
@@ -253,6 +270,11 @@ var ProviderSet = wire.NewSet(
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
 	NewMucConnectHandler,
+	// 科研优惠登记：DATA_DIR 在 handler 装配层解析（见 ProvideResearchApplicationService）
+	ProvideResearchApplicationService,
+	wire.Bind(new(service.ResearchRedeemIssuer), new(*service.RedeemService)),
+	NewResearchApplicationHandler,
+	admin.NewResearchHandler,
 	muccode.NewCodeStore,
 
 	// Admin handlers

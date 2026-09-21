@@ -32,6 +32,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/researchapplication"
+	"github.com/Wei-Shaw/sub2api/ent/researchattachmentupload"
 	"github.com/Wei-Shaw/sub2api/ent/schema"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
@@ -1768,6 +1770,52 @@ func init() {
 	redeemcodeDescValidityDays := redeemcodeFields[10].Descriptor()
 	// redeemcode.DefaultValidityDays holds the default value on creation for the validity_days field.
 	redeemcode.DefaultValidityDays = redeemcodeDescValidityDays.Default.(int)
+	researchapplicationMixin := schema.ResearchApplication{}.Mixin()
+	researchapplicationMixinFields0 := researchapplicationMixin[0].Fields()
+	_ = researchapplicationMixinFields0
+	researchapplicationFields := schema.ResearchApplication{}.Fields()
+	_ = researchapplicationFields
+	// researchapplicationDescCreatedAt is the schema descriptor for created_at field.
+	researchapplicationDescCreatedAt := researchapplicationMixinFields0[0].Descriptor()
+	// researchapplication.DefaultCreatedAt holds the default value on creation for the created_at field.
+	researchapplication.DefaultCreatedAt = researchapplicationDescCreatedAt.Default.(func() time.Time)
+	// researchapplicationDescUpdatedAt is the schema descriptor for updated_at field.
+	researchapplicationDescUpdatedAt := researchapplicationMixinFields0[1].Descriptor()
+	// researchapplication.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	researchapplication.DefaultUpdatedAt = researchapplicationDescUpdatedAt.Default.(func() time.Time)
+	// researchapplication.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	researchapplication.UpdateDefaultUpdatedAt = researchapplicationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// researchapplicationDescStatus is the schema descriptor for status field.
+	researchapplicationDescStatus := researchapplicationFields[2].Descriptor()
+	// researchapplication.DefaultStatus holds the default value on creation for the status field.
+	researchapplication.DefaultStatus = researchapplicationDescStatus.Default.(string)
+	// researchapplication.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	researchapplication.StatusValidator = researchapplicationDescStatus.Validators[0].(func(string) error)
+	researchattachmentuploadMixin := schema.ResearchAttachmentUpload{}.Mixin()
+	researchattachmentuploadMixinFields0 := researchattachmentuploadMixin[0].Fields()
+	_ = researchattachmentuploadMixinFields0
+	researchattachmentuploadFields := schema.ResearchAttachmentUpload{}.Fields()
+	_ = researchattachmentuploadFields
+	// researchattachmentuploadDescCreatedAt is the schema descriptor for created_at field.
+	researchattachmentuploadDescCreatedAt := researchattachmentuploadMixinFields0[0].Descriptor()
+	// researchattachmentupload.DefaultCreatedAt holds the default value on creation for the created_at field.
+	researchattachmentupload.DefaultCreatedAt = researchattachmentuploadDescCreatedAt.Default.(func() time.Time)
+	// researchattachmentuploadDescUpdatedAt is the schema descriptor for updated_at field.
+	researchattachmentuploadDescUpdatedAt := researchattachmentuploadMixinFields0[1].Descriptor()
+	// researchattachmentupload.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	researchattachmentupload.DefaultUpdatedAt = researchattachmentuploadDescUpdatedAt.Default.(func() time.Time)
+	// researchattachmentupload.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	researchattachmentupload.UpdateDefaultUpdatedAt = researchattachmentuploadDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// researchattachmentuploadDescMime is the schema descriptor for mime field.
+	researchattachmentuploadDescMime := researchattachmentuploadFields[3].Descriptor()
+	// researchattachmentupload.MimeValidator is a validator for the "mime" field. It is called by the builders before save.
+	researchattachmentupload.MimeValidator = researchattachmentuploadDescMime.Validators[0].(func(string) error)
+	// researchattachmentuploadDescID is the schema descriptor for id field.
+	researchattachmentuploadDescID := researchattachmentuploadFields[0].Descriptor()
+	// researchattachmentupload.DefaultID holds the default value on creation for the id field.
+	researchattachmentupload.DefaultID = researchattachmentuploadDescID.Default.(func() string)
+	// researchattachmentupload.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	researchattachmentupload.IDValidator = researchattachmentuploadDescID.Validators[0].(func(string) error)
 	securitysecretMixin := schema.SecuritySecret{}.Mixin()
 	securitysecretMixinFields0 := securitysecretMixin[0].Fields()
 	_ = securitysecretMixinFields0

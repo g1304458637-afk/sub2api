@@ -36,6 +36,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/researchapplication"
+	"github.com/Wei-Shaw/sub2api/ent/researchattachmentupload"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
@@ -838,6 +840,60 @@ func (f TraverseRedeemCode) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.RedeemCodeQuery", q)
 }
 
+// The ResearchApplicationFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ResearchApplicationFunc func(context.Context, *ent.ResearchApplicationQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ResearchApplicationFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ResearchApplicationQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ResearchApplicationQuery", q)
+}
+
+// The TraverseResearchApplication type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseResearchApplication func(context.Context, *ent.ResearchApplicationQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseResearchApplication) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseResearchApplication) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ResearchApplicationQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ResearchApplicationQuery", q)
+}
+
+// The ResearchAttachmentUploadFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ResearchAttachmentUploadFunc func(context.Context, *ent.ResearchAttachmentUploadQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ResearchAttachmentUploadFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ResearchAttachmentUploadQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ResearchAttachmentUploadQuery", q)
+}
+
+// The TraverseResearchAttachmentUpload type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseResearchAttachmentUpload func(context.Context, *ent.ResearchAttachmentUploadQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseResearchAttachmentUpload) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseResearchAttachmentUpload) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ResearchAttachmentUploadQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ResearchAttachmentUploadQuery", q)
+}
+
 // The SecuritySecretFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SecuritySecretFunc func(context.Context, *ent.SecuritySecretQuery) (ent.Value, error)
 
@@ -1300,6 +1356,10 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ProxyQuery, predicate.Proxy, proxy.OrderOption]{typ: ent.TypeProxy, tq: q}, nil
 	case *ent.RedeemCodeQuery:
 		return &query[*ent.RedeemCodeQuery, predicate.RedeemCode, redeemcode.OrderOption]{typ: ent.TypeRedeemCode, tq: q}, nil
+	case *ent.ResearchApplicationQuery:
+		return &query[*ent.ResearchApplicationQuery, predicate.ResearchApplication, researchapplication.OrderOption]{typ: ent.TypeResearchApplication, tq: q}, nil
+	case *ent.ResearchAttachmentUploadQuery:
+		return &query[*ent.ResearchAttachmentUploadQuery, predicate.ResearchAttachmentUpload, researchattachmentupload.OrderOption]{typ: ent.TypeResearchAttachmentUpload, tq: q}, nil
 	case *ent.SecuritySecretQuery:
 		return &query[*ent.SecuritySecretQuery, predicate.SecuritySecret, securitysecret.OrderOption]{typ: ent.TypeSecuritySecret, tq: q}, nil
 	case *ent.SettingQuery:

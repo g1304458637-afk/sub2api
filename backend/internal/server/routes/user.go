@@ -128,6 +128,15 @@ func RegisterUserRoutes(
 			redeem.GET("/history", h.Redeem.GetHistory)
 		}
 
+		// 科研优惠登记（提交科研身份证明 + 附件，等待管理员审核）
+		research := authenticated.Group("/research-applications")
+		{
+			research.POST("/attachments", h.Research.UploadAttachment)
+			research.POST("", h.Research.Create)
+			research.GET("", h.Research.List)
+			research.GET("/:aid/attachments/:attId", h.Research.DownloadAttachment)
+		}
+
 		// 用户订阅
 		subscriptions := authenticated.Group("/subscriptions")
 		{

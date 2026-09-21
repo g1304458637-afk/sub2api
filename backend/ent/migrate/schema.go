@@ -1509,6 +1509,69 @@ var (
 			},
 		},
 	}
+	// ResearchApplicationsColumns holds the columns for the "research_applications" table.
+	ResearchApplicationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "description", Type: field.TypeString, Size: 2147483647},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "pending"},
+		{Name: "reviewer_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "review_notes", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "reward_amount", Type: field.TypeFloat64, Nullable: true},
+		{Name: "issued_redeem_code_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "attachments", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+	}
+	// ResearchApplicationsTable holds the schema information for the "research_applications" table.
+	ResearchApplicationsTable = &schema.Table{
+		Name:       "research_applications",
+		Columns:    ResearchApplicationsColumns,
+		PrimaryKey: []*schema.Column{ResearchApplicationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "researchapplication_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchApplicationsColumns[3]},
+			},
+			{
+				Name:    "researchapplication_status",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchApplicationsColumns[5]},
+			},
+		},
+	}
+	// ResearchAttachmentUploadsColumns holds the columns for the "research_attachment_uploads" table.
+	ResearchAttachmentUploadsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Size: 36},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "original_name", Type: field.TypeString},
+		{Name: "mime", Type: field.TypeString, Size: 100},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "storage_path", Type: field.TypeString},
+		{Name: "application_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// ResearchAttachmentUploadsTable holds the schema information for the "research_attachment_uploads" table.
+	ResearchAttachmentUploadsTable = &schema.Table{
+		Name:       "research_attachment_uploads",
+		Columns:    ResearchAttachmentUploadsColumns,
+		PrimaryKey: []*schema.Column{ResearchAttachmentUploadsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "researchattachmentupload_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchAttachmentUploadsColumns[3]},
+			},
+			{
+				Name:    "researchattachmentupload_application_id",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchAttachmentUploadsColumns[8]},
+			},
+		},
+	}
 	// SecuritySecretsColumns holds the columns for the "security_secrets" table.
 	SecuritySecretsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2277,6 +2340,8 @@ var (
 		PromoCodeUsagesTable,
 		ProxiesTable,
 		RedeemCodesTable,
+		ResearchApplicationsTable,
+		ResearchAttachmentUploadsTable,
 		SecuritySecretsTable,
 		SettingsTable,
 		SubscriptionPlansTable,
@@ -2399,6 +2464,12 @@ func init() {
 	RedeemCodesTable.ForeignKeys[1].RefTable = UsersTable
 	RedeemCodesTable.Annotation = &entsql.Annotation{
 		Table: "redeem_codes",
+	}
+	ResearchApplicationsTable.Annotation = &entsql.Annotation{
+		Table: "research_applications",
+	}
+	ResearchAttachmentUploadsTable.Annotation = &entsql.Annotation{
+		Table: "research_attachment_uploads",
 	}
 	SecuritySecretsTable.Annotation = &entsql.Annotation{
 		Table: "security_secrets",

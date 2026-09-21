@@ -42,6 +42,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/researchapplication"
+	"github.com/Wei-Shaw/sub2api/ent/researchattachmentupload"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
@@ -120,6 +122,10 @@ type Client struct {
 	Proxy *ProxyClient
 	// RedeemCode is the client for interacting with the RedeemCode builders.
 	RedeemCode *RedeemCodeClient
+	// ResearchApplication is the client for interacting with the ResearchApplication builders.
+	ResearchApplication *ResearchApplicationClient
+	// ResearchAttachmentUpload is the client for interacting with the ResearchAttachmentUpload builders.
+	ResearchAttachmentUpload *ResearchAttachmentUploadClient
 	// SecuritySecret is the client for interacting with the SecuritySecret builders.
 	SecuritySecret *SecuritySecretClient
 	// Setting is the client for interacting with the Setting builders.
@@ -188,6 +194,8 @@ func (c *Client) init() {
 	c.PromoCodeUsage = NewPromoCodeUsageClient(c.config)
 	c.Proxy = NewProxyClient(c.config)
 	c.RedeemCode = NewRedeemCodeClient(c.config)
+	c.ResearchApplication = NewResearchApplicationClient(c.config)
+	c.ResearchAttachmentUpload = NewResearchAttachmentUploadClient(c.config)
 	c.SecuritySecret = NewSecuritySecretClient(c.config)
 	c.Setting = NewSettingClient(c.config)
 	c.SubscriptionPlan = NewSubscriptionPlanClient(c.config)
@@ -322,6 +330,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PromoCodeUsage:                NewPromoCodeUsageClient(cfg),
 		Proxy:                         NewProxyClient(cfg),
 		RedeemCode:                    NewRedeemCodeClient(cfg),
+		ResearchApplication:           NewResearchApplicationClient(cfg),
+		ResearchAttachmentUpload:      NewResearchAttachmentUploadClient(cfg),
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
@@ -383,6 +393,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PromoCodeUsage:                NewPromoCodeUsageClient(cfg),
 		Proxy:                         NewProxyClient(cfg),
 		RedeemCode:                    NewRedeemCodeClient(cfg),
+		ResearchApplication:           NewResearchApplicationClient(cfg),
+		ResearchAttachmentUpload:      NewResearchAttachmentUploadClient(cfg),
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
@@ -434,7 +446,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
+		c.Proxy, c.RedeemCode, c.ResearchApplication, c.ResearchAttachmentUpload,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.SubscriptionResetApplication, c.SubscriptionResetCard,
 		c.SubscriptionResetEvent, c.TLSFingerprintProfile, c.UsageCleanupTask,
 		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
@@ -455,7 +468,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
+		c.Proxy, c.RedeemCode, c.ResearchApplication, c.ResearchAttachmentUpload,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.SubscriptionResetApplication, c.SubscriptionResetCard,
 		c.SubscriptionResetEvent, c.TLSFingerprintProfile, c.UsageCleanupTask,
 		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
@@ -522,6 +536,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Proxy.mutate(ctx, m)
 	case *RedeemCodeMutation:
 		return c.RedeemCode.mutate(ctx, m)
+	case *ResearchApplicationMutation:
+		return c.ResearchApplication.mutate(ctx, m)
+	case *ResearchAttachmentUploadMutation:
+		return c.ResearchAttachmentUpload.mutate(ctx, m)
 	case *SecuritySecretMutation:
 		return c.SecuritySecret.mutate(ctx, m)
 	case *SettingMutation:
@@ -4845,6 +4863,272 @@ func (c *RedeemCodeClient) mutate(ctx context.Context, m *RedeemCodeMutation) (V
 	}
 }
 
+// ResearchApplicationClient is a client for the ResearchApplication schema.
+type ResearchApplicationClient struct {
+	config
+}
+
+// NewResearchApplicationClient returns a client for the ResearchApplication from the given config.
+func NewResearchApplicationClient(c config) *ResearchApplicationClient {
+	return &ResearchApplicationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `researchapplication.Hooks(f(g(h())))`.
+func (c *ResearchApplicationClient) Use(hooks ...Hook) {
+	c.hooks.ResearchApplication = append(c.hooks.ResearchApplication, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `researchapplication.Intercept(f(g(h())))`.
+func (c *ResearchApplicationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ResearchApplication = append(c.inters.ResearchApplication, interceptors...)
+}
+
+// Create returns a builder for creating a ResearchApplication entity.
+func (c *ResearchApplicationClient) Create() *ResearchApplicationCreate {
+	mutation := newResearchApplicationMutation(c.config, OpCreate)
+	return &ResearchApplicationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ResearchApplication entities.
+func (c *ResearchApplicationClient) CreateBulk(builders ...*ResearchApplicationCreate) *ResearchApplicationCreateBulk {
+	return &ResearchApplicationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ResearchApplicationClient) MapCreateBulk(slice any, setFunc func(*ResearchApplicationCreate, int)) *ResearchApplicationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ResearchApplicationCreateBulk{err: fmt.Errorf("calling to ResearchApplicationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ResearchApplicationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ResearchApplicationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ResearchApplication.
+func (c *ResearchApplicationClient) Update() *ResearchApplicationUpdate {
+	mutation := newResearchApplicationMutation(c.config, OpUpdate)
+	return &ResearchApplicationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ResearchApplicationClient) UpdateOne(_m *ResearchApplication) *ResearchApplicationUpdateOne {
+	mutation := newResearchApplicationMutation(c.config, OpUpdateOne, withResearchApplication(_m))
+	return &ResearchApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ResearchApplicationClient) UpdateOneID(id int64) *ResearchApplicationUpdateOne {
+	mutation := newResearchApplicationMutation(c.config, OpUpdateOne, withResearchApplicationID(id))
+	return &ResearchApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ResearchApplication.
+func (c *ResearchApplicationClient) Delete() *ResearchApplicationDelete {
+	mutation := newResearchApplicationMutation(c.config, OpDelete)
+	return &ResearchApplicationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ResearchApplicationClient) DeleteOne(_m *ResearchApplication) *ResearchApplicationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ResearchApplicationClient) DeleteOneID(id int64) *ResearchApplicationDeleteOne {
+	builder := c.Delete().Where(researchapplication.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ResearchApplicationDeleteOne{builder}
+}
+
+// Query returns a query builder for ResearchApplication.
+func (c *ResearchApplicationClient) Query() *ResearchApplicationQuery {
+	return &ResearchApplicationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeResearchApplication},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ResearchApplication entity by its id.
+func (c *ResearchApplicationClient) Get(ctx context.Context, id int64) (*ResearchApplication, error) {
+	return c.Query().Where(researchapplication.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ResearchApplicationClient) GetX(ctx context.Context, id int64) *ResearchApplication {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ResearchApplicationClient) Hooks() []Hook {
+	return c.hooks.ResearchApplication
+}
+
+// Interceptors returns the client interceptors.
+func (c *ResearchApplicationClient) Interceptors() []Interceptor {
+	return c.inters.ResearchApplication
+}
+
+func (c *ResearchApplicationClient) mutate(ctx context.Context, m *ResearchApplicationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ResearchApplicationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ResearchApplicationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ResearchApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ResearchApplicationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ResearchApplication mutation op: %q", m.Op())
+	}
+}
+
+// ResearchAttachmentUploadClient is a client for the ResearchAttachmentUpload schema.
+type ResearchAttachmentUploadClient struct {
+	config
+}
+
+// NewResearchAttachmentUploadClient returns a client for the ResearchAttachmentUpload from the given config.
+func NewResearchAttachmentUploadClient(c config) *ResearchAttachmentUploadClient {
+	return &ResearchAttachmentUploadClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `researchattachmentupload.Hooks(f(g(h())))`.
+func (c *ResearchAttachmentUploadClient) Use(hooks ...Hook) {
+	c.hooks.ResearchAttachmentUpload = append(c.hooks.ResearchAttachmentUpload, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `researchattachmentupload.Intercept(f(g(h())))`.
+func (c *ResearchAttachmentUploadClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ResearchAttachmentUpload = append(c.inters.ResearchAttachmentUpload, interceptors...)
+}
+
+// Create returns a builder for creating a ResearchAttachmentUpload entity.
+func (c *ResearchAttachmentUploadClient) Create() *ResearchAttachmentUploadCreate {
+	mutation := newResearchAttachmentUploadMutation(c.config, OpCreate)
+	return &ResearchAttachmentUploadCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ResearchAttachmentUpload entities.
+func (c *ResearchAttachmentUploadClient) CreateBulk(builders ...*ResearchAttachmentUploadCreate) *ResearchAttachmentUploadCreateBulk {
+	return &ResearchAttachmentUploadCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ResearchAttachmentUploadClient) MapCreateBulk(slice any, setFunc func(*ResearchAttachmentUploadCreate, int)) *ResearchAttachmentUploadCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ResearchAttachmentUploadCreateBulk{err: fmt.Errorf("calling to ResearchAttachmentUploadClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ResearchAttachmentUploadCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ResearchAttachmentUploadCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ResearchAttachmentUpload.
+func (c *ResearchAttachmentUploadClient) Update() *ResearchAttachmentUploadUpdate {
+	mutation := newResearchAttachmentUploadMutation(c.config, OpUpdate)
+	return &ResearchAttachmentUploadUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ResearchAttachmentUploadClient) UpdateOne(_m *ResearchAttachmentUpload) *ResearchAttachmentUploadUpdateOne {
+	mutation := newResearchAttachmentUploadMutation(c.config, OpUpdateOne, withResearchAttachmentUpload(_m))
+	return &ResearchAttachmentUploadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ResearchAttachmentUploadClient) UpdateOneID(id string) *ResearchAttachmentUploadUpdateOne {
+	mutation := newResearchAttachmentUploadMutation(c.config, OpUpdateOne, withResearchAttachmentUploadID(id))
+	return &ResearchAttachmentUploadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ResearchAttachmentUpload.
+func (c *ResearchAttachmentUploadClient) Delete() *ResearchAttachmentUploadDelete {
+	mutation := newResearchAttachmentUploadMutation(c.config, OpDelete)
+	return &ResearchAttachmentUploadDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ResearchAttachmentUploadClient) DeleteOne(_m *ResearchAttachmentUpload) *ResearchAttachmentUploadDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ResearchAttachmentUploadClient) DeleteOneID(id string) *ResearchAttachmentUploadDeleteOne {
+	builder := c.Delete().Where(researchattachmentupload.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ResearchAttachmentUploadDeleteOne{builder}
+}
+
+// Query returns a query builder for ResearchAttachmentUpload.
+func (c *ResearchAttachmentUploadClient) Query() *ResearchAttachmentUploadQuery {
+	return &ResearchAttachmentUploadQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeResearchAttachmentUpload},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ResearchAttachmentUpload entity by its id.
+func (c *ResearchAttachmentUploadClient) Get(ctx context.Context, id string) (*ResearchAttachmentUpload, error) {
+	return c.Query().Where(researchattachmentupload.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ResearchAttachmentUploadClient) GetX(ctx context.Context, id string) *ResearchAttachmentUpload {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ResearchAttachmentUploadClient) Hooks() []Hook {
+	return c.hooks.ResearchAttachmentUpload
+}
+
+// Interceptors returns the client interceptors.
+func (c *ResearchAttachmentUploadClient) Interceptors() []Interceptor {
+	return c.inters.ResearchAttachmentUpload
+}
+
+func (c *ResearchAttachmentUploadClient) mutate(ctx context.Context, m *ResearchAttachmentUploadMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ResearchAttachmentUploadCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ResearchAttachmentUploadUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ResearchAttachmentUploadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ResearchAttachmentUploadDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ResearchAttachmentUpload mutation op: %q", m.Op())
+	}
+}
+
 // SecuritySecretClient is a client for the SecuritySecret schema.
 type SecuritySecretClient struct {
 	config
@@ -7498,7 +7782,8 @@ type (
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
+		PromoCodeUsage, Proxy, RedeemCode, ResearchApplication,
+		ResearchAttachmentUpload, SecuritySecret, Setting, SubscriptionPlan,
 		SubscriptionResetApplication, SubscriptionResetCard, SubscriptionResetEvent,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
@@ -7511,7 +7796,8 @@ type (
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
+		PromoCodeUsage, Proxy, RedeemCode, ResearchApplication,
+		ResearchAttachmentUpload, SecuritySecret, Setting, SubscriptionPlan,
 		SubscriptionResetApplication, SubscriptionResetCard, SubscriptionResetEvent,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,

@@ -333,6 +333,30 @@ func (f RedeemCodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RedeemCodeMutation", m)
 }
 
+// The ResearchApplicationFunc type is an adapter to allow the use of ordinary
+// function as ResearchApplication mutator.
+type ResearchApplicationFunc func(context.Context, *ent.ResearchApplicationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ResearchApplicationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ResearchApplicationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ResearchApplicationMutation", m)
+}
+
+// The ResearchAttachmentUploadFunc type is an adapter to allow the use of ordinary
+// function as ResearchAttachmentUpload mutator.
+type ResearchAttachmentUploadFunc func(context.Context, *ent.ResearchAttachmentUploadMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ResearchAttachmentUploadFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ResearchAttachmentUploadMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ResearchAttachmentUploadMutation", m)
+}
+
 // The SecuritySecretFunc type is an adapter to allow the use of ordinary
 // function as SecuritySecret mutator.
 type SecuritySecretFunc func(context.Context, *ent.SecuritySecretMutation) (ent.Value, error)

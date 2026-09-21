@@ -5,6 +5,7 @@ import channelMonitorV2 from './channelMonitorV2'
 import batchImage from './batchImage'
 import chat from './chat'
 import draw from './draw'
+import research from './research'
 import admin from './admin'
 import misc from './misc'
 
@@ -16,6 +17,7 @@ export default {
   ...batchImage,
   ...chat,
   ...draw,
+  ...research,
   admin,
   ...misc,
 }

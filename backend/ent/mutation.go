@@ -40,6 +40,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/researchapplication"
+	"github.com/Wei-Shaw/sub2api/ent/researchattachmentupload"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
@@ -94,6 +96,8 @@ const (
 	TypePromoCodeUsage                = "PromoCodeUsage"
 	TypeProxy                         = "Proxy"
 	TypeRedeemCode                    = "RedeemCode"
+	TypeResearchApplication           = "ResearchApplication"
+	TypeResearchAttachmentUpload      = "ResearchAttachmentUpload"
 	TypeSecuritySecret                = "SecuritySecret"
 	TypeSetting                       = "Setting"
 	TypeSubscriptionPlan              = "SubscriptionPlan"
@@ -40037,6 +40041,1979 @@ func (m *RedeemCodeMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode edge %s", name)
+}
+
+// ResearchApplicationMutation represents an operation that mutates the ResearchApplication nodes in the graph.
+type ResearchApplicationMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int64
+	created_at               *time.Time
+	updated_at               *time.Time
+	user_id                  *int64
+	adduser_id               *int64
+	description              *string
+	status                   *string
+	reviewer_id              *int64
+	addreviewer_id           *int64
+	review_notes             *string
+	reward_amount            *float64
+	addreward_amount         *float64
+	issued_redeem_code_id    *int64
+	addissued_redeem_code_id *int64
+	reviewed_at              *time.Time
+	attachments              *[]domain.ResearchAttachmentMeta
+	appendattachments        []domain.ResearchAttachmentMeta
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*ResearchApplication, error)
+	predicates               []predicate.ResearchApplication
+}
+
+var _ ent.Mutation = (*ResearchApplicationMutation)(nil)
+
+// researchapplicationOption allows management of the mutation configuration using functional options.
+type researchapplicationOption func(*ResearchApplicationMutation)
+
+// newResearchApplicationMutation creates new mutation for the ResearchApplication entity.
+func newResearchApplicationMutation(c config, op Op, opts ...researchapplicationOption) *ResearchApplicationMutation {
+	m := &ResearchApplicationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeResearchApplication,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withResearchApplicationID sets the ID field of the mutation.
+func withResearchApplicationID(id int64) researchapplicationOption {
+	return func(m *ResearchApplicationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ResearchApplication
+		)
+		m.oldValue = func(ctx context.Context) (*ResearchApplication, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ResearchApplication.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withResearchApplication sets the old ResearchApplication of the mutation.
+func withResearchApplication(node *ResearchApplication) researchapplicationOption {
+	return func(m *ResearchApplicationMutation) {
+		m.oldValue = func(context.Context) (*ResearchApplication, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ResearchApplicationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ResearchApplicationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ResearchApplicationMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ResearchApplicationMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ResearchApplication.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ResearchApplicationMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ResearchApplicationMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ResearchApplicationMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ResearchApplicationMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ResearchApplicationMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ResearchApplicationMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *ResearchApplicationMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *ResearchApplicationMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *ResearchApplicationMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *ResearchApplicationMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *ResearchApplicationMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *ResearchApplicationMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *ResearchApplicationMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *ResearchApplicationMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *ResearchApplicationMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *ResearchApplicationMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *ResearchApplicationMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetReviewerID sets the "reviewer_id" field.
+func (m *ResearchApplicationMutation) SetReviewerID(i int64) {
+	m.reviewer_id = &i
+	m.addreviewer_id = nil
+}
+
+// ReviewerID returns the value of the "reviewer_id" field in the mutation.
+func (m *ResearchApplicationMutation) ReviewerID() (r int64, exists bool) {
+	v := m.reviewer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewerID returns the old "reviewer_id" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldReviewerID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewerID: %w", err)
+	}
+	return oldValue.ReviewerID, nil
+}
+
+// AddReviewerID adds i to the "reviewer_id" field.
+func (m *ResearchApplicationMutation) AddReviewerID(i int64) {
+	if m.addreviewer_id != nil {
+		*m.addreviewer_id += i
+	} else {
+		m.addreviewer_id = &i
+	}
+}
+
+// AddedReviewerID returns the value that was added to the "reviewer_id" field in this mutation.
+func (m *ResearchApplicationMutation) AddedReviewerID() (r int64, exists bool) {
+	v := m.addreviewer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReviewerID clears the value of the "reviewer_id" field.
+func (m *ResearchApplicationMutation) ClearReviewerID() {
+	m.reviewer_id = nil
+	m.addreviewer_id = nil
+	m.clearedFields[researchapplication.FieldReviewerID] = struct{}{}
+}
+
+// ReviewerIDCleared returns if the "reviewer_id" field was cleared in this mutation.
+func (m *ResearchApplicationMutation) ReviewerIDCleared() bool {
+	_, ok := m.clearedFields[researchapplication.FieldReviewerID]
+	return ok
+}
+
+// ResetReviewerID resets all changes to the "reviewer_id" field.
+func (m *ResearchApplicationMutation) ResetReviewerID() {
+	m.reviewer_id = nil
+	m.addreviewer_id = nil
+	delete(m.clearedFields, researchapplication.FieldReviewerID)
+}
+
+// SetReviewNotes sets the "review_notes" field.
+func (m *ResearchApplicationMutation) SetReviewNotes(s string) {
+	m.review_notes = &s
+}
+
+// ReviewNotes returns the value of the "review_notes" field in the mutation.
+func (m *ResearchApplicationMutation) ReviewNotes() (r string, exists bool) {
+	v := m.review_notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewNotes returns the old "review_notes" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldReviewNotes(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewNotes: %w", err)
+	}
+	return oldValue.ReviewNotes, nil
+}
+
+// ClearReviewNotes clears the value of the "review_notes" field.
+func (m *ResearchApplicationMutation) ClearReviewNotes() {
+	m.review_notes = nil
+	m.clearedFields[researchapplication.FieldReviewNotes] = struct{}{}
+}
+
+// ReviewNotesCleared returns if the "review_notes" field was cleared in this mutation.
+func (m *ResearchApplicationMutation) ReviewNotesCleared() bool {
+	_, ok := m.clearedFields[researchapplication.FieldReviewNotes]
+	return ok
+}
+
+// ResetReviewNotes resets all changes to the "review_notes" field.
+func (m *ResearchApplicationMutation) ResetReviewNotes() {
+	m.review_notes = nil
+	delete(m.clearedFields, researchapplication.FieldReviewNotes)
+}
+
+// SetRewardAmount sets the "reward_amount" field.
+func (m *ResearchApplicationMutation) SetRewardAmount(f float64) {
+	m.reward_amount = &f
+	m.addreward_amount = nil
+}
+
+// RewardAmount returns the value of the "reward_amount" field in the mutation.
+func (m *ResearchApplicationMutation) RewardAmount() (r float64, exists bool) {
+	v := m.reward_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRewardAmount returns the old "reward_amount" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldRewardAmount(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRewardAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRewardAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRewardAmount: %w", err)
+	}
+	return oldValue.RewardAmount, nil
+}
+
+// AddRewardAmount adds f to the "reward_amount" field.
+func (m *ResearchApplicationMutation) AddRewardAmount(f float64) {
+	if m.addreward_amount != nil {
+		*m.addreward_amount += f
+	} else {
+		m.addreward_amount = &f
+	}
+}
+
+// AddedRewardAmount returns the value that was added to the "reward_amount" field in this mutation.
+func (m *ResearchApplicationMutation) AddedRewardAmount() (r float64, exists bool) {
+	v := m.addreward_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRewardAmount clears the value of the "reward_amount" field.
+func (m *ResearchApplicationMutation) ClearRewardAmount() {
+	m.reward_amount = nil
+	m.addreward_amount = nil
+	m.clearedFields[researchapplication.FieldRewardAmount] = struct{}{}
+}
+
+// RewardAmountCleared returns if the "reward_amount" field was cleared in this mutation.
+func (m *ResearchApplicationMutation) RewardAmountCleared() bool {
+	_, ok := m.clearedFields[researchapplication.FieldRewardAmount]
+	return ok
+}
+
+// ResetRewardAmount resets all changes to the "reward_amount" field.
+func (m *ResearchApplicationMutation) ResetRewardAmount() {
+	m.reward_amount = nil
+	m.addreward_amount = nil
+	delete(m.clearedFields, researchapplication.FieldRewardAmount)
+}
+
+// SetIssuedRedeemCodeID sets the "issued_redeem_code_id" field.
+func (m *ResearchApplicationMutation) SetIssuedRedeemCodeID(i int64) {
+	m.issued_redeem_code_id = &i
+	m.addissued_redeem_code_id = nil
+}
+
+// IssuedRedeemCodeID returns the value of the "issued_redeem_code_id" field in the mutation.
+func (m *ResearchApplicationMutation) IssuedRedeemCodeID() (r int64, exists bool) {
+	v := m.issued_redeem_code_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIssuedRedeemCodeID returns the old "issued_redeem_code_id" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldIssuedRedeemCodeID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIssuedRedeemCodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIssuedRedeemCodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIssuedRedeemCodeID: %w", err)
+	}
+	return oldValue.IssuedRedeemCodeID, nil
+}
+
+// AddIssuedRedeemCodeID adds i to the "issued_redeem_code_id" field.
+func (m *ResearchApplicationMutation) AddIssuedRedeemCodeID(i int64) {
+	if m.addissued_redeem_code_id != nil {
+		*m.addissued_redeem_code_id += i
+	} else {
+		m.addissued_redeem_code_id = &i
+	}
+}
+
+// AddedIssuedRedeemCodeID returns the value that was added to the "issued_redeem_code_id" field in this mutation.
+func (m *ResearchApplicationMutation) AddedIssuedRedeemCodeID() (r int64, exists bool) {
+	v := m.addissued_redeem_code_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearIssuedRedeemCodeID clears the value of the "issued_redeem_code_id" field.
+func (m *ResearchApplicationMutation) ClearIssuedRedeemCodeID() {
+	m.issued_redeem_code_id = nil
+	m.addissued_redeem_code_id = nil
+	m.clearedFields[researchapplication.FieldIssuedRedeemCodeID] = struct{}{}
+}
+
+// IssuedRedeemCodeIDCleared returns if the "issued_redeem_code_id" field was cleared in this mutation.
+func (m *ResearchApplicationMutation) IssuedRedeemCodeIDCleared() bool {
+	_, ok := m.clearedFields[researchapplication.FieldIssuedRedeemCodeID]
+	return ok
+}
+
+// ResetIssuedRedeemCodeID resets all changes to the "issued_redeem_code_id" field.
+func (m *ResearchApplicationMutation) ResetIssuedRedeemCodeID() {
+	m.issued_redeem_code_id = nil
+	m.addissued_redeem_code_id = nil
+	delete(m.clearedFields, researchapplication.FieldIssuedRedeemCodeID)
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (m *ResearchApplicationMutation) SetReviewedAt(t time.Time) {
+	m.reviewed_at = &t
+}
+
+// ReviewedAt returns the value of the "reviewed_at" field in the mutation.
+func (m *ResearchApplicationMutation) ReviewedAt() (r time.Time, exists bool) {
+	v := m.reviewed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewedAt returns the old "reviewed_at" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldReviewedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewedAt: %w", err)
+	}
+	return oldValue.ReviewedAt, nil
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (m *ResearchApplicationMutation) ClearReviewedAt() {
+	m.reviewed_at = nil
+	m.clearedFields[researchapplication.FieldReviewedAt] = struct{}{}
+}
+
+// ReviewedAtCleared returns if the "reviewed_at" field was cleared in this mutation.
+func (m *ResearchApplicationMutation) ReviewedAtCleared() bool {
+	_, ok := m.clearedFields[researchapplication.FieldReviewedAt]
+	return ok
+}
+
+// ResetReviewedAt resets all changes to the "reviewed_at" field.
+func (m *ResearchApplicationMutation) ResetReviewedAt() {
+	m.reviewed_at = nil
+	delete(m.clearedFields, researchapplication.FieldReviewedAt)
+}
+
+// SetAttachments sets the "attachments" field.
+func (m *ResearchApplicationMutation) SetAttachments(dam []domain.ResearchAttachmentMeta) {
+	m.attachments = &dam
+	m.appendattachments = nil
+}
+
+// Attachments returns the value of the "attachments" field in the mutation.
+func (m *ResearchApplicationMutation) Attachments() (r []domain.ResearchAttachmentMeta, exists bool) {
+	v := m.attachments
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttachments returns the old "attachments" field's value of the ResearchApplication entity.
+// If the ResearchApplication object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchApplicationMutation) OldAttachments(ctx context.Context) (v []domain.ResearchAttachmentMeta, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttachments is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttachments requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttachments: %w", err)
+	}
+	return oldValue.Attachments, nil
+}
+
+// AppendAttachments adds dam to the "attachments" field.
+func (m *ResearchApplicationMutation) AppendAttachments(dam []domain.ResearchAttachmentMeta) {
+	m.appendattachments = append(m.appendattachments, dam...)
+}
+
+// AppendedAttachments returns the list of values that were appended to the "attachments" field in this mutation.
+func (m *ResearchApplicationMutation) AppendedAttachments() ([]domain.ResearchAttachmentMeta, bool) {
+	if len(m.appendattachments) == 0 {
+		return nil, false
+	}
+	return m.appendattachments, true
+}
+
+// ClearAttachments clears the value of the "attachments" field.
+func (m *ResearchApplicationMutation) ClearAttachments() {
+	m.attachments = nil
+	m.appendattachments = nil
+	m.clearedFields[researchapplication.FieldAttachments] = struct{}{}
+}
+
+// AttachmentsCleared returns if the "attachments" field was cleared in this mutation.
+func (m *ResearchApplicationMutation) AttachmentsCleared() bool {
+	_, ok := m.clearedFields[researchapplication.FieldAttachments]
+	return ok
+}
+
+// ResetAttachments resets all changes to the "attachments" field.
+func (m *ResearchApplicationMutation) ResetAttachments() {
+	m.attachments = nil
+	m.appendattachments = nil
+	delete(m.clearedFields, researchapplication.FieldAttachments)
+}
+
+// Where appends a list predicates to the ResearchApplicationMutation builder.
+func (m *ResearchApplicationMutation) Where(ps ...predicate.ResearchApplication) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ResearchApplicationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ResearchApplicationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ResearchApplication, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ResearchApplicationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ResearchApplicationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ResearchApplication).
+func (m *ResearchApplicationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ResearchApplicationMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.created_at != nil {
+		fields = append(fields, researchapplication.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, researchapplication.FieldUpdatedAt)
+	}
+	if m.user_id != nil {
+		fields = append(fields, researchapplication.FieldUserID)
+	}
+	if m.description != nil {
+		fields = append(fields, researchapplication.FieldDescription)
+	}
+	if m.status != nil {
+		fields = append(fields, researchapplication.FieldStatus)
+	}
+	if m.reviewer_id != nil {
+		fields = append(fields, researchapplication.FieldReviewerID)
+	}
+	if m.review_notes != nil {
+		fields = append(fields, researchapplication.FieldReviewNotes)
+	}
+	if m.reward_amount != nil {
+		fields = append(fields, researchapplication.FieldRewardAmount)
+	}
+	if m.issued_redeem_code_id != nil {
+		fields = append(fields, researchapplication.FieldIssuedRedeemCodeID)
+	}
+	if m.reviewed_at != nil {
+		fields = append(fields, researchapplication.FieldReviewedAt)
+	}
+	if m.attachments != nil {
+		fields = append(fields, researchapplication.FieldAttachments)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ResearchApplicationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case researchapplication.FieldCreatedAt:
+		return m.CreatedAt()
+	case researchapplication.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case researchapplication.FieldUserID:
+		return m.UserID()
+	case researchapplication.FieldDescription:
+		return m.Description()
+	case researchapplication.FieldStatus:
+		return m.Status()
+	case researchapplication.FieldReviewerID:
+		return m.ReviewerID()
+	case researchapplication.FieldReviewNotes:
+		return m.ReviewNotes()
+	case researchapplication.FieldRewardAmount:
+		return m.RewardAmount()
+	case researchapplication.FieldIssuedRedeemCodeID:
+		return m.IssuedRedeemCodeID()
+	case researchapplication.FieldReviewedAt:
+		return m.ReviewedAt()
+	case researchapplication.FieldAttachments:
+		return m.Attachments()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ResearchApplicationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case researchapplication.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case researchapplication.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case researchapplication.FieldUserID:
+		return m.OldUserID(ctx)
+	case researchapplication.FieldDescription:
+		return m.OldDescription(ctx)
+	case researchapplication.FieldStatus:
+		return m.OldStatus(ctx)
+	case researchapplication.FieldReviewerID:
+		return m.OldReviewerID(ctx)
+	case researchapplication.FieldReviewNotes:
+		return m.OldReviewNotes(ctx)
+	case researchapplication.FieldRewardAmount:
+		return m.OldRewardAmount(ctx)
+	case researchapplication.FieldIssuedRedeemCodeID:
+		return m.OldIssuedRedeemCodeID(ctx)
+	case researchapplication.FieldReviewedAt:
+		return m.OldReviewedAt(ctx)
+	case researchapplication.FieldAttachments:
+		return m.OldAttachments(ctx)
+	}
+	return nil, fmt.Errorf("unknown ResearchApplication field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResearchApplicationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case researchapplication.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case researchapplication.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case researchapplication.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case researchapplication.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case researchapplication.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case researchapplication.FieldReviewerID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewerID(v)
+		return nil
+	case researchapplication.FieldReviewNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewNotes(v)
+		return nil
+	case researchapplication.FieldRewardAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRewardAmount(v)
+		return nil
+	case researchapplication.FieldIssuedRedeemCodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIssuedRedeemCodeID(v)
+		return nil
+	case researchapplication.FieldReviewedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewedAt(v)
+		return nil
+	case researchapplication.FieldAttachments:
+		v, ok := value.([]domain.ResearchAttachmentMeta)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttachments(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchApplication field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ResearchApplicationMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, researchapplication.FieldUserID)
+	}
+	if m.addreviewer_id != nil {
+		fields = append(fields, researchapplication.FieldReviewerID)
+	}
+	if m.addreward_amount != nil {
+		fields = append(fields, researchapplication.FieldRewardAmount)
+	}
+	if m.addissued_redeem_code_id != nil {
+		fields = append(fields, researchapplication.FieldIssuedRedeemCodeID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ResearchApplicationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case researchapplication.FieldUserID:
+		return m.AddedUserID()
+	case researchapplication.FieldReviewerID:
+		return m.AddedReviewerID()
+	case researchapplication.FieldRewardAmount:
+		return m.AddedRewardAmount()
+	case researchapplication.FieldIssuedRedeemCodeID:
+		return m.AddedIssuedRedeemCodeID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResearchApplicationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case researchapplication.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case researchapplication.FieldReviewerID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReviewerID(v)
+		return nil
+	case researchapplication.FieldRewardAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRewardAmount(v)
+		return nil
+	case researchapplication.FieldIssuedRedeemCodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddIssuedRedeemCodeID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchApplication numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ResearchApplicationMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(researchapplication.FieldReviewerID) {
+		fields = append(fields, researchapplication.FieldReviewerID)
+	}
+	if m.FieldCleared(researchapplication.FieldReviewNotes) {
+		fields = append(fields, researchapplication.FieldReviewNotes)
+	}
+	if m.FieldCleared(researchapplication.FieldRewardAmount) {
+		fields = append(fields, researchapplication.FieldRewardAmount)
+	}
+	if m.FieldCleared(researchapplication.FieldIssuedRedeemCodeID) {
+		fields = append(fields, researchapplication.FieldIssuedRedeemCodeID)
+	}
+	if m.FieldCleared(researchapplication.FieldReviewedAt) {
+		fields = append(fields, researchapplication.FieldReviewedAt)
+	}
+	if m.FieldCleared(researchapplication.FieldAttachments) {
+		fields = append(fields, researchapplication.FieldAttachments)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ResearchApplicationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ResearchApplicationMutation) ClearField(name string) error {
+	switch name {
+	case researchapplication.FieldReviewerID:
+		m.ClearReviewerID()
+		return nil
+	case researchapplication.FieldReviewNotes:
+		m.ClearReviewNotes()
+		return nil
+	case researchapplication.FieldRewardAmount:
+		m.ClearRewardAmount()
+		return nil
+	case researchapplication.FieldIssuedRedeemCodeID:
+		m.ClearIssuedRedeemCodeID()
+		return nil
+	case researchapplication.FieldReviewedAt:
+		m.ClearReviewedAt()
+		return nil
+	case researchapplication.FieldAttachments:
+		m.ClearAttachments()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchApplication nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ResearchApplicationMutation) ResetField(name string) error {
+	switch name {
+	case researchapplication.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case researchapplication.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case researchapplication.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case researchapplication.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case researchapplication.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case researchapplication.FieldReviewerID:
+		m.ResetReviewerID()
+		return nil
+	case researchapplication.FieldReviewNotes:
+		m.ResetReviewNotes()
+		return nil
+	case researchapplication.FieldRewardAmount:
+		m.ResetRewardAmount()
+		return nil
+	case researchapplication.FieldIssuedRedeemCodeID:
+		m.ResetIssuedRedeemCodeID()
+		return nil
+	case researchapplication.FieldReviewedAt:
+		m.ResetReviewedAt()
+		return nil
+	case researchapplication.FieldAttachments:
+		m.ResetAttachments()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchApplication field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ResearchApplicationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ResearchApplicationMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ResearchApplicationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ResearchApplicationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ResearchApplicationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ResearchApplicationMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ResearchApplicationMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ResearchApplication unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ResearchApplicationMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ResearchApplication edge %s", name)
+}
+
+// ResearchAttachmentUploadMutation represents an operation that mutates the ResearchAttachmentUpload nodes in the graph.
+type ResearchAttachmentUploadMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *string
+	created_at        *time.Time
+	updated_at        *time.Time
+	user_id           *int64
+	adduser_id        *int64
+	original_name     *string
+	mime              *string
+	size              *int64
+	addsize           *int64
+	storage_path      *string
+	application_id    *int64
+	addapplication_id *int64
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*ResearchAttachmentUpload, error)
+	predicates        []predicate.ResearchAttachmentUpload
+}
+
+var _ ent.Mutation = (*ResearchAttachmentUploadMutation)(nil)
+
+// researchattachmentuploadOption allows management of the mutation configuration using functional options.
+type researchattachmentuploadOption func(*ResearchAttachmentUploadMutation)
+
+// newResearchAttachmentUploadMutation creates new mutation for the ResearchAttachmentUpload entity.
+func newResearchAttachmentUploadMutation(c config, op Op, opts ...researchattachmentuploadOption) *ResearchAttachmentUploadMutation {
+	m := &ResearchAttachmentUploadMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeResearchAttachmentUpload,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withResearchAttachmentUploadID sets the ID field of the mutation.
+func withResearchAttachmentUploadID(id string) researchattachmentuploadOption {
+	return func(m *ResearchAttachmentUploadMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ResearchAttachmentUpload
+		)
+		m.oldValue = func(ctx context.Context) (*ResearchAttachmentUpload, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ResearchAttachmentUpload.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withResearchAttachmentUpload sets the old ResearchAttachmentUpload of the mutation.
+func withResearchAttachmentUpload(node *ResearchAttachmentUpload) researchattachmentuploadOption {
+	return func(m *ResearchAttachmentUploadMutation) {
+		m.oldValue = func(context.Context) (*ResearchAttachmentUpload, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ResearchAttachmentUploadMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ResearchAttachmentUploadMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ResearchAttachmentUpload entities.
+func (m *ResearchAttachmentUploadMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ResearchAttachmentUploadMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ResearchAttachmentUploadMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ResearchAttachmentUpload.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ResearchAttachmentUploadMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ResearchAttachmentUploadMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ResearchAttachmentUpload entity.
+// If the ResearchAttachmentUpload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchAttachmentUploadMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ResearchAttachmentUploadMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ResearchAttachmentUploadMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ResearchAttachmentUploadMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ResearchAttachmentUpload entity.
+// If the ResearchAttachmentUpload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchAttachmentUploadMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ResearchAttachmentUploadMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *ResearchAttachmentUploadMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *ResearchAttachmentUploadMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the ResearchAttachmentUpload entity.
+// If the ResearchAttachmentUpload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchAttachmentUploadMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *ResearchAttachmentUploadMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *ResearchAttachmentUploadMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *ResearchAttachmentUploadMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetOriginalName sets the "original_name" field.
+func (m *ResearchAttachmentUploadMutation) SetOriginalName(s string) {
+	m.original_name = &s
+}
+
+// OriginalName returns the value of the "original_name" field in the mutation.
+func (m *ResearchAttachmentUploadMutation) OriginalName() (r string, exists bool) {
+	v := m.original_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOriginalName returns the old "original_name" field's value of the ResearchAttachmentUpload entity.
+// If the ResearchAttachmentUpload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchAttachmentUploadMutation) OldOriginalName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOriginalName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOriginalName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOriginalName: %w", err)
+	}
+	return oldValue.OriginalName, nil
+}
+
+// ResetOriginalName resets all changes to the "original_name" field.
+func (m *ResearchAttachmentUploadMutation) ResetOriginalName() {
+	m.original_name = nil
+}
+
+// SetMime sets the "mime" field.
+func (m *ResearchAttachmentUploadMutation) SetMime(s string) {
+	m.mime = &s
+}
+
+// Mime returns the value of the "mime" field in the mutation.
+func (m *ResearchAttachmentUploadMutation) Mime() (r string, exists bool) {
+	v := m.mime
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMime returns the old "mime" field's value of the ResearchAttachmentUpload entity.
+// If the ResearchAttachmentUpload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchAttachmentUploadMutation) OldMime(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMime: %w", err)
+	}
+	return oldValue.Mime, nil
+}
+
+// ResetMime resets all changes to the "mime" field.
+func (m *ResearchAttachmentUploadMutation) ResetMime() {
+	m.mime = nil
+}
+
+// SetSize sets the "size" field.
+func (m *ResearchAttachmentUploadMutation) SetSize(i int64) {
+	m.size = &i
+	m.addsize = nil
+}
+
+// Size returns the value of the "size" field in the mutation.
+func (m *ResearchAttachmentUploadMutation) Size() (r int64, exists bool) {
+	v := m.size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSize returns the old "size" field's value of the ResearchAttachmentUpload entity.
+// If the ResearchAttachmentUpload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchAttachmentUploadMutation) OldSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSize: %w", err)
+	}
+	return oldValue.Size, nil
+}
+
+// AddSize adds i to the "size" field.
+func (m *ResearchAttachmentUploadMutation) AddSize(i int64) {
+	if m.addsize != nil {
+		*m.addsize += i
+	} else {
+		m.addsize = &i
+	}
+}
+
+// AddedSize returns the value that was added to the "size" field in this mutation.
+func (m *ResearchAttachmentUploadMutation) AddedSize() (r int64, exists bool) {
+	v := m.addsize
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSize resets all changes to the "size" field.
+func (m *ResearchAttachmentUploadMutation) ResetSize() {
+	m.size = nil
+	m.addsize = nil
+}
+
+// SetStoragePath sets the "storage_path" field.
+func (m *ResearchAttachmentUploadMutation) SetStoragePath(s string) {
+	m.storage_path = &s
+}
+
+// StoragePath returns the value of the "storage_path" field in the mutation.
+func (m *ResearchAttachmentUploadMutation) StoragePath() (r string, exists bool) {
+	v := m.storage_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStoragePath returns the old "storage_path" field's value of the ResearchAttachmentUpload entity.
+// If the ResearchAttachmentUpload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchAttachmentUploadMutation) OldStoragePath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStoragePath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStoragePath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStoragePath: %w", err)
+	}
+	return oldValue.StoragePath, nil
+}
+
+// ResetStoragePath resets all changes to the "storage_path" field.
+func (m *ResearchAttachmentUploadMutation) ResetStoragePath() {
+	m.storage_path = nil
+}
+
+// SetApplicationID sets the "application_id" field.
+func (m *ResearchAttachmentUploadMutation) SetApplicationID(i int64) {
+	m.application_id = &i
+	m.addapplication_id = nil
+}
+
+// ApplicationID returns the value of the "application_id" field in the mutation.
+func (m *ResearchAttachmentUploadMutation) ApplicationID() (r int64, exists bool) {
+	v := m.application_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApplicationID returns the old "application_id" field's value of the ResearchAttachmentUpload entity.
+// If the ResearchAttachmentUpload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResearchAttachmentUploadMutation) OldApplicationID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApplicationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApplicationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApplicationID: %w", err)
+	}
+	return oldValue.ApplicationID, nil
+}
+
+// AddApplicationID adds i to the "application_id" field.
+func (m *ResearchAttachmentUploadMutation) AddApplicationID(i int64) {
+	if m.addapplication_id != nil {
+		*m.addapplication_id += i
+	} else {
+		m.addapplication_id = &i
+	}
+}
+
+// AddedApplicationID returns the value that was added to the "application_id" field in this mutation.
+func (m *ResearchAttachmentUploadMutation) AddedApplicationID() (r int64, exists bool) {
+	v := m.addapplication_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearApplicationID clears the value of the "application_id" field.
+func (m *ResearchAttachmentUploadMutation) ClearApplicationID() {
+	m.application_id = nil
+	m.addapplication_id = nil
+	m.clearedFields[researchattachmentupload.FieldApplicationID] = struct{}{}
+}
+
+// ApplicationIDCleared returns if the "application_id" field was cleared in this mutation.
+func (m *ResearchAttachmentUploadMutation) ApplicationIDCleared() bool {
+	_, ok := m.clearedFields[researchattachmentupload.FieldApplicationID]
+	return ok
+}
+
+// ResetApplicationID resets all changes to the "application_id" field.
+func (m *ResearchAttachmentUploadMutation) ResetApplicationID() {
+	m.application_id = nil
+	m.addapplication_id = nil
+	delete(m.clearedFields, researchattachmentupload.FieldApplicationID)
+}
+
+// Where appends a list predicates to the ResearchAttachmentUploadMutation builder.
+func (m *ResearchAttachmentUploadMutation) Where(ps ...predicate.ResearchAttachmentUpload) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ResearchAttachmentUploadMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ResearchAttachmentUploadMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ResearchAttachmentUpload, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ResearchAttachmentUploadMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ResearchAttachmentUploadMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ResearchAttachmentUpload).
+func (m *ResearchAttachmentUploadMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ResearchAttachmentUploadMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.created_at != nil {
+		fields = append(fields, researchattachmentupload.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, researchattachmentupload.FieldUpdatedAt)
+	}
+	if m.user_id != nil {
+		fields = append(fields, researchattachmentupload.FieldUserID)
+	}
+	if m.original_name != nil {
+		fields = append(fields, researchattachmentupload.FieldOriginalName)
+	}
+	if m.mime != nil {
+		fields = append(fields, researchattachmentupload.FieldMime)
+	}
+	if m.size != nil {
+		fields = append(fields, researchattachmentupload.FieldSize)
+	}
+	if m.storage_path != nil {
+		fields = append(fields, researchattachmentupload.FieldStoragePath)
+	}
+	if m.application_id != nil {
+		fields = append(fields, researchattachmentupload.FieldApplicationID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ResearchAttachmentUploadMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case researchattachmentupload.FieldCreatedAt:
+		return m.CreatedAt()
+	case researchattachmentupload.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case researchattachmentupload.FieldUserID:
+		return m.UserID()
+	case researchattachmentupload.FieldOriginalName:
+		return m.OriginalName()
+	case researchattachmentupload.FieldMime:
+		return m.Mime()
+	case researchattachmentupload.FieldSize:
+		return m.Size()
+	case researchattachmentupload.FieldStoragePath:
+		return m.StoragePath()
+	case researchattachmentupload.FieldApplicationID:
+		return m.ApplicationID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ResearchAttachmentUploadMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case researchattachmentupload.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case researchattachmentupload.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case researchattachmentupload.FieldUserID:
+		return m.OldUserID(ctx)
+	case researchattachmentupload.FieldOriginalName:
+		return m.OldOriginalName(ctx)
+	case researchattachmentupload.FieldMime:
+		return m.OldMime(ctx)
+	case researchattachmentupload.FieldSize:
+		return m.OldSize(ctx)
+	case researchattachmentupload.FieldStoragePath:
+		return m.OldStoragePath(ctx)
+	case researchattachmentupload.FieldApplicationID:
+		return m.OldApplicationID(ctx)
+	}
+	return nil, fmt.Errorf("unknown ResearchAttachmentUpload field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResearchAttachmentUploadMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case researchattachmentupload.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case researchattachmentupload.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case researchattachmentupload.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case researchattachmentupload.FieldOriginalName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOriginalName(v)
+		return nil
+	case researchattachmentupload.FieldMime:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMime(v)
+		return nil
+	case researchattachmentupload.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSize(v)
+		return nil
+	case researchattachmentupload.FieldStoragePath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStoragePath(v)
+		return nil
+	case researchattachmentupload.FieldApplicationID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApplicationID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchAttachmentUpload field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ResearchAttachmentUploadMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, researchattachmentupload.FieldUserID)
+	}
+	if m.addsize != nil {
+		fields = append(fields, researchattachmentupload.FieldSize)
+	}
+	if m.addapplication_id != nil {
+		fields = append(fields, researchattachmentupload.FieldApplicationID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ResearchAttachmentUploadMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case researchattachmentupload.FieldUserID:
+		return m.AddedUserID()
+	case researchattachmentupload.FieldSize:
+		return m.AddedSize()
+	case researchattachmentupload.FieldApplicationID:
+		return m.AddedApplicationID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResearchAttachmentUploadMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case researchattachmentupload.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case researchattachmentupload.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSize(v)
+		return nil
+	case researchattachmentupload.FieldApplicationID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddApplicationID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchAttachmentUpload numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ResearchAttachmentUploadMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(researchattachmentupload.FieldApplicationID) {
+		fields = append(fields, researchattachmentupload.FieldApplicationID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ResearchAttachmentUploadMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ResearchAttachmentUploadMutation) ClearField(name string) error {
+	switch name {
+	case researchattachmentupload.FieldApplicationID:
+		m.ClearApplicationID()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchAttachmentUpload nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ResearchAttachmentUploadMutation) ResetField(name string) error {
+	switch name {
+	case researchattachmentupload.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case researchattachmentupload.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case researchattachmentupload.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case researchattachmentupload.FieldOriginalName:
+		m.ResetOriginalName()
+		return nil
+	case researchattachmentupload.FieldMime:
+		m.ResetMime()
+		return nil
+	case researchattachmentupload.FieldSize:
+		m.ResetSize()
+		return nil
+	case researchattachmentupload.FieldStoragePath:
+		m.ResetStoragePath()
+		return nil
+	case researchattachmentupload.FieldApplicationID:
+		m.ResetApplicationID()
+		return nil
+	}
+	return fmt.Errorf("unknown ResearchAttachmentUpload field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ResearchAttachmentUploadMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ResearchAttachmentUploadMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ResearchAttachmentUploadMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ResearchAttachmentUploadMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ResearchAttachmentUploadMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ResearchAttachmentUploadMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ResearchAttachmentUploadMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ResearchAttachmentUpload unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ResearchAttachmentUploadMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ResearchAttachmentUpload edge %s", name)
 }
 
 // SecuritySecretMutation represents an operation that mutates the SecuritySecret nodes in the graph.

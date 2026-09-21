@@ -293,6 +293,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/research-discount',
+    name: 'ResearchDiscount',
+    component: () => import('@/views/user/ResearchApplicationView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Research Discount',
+      titleKey: 'research.title',
+      descriptionKey: 'research.description'
+    }
+  },
+  {
     path: '/affiliate',
     name: 'Affiliate',
     component: () => import('@/views/user/AffiliateView.vue'),
@@ -611,6 +623,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Redeem Code Management',
       titleKey: 'admin.redeem.title',
       descriptionKey: 'admin.redeem.description'
+    }
+  },
+  {
+    path: '/admin/research',
+    name: 'AdminResearch',
+    component: () => import('@/views/admin/ResearchApplicationsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Research Applications',
+      titleKey: 'admin.research.title',
+      descriptionKey: 'admin.research.description'
     }
   },
   {
