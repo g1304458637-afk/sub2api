@@ -262,7 +262,7 @@ func (r *subscriptionResetCardRepository) LockOperation(ctx context.Context, use
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if rows.Err() != nil {
 			return nil, rows.Err()
