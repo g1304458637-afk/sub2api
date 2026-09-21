@@ -113,7 +113,9 @@ func TestPhase1ResetEventCreateDefaultsAndValidation(t *testing.T) {
 	client := testEntClient(t)
 
 	user, group, _, _, _ := phase0MustSubscriptionStack(t, client, 0, nil)
+	before := time.Now().Add(-time.Microsecond)
 	ev := phase1MustEvent(t, client, &user.ID, domain.ResetEventTypeGlobalReset)
+	after := time.Now().Add(time.Microsecond)
 	phase1CleanupEvents(t, ev.ID)
 	phase0CleanupStack(t, user.ID, group.ID, 0)
 
@@ -125,7 +127,11 @@ func TestPhase1ResetEventCreateDefaultsAndValidation(t *testing.T) {
 	require.NotNil(t, got.CreatedBy)
 	require.Equal(t, user.ID, *got.CreatedBy)
 	require.NotZero(t, got.CreatedAt)
-	require.Equal(t, got.CreatedAt.Format(time.RFC3339Nano), got.UpdatedAt.Format(time.RFC3339Nano))
+	// Ent evaluates the two time.Now defaults independently; PostgreSQL stores microseconds.
+	for _, timestamp := range []time.Time{got.CreatedAt, got.UpdatedAt} {
+		require.False(t, timestamp.Before(before), "default timestamp precedes creation")
+		require.False(t, timestamp.After(after), "default timestamp follows creation")
+	}
 
 	// 缺 effective_at（NOT NULL）→ 拒绝
 	_, err = client.SubscriptionResetEvent.Create().
