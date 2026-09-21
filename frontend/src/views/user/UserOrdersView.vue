@@ -15,7 +15,7 @@
       </div>
 
       <!-- Table -->
-      <OrderTable :orders="orders" :loading="loading">
+      <OrderTable :orders="orders" :loading="loading" show-type>
         <template #actions="{ row }">
           <div class="flex items-center gap-2">
             <button v-if="row.status === 'PENDING'" @click="handleCancel(row.id)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20">
@@ -39,6 +39,33 @@
         @update:page="handlePageChange"
         @update:pageSize="handlePageSizeChange"
       />
+      <!-- 套餐变更记录（scheduled downgrade 等非支付订单单独呈现） -->
+      <div v-if="planChanges.length > 0" class="card p-4">
+        <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+          <Icon name="arrowsUpDown" size="sm" />
+          {{ t('payment.orders.planChangesTitle') }}
+        </h3>
+        <div class="space-y-2">
+          <div
+            v-for="change in planChanges"
+            :key="change.ID"
+            class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-100 px-3 py-2 text-sm dark:border-dark-700"
+          >
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ planChangeLabel(change) }}
+              </span>
+              <span class="text-xs text-gray-400">{{ planChangeDate(change) }}</span>
+            </div>
+            <span
+              class="rounded-full border px-2 py-0.5 text-[11px] font-medium"
+              :class="planChangeStatusClass(change.Status)"
+            >
+              {{ t('payment.orders.planChangeStatus.' + change.Status, change.Status) }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Cancel Confirm Dialog -->
@@ -86,6 +113,12 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
+import {
+  getAccountStatus,
+  getSubscriptionChanges,
+  type AccountSubscriptionStatus,
+  type PlanChangeRecordDto
+} from '@/api/subscriptions'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import type { PaymentOrder } from '@/types/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -108,6 +141,52 @@ const cancelTargetId = ref<number | null>(null)
 const refundTarget = ref<PaymentOrder | null>(null)
 const refundReason = ref('')
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
+const planChanges = ref<PlanChangeRecordDto[]>([])
+const planNames = ref<Record<number, string>>({})
+
+/** 套餐变更记录：来自全部生效中订阅的 changes 审计（非支付订单）。 */
+async function fetchPlanChanges() {
+  try {
+    const [status, plansRes] = await Promise.all([
+      getAccountStatus(),
+      paymentAPI.getPlans().catch(() => null),
+    ])
+    const names: Record<number, string> = {}
+    for (const p of plansRes?.data ?? []) names[p.id] = p.name
+    planNames.value = names
+    const subs: AccountSubscriptionStatus[] = status.subscriptions
+    const lists = await Promise.allSettled(subs.map((s) => getSubscriptionChanges(s.id)))
+    const merged: PlanChangeRecordDto[] = []
+    for (const list of lists) {
+      if (list.status === 'fulfilled') merged.push(...list.value)
+    }
+    merged.sort((a, b) => (a.CreatedAt < b.CreatedAt ? 1 : -1))
+    planChanges.value = merged.slice(0, 20)
+  } catch { /* 变更记录加载失败不阻塞订单列表 */ }
+}
+
+function planChangeLabel(change: PlanChangeRecordDto): string {
+  const kind = change.ChangeType === 'upgrade'
+    ? t('payment.orders.planChangeUpgrade')
+    : t('payment.orders.planChangeDowngrade')
+  const target = planNames.value[change.ToPlanID] || ''
+  return target ? `${kind} · ${target}` : kind
+}
+
+function planChangeDate(change: PlanChangeRecordDto): string {
+  return new Date(change.CreatedAt).toLocaleString()
+}
+
+function planChangeStatusClass(status: string): string {
+  switch (status) {
+    case 'fulfilled':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
+    case 'cancelled':
+      return 'border-gray-200 bg-gray-50 text-gray-500 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-400'
+    default:
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
+  }
+}
 
 const statusFilters = computed(() => [
   { value: '', label: t('common.all') },
@@ -185,5 +264,5 @@ async function loadRefundEligibility() {
   } catch { /* ignore — default to hiding refund button */ }
 }
 
-onMounted(() => { fetchOrders(); loadRefundEligibility() })
+onMounted(() => { fetchOrders(); loadRefundEligibility(); fetchPlanChanges() })
 </script>

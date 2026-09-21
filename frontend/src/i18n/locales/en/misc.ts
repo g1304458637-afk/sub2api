@@ -368,7 +368,7 @@ export default {
       alipaySaveAndScanHint: 'Save the QR code, open Alipay Scan, then select it from your photo album',
     },
     orders: {
-      title: 'My Orders',
+      type: 'Type',      type_balance: 'Recharge',      type_subscription: 'Plan purchase',      type_plan_change: 'Plan upgrade',      planChangesTitle: 'Plan changes',      planChangeUpgrade: 'Upgrade',      planChangeDowngrade: 'Switch at renewal',      planChangeStatus: {      quoted: 'Awaiting payment',      scheduled: 'Scheduled',      paid: 'Paid',      fulfilled: 'Completed',      cancelled: 'Cancelled',      },      title: 'My Orders',
       empty: 'No orders yet',
       orderId: 'Order ID',
       orderNo: 'Order No.',

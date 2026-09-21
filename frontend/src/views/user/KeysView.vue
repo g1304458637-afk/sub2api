@@ -177,6 +177,13 @@
                 <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
                 }}</span>
+                <span
+                  v-if="keyEntitlement(row.group?.id)"
+                  class="ml-1 inline-flex max-w-[240px] items-center truncate rounded-full border border-[rgba(238,56,72,0.45)] bg-[rgba(200,36,51,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#c82433] dark:bg-[rgba(200,36,51,0.18)] dark:text-[#ff8b96]"
+                  :title="t('keys.entitlementTip')"
+                >
+                  {{ keyEntitlement(row.group?.id) }}
+                </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
                 <svg
                   class="h-3.5 w-3.5 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
@@ -1225,6 +1232,7 @@ import BulkEditKeysModal from '@/components/keys/BulkEditKeysModal.vue'
 	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
+import { getAccountStatus } from '@/api/subscriptions'
 import { formatDateTime } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
@@ -2091,12 +2099,35 @@ function formatResetTime(resetAt: string | null): string {
   return `${mins}m`
 }
 
+// Final Frontend: 订阅权益指示（数据来自 /subscriptions/status 服务端合同）
+const entitlementByGroup = ref<Record<number, string>>({})
+
+function keyEntitlement(groupId?: number): string {
+  if (!groupId) return ''
+  return entitlementByGroup.value[groupId] ?? ''
+}
+
+async function loadEntitlements() {
+  try {
+    const status = await getAccountStatus()
+    const map: Record<number, string> = {}
+    for (const sub of status.subscriptions) {
+      map[sub.group_id] =
+        sub.weekly_usage_percent === null
+          ? `${sub.display_name} · ${t('keys.entitlementUnmetered')}`
+          : `${sub.display_name} · ${sub.weekly_usage_percent}% · ${t('keys.entitlementStatus.' + sub.usage_status)}`
+    }
+    entitlementByGroup.value = map
+  } catch { /* 权益指示加载失败不影响 Key 列表 */ }
+}
+
 onMounted(() => {
   loadSavedColumns()
   loadApiKeys()
   loadGroups()
   loadUserGroupRates()
   loadPublicSettings()
+  void loadEntitlements()
   document.addEventListener('click', closeGroupSelector)
   resetTimer = setInterval(() => { now.value = new Date() }, 60000)
 })

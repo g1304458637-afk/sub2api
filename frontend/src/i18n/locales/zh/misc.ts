@@ -392,7 +392,7 @@ export default {
       alipaySaveAndScanHint: '保存二维码后，打开支付宝扫一扫，从相册选择二维码',
     },
     orders: {
-      title: '我的订单',
+      type: '类型',      type_balance: '充值',      type_subscription: '订阅购买',      type_plan_change: '套餐升级',      planChangesTitle: '套餐变更记录',      planChangeUpgrade: '升级',      planChangeDowngrade: '下周期切换',      planChangeStatus: {      quoted: '待支付',      scheduled: '已计划',      paid: '已支付',      fulfilled: '已完成',      cancelled: '已取消',      },      title: '我的订单',
       empty: '暂无订单',
       orderId: '订单 ID',
       orderNo: '订单编号',
