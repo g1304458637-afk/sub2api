@@ -356,7 +356,7 @@ func campusGatewayForRequest(c *gin.Context, brand campus.Brand) (string, error)
 		return "", errors.New("invalid request origin")
 	}
 	local := os.Getenv("CAMPUS_LOCAL_BUILD") == "1" && (requested.Hostname() == "localhost" || requested.Hostname() == "127.0.0.1" || requested.Hostname() == "::1")
-	if requested.Scheme != "https" && !(local && requested.Scheme == "http") {
+	if requested.Scheme != "https" && (!local || requested.Scheme != "http") {
 		return "", errors.New("HTTPS required")
 	}
 	origin := requested.Scheme + "://" + requested.Host

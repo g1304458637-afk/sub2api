@@ -112,7 +112,7 @@ func Current() Brand {
 			if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 				panic(fmt.Sprintf("invalid %s_%s", prefix, name))
 			}
-			if parsed.Scheme == "http" && !(os.Getenv("CAMPUS_LOCAL_BUILD") == "1" && (parsed.Hostname() == "localhost" || parsed.Hostname() == "127.0.0.1" || parsed.Hostname() == "::1")) {
+			if parsed.Scheme == "http" && (os.Getenv("CAMPUS_LOCAL_BUILD") != "1" || (parsed.Hostname() != "localhost" && parsed.Hostname() != "127.0.0.1" && parsed.Hostname() != "::1")) {
 				panic("campus endpoints require HTTPS")
 			}
 			if name == "GATEWAY_URL" && (parsed.Path != "" && parsed.Path != "/" || parsed.RawQuery != "") {
