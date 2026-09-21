@@ -107,12 +107,31 @@ export type AccountPendingPlanChange = {
   current_period_ends_at: string
 }
 
+/**
+ * 上一份已结束的套餐周期（Phase 11B 预付费固定周期制）。
+ * 过期即 EXPIRED，无自动续费；仅用于"上次套餐"展示。
+ */
+export type AccountLastSubscription = {
+  group_id: number
+  display_name: string
+  expires_at: string
+}
+
 export type AccountStatus = {
   wallet: AccountWalletStatus
   reset_cards: AccountResetCardsStatus
-  /** 单主套餐不变量生效后至多一个元素；保留数组形态兼容 legacy 消费端 */
+  /** 单主套餐不变量生效后至多一个元素；0 个是合法状态（到期未续费）。保留数组形态兼容 legacy 消费端 */
   subscriptions: AccountSubscriptionStatus[]
+  /**
+   * 兼容字段：表达"下次续费套餐变更"。
+   * effective_at = 最近一条订阅的 expires_at（最早续费切换点）——
+   * 系统绝不自动激活目标套餐，客户端不得如此解读。
+   */
   pending_change?: AccountPendingPlanChange
+  /** 下次续费的默认目标（Phase 11B additive，与 pending_change 同源） */
+  next_renewal_plan_id?: number
+  next_renewal_plan?: string
+  last_subscription?: AccountLastSubscription
 }
 
 /**

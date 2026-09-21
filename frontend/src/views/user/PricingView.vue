@@ -28,10 +28,53 @@
         <div class="muc-status__divider" aria-hidden="true"></div>
 
         <div v-if="!account" class="muc-status__muted">{{ t('pricing.statusStrip.loading') }}</div>
-        <div v-else-if="!activeSubscriptions.length" class="muc-status__muted">
-          {{ t('pricing.statusStrip.noSubs') }}
+        <!-- Phase 11B 预付费固定周期制：0 个 ACTIVE 合法；显示上次套餐 + 下次续费默认 -->
+        <div v-else-if="!activeSubscriptions.length" class="muc-status__subs">
+          <div class="muc-status__sub" data-testid="pricing-no-active">
+            <div class="muc-status__sub-head">
+              <span class="muc-status__sub-name">
+                {{ t('pricing.statusStrip.noActiveNow') }}
+              </span>
+              <span v-if="lastSubscription" class="muc-status__chip">
+                {{ t('pricing.statusStrip.lastPlan', { plan: lastSubscription.display_name }) }}
+              </span>
+            </div>
+            <div class="muc-status__sub-meta">
+              <span v-if="lastSubscription">
+                {{ t('pricing.statusStrip.lastExpires') }} {{ formatDate(lastSubscription.expires_at) }}
+              </span>
+              <span v-if="statusPendingChange">
+                {{
+                  t('pricing.statusStrip.renewDefault', { plan: statusPendingChange.to_plan_name })
+                }}
+              </span>
+              <span v-if="resetCards > 0">
+                {{ t('pricing.statusStrip.resetCards', { count: resetCards }) }}
+              </span>
+            </div>
+            <div
+              v-if="nextRenewalPlanRow"
+              class="muc-status__sub-meta muc-status__pending"
+              data-testid="pricing-renew-now"
+            >
+              <button
+                type="button"
+                class="muc-status__pending-cancel"
+                @click="onRenewDefault"
+              >
+                {{ t('pricing.statusStrip.renewNow', { plan: nextRenewalPlanRow.name }) }}
+              </button>
+              <button
+                type="button"
+                class="muc-status__pending-cancel"
+                @click="scrollToPlans"
+              >
+                {{ t('pricing.statusStrip.chooseOther') }}
+              </button>
+            </div>
+          </div>
         </div>
-        <!-- 单主套餐不变量：当前套餐至多一个；pending 变更单独成行 -->
+        <!-- 单主套餐不变量：当前套餐至多一个；下次续费套餐单独成行 -->
         <div v-else-if="primarySub" class="muc-status__subs">
           <div class="muc-status__sub">
             <div class="muc-status__sub-head">
@@ -73,9 +116,8 @@
             >
               <span>
                 {{
-                  t('pricing.statusStrip.pendingSince', {
-                    plan: statusPendingChange.to_plan_name,
-                    date: formatDate(statusPendingChange.effective_at)
+                  t('pricing.statusStrip.nextRenewalPlan', {
+                    plan: statusPendingChange.to_plan_name
                   })
                 }}
               </span>
@@ -136,6 +178,20 @@
       @close="closeUpgradeModal"
       @retry="fetchQuote"
       @confirm="onConfirmUpgrade"
+    />
+
+    <!-- 新购：/pricing 是全站唯一套餐目录面，购买在此完成选择与确认 -->
+    <MucPlanPurchaseModal
+      v-model:selected-method="purchaseMethod"
+      :open="purchaseModalOpen"
+      :plan="purchaseModalPlan"
+      :methods="purchaseMethods"
+      :confirming="creatingPurchase"
+      :display-price="purchaseDisplayPrice"
+      :fee-rate-percent="purchaseFeeRate"
+      :validity-text="purchaseValidityText"
+      @close="closePurchaseModal"
+      @confirm="onConfirmPurchase"
     />
 
     <!-- 到期切换确认 -->
@@ -216,7 +272,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import '@/components/pricing/muc-tokens.css'
@@ -225,30 +281,38 @@ import MucPlanCard, {
   type MucPlanCardDisplay
 } from '@/components/pricing/MucPlanCard.vue'
 import UpgradePreviewModal from '@/components/pricing/UpgradePreviewModal.vue'
+import MucPlanPurchaseModal from '@/components/pricing/MucPlanPurchaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { paymentAPI } from '@/api/payment'
+import { usePaymentStore } from '@/stores/payment'
 import {
   createUpgrade,
   getAccountStatus,
-  getSubscriptionChanges,
   cancelScheduledDowngrade,
   previewUpgrade,
   scheduleDowngrade,
   type AccountStatus,
   type AccountSubscriptionStatus,
   type PlanChangeQuote,
-  type PlanChangeRecordDto,
   type UsageStatus
 } from '@/api/subscriptions'
-import type { CheckoutInfoResponse, SubscriptionPlan } from '@/types/payment'
+import type { CheckoutInfoResponse, CreateOrderResult, SubscriptionPlan } from '@/types/payment'
 import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'
-import { getVisibleMethods } from '@/components/payment/paymentFlow'
+import {
+  buildCreateOrderPayload,
+  decidePaymentLaunch,
+  getVisibleMethods,
+  normalizeVisibleMethod
+} from '@/components/payment/paymentFlow'
+import { buildWechatOAuthAuthorizeUrl } from '@/components/payment/wechatOAuthUrl'
+import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
 import {
   DEFAULT_PAYMENT_CURRENCY,
   formatPaymentAmount,
   normalizePaymentCurrency
 } from '@/components/payment/currency'
 import { planValiditySuffix } from '@/components/payment/validity'
+import { isMobileDevice } from '@/utils/device'
 import { useAppStore } from '@/stores'
 
 // 客户端仅做展示排序的 tier 近似（sort_order）；升/降级真值以后端 tier_rank 校验为准。
@@ -257,8 +321,10 @@ type MucPlanRow = SubscriptionPlan
 type CtaKind = 'buy' | 'upgrade' | 'downgrade' | 'scheduled' | 'current' | 'unavailable'
 
 const router = useRouter()
+const route = useRoute()
 const { t, tm, locale } = useI18n()
 const appStore = useAppStore()
+const paymentStore = usePaymentStore()
 
 const plans = ref<MucPlanRow[]>([])
 const plansLoading = ref(true)
@@ -277,7 +343,6 @@ const downgradeTarget = ref<MucPlanRow | null>(null)
 const schedulingDowngrade = ref(false)
 const cancelTarget = ref(false)
 const cancellingDowngrade = ref(false)
-const scheduledRecord = ref<PlanChangeRecordDto | null>(null)
 /** 进行中的卡片动作（禁用对应按钮），形如 `cancel-{planId}` */
 const busyKey = ref('')
 
@@ -286,8 +351,16 @@ const sortedPlans = computed(() => plans.value)
 const activeSubscriptions = computed(() => account.value?.subscriptions ?? [])
 const wallet = computed(() => account.value?.wallet ?? null)
 const resetCards = computed(() => account.value?.reset_cards.available ?? 0)
-/** 服务端合同里的已预约变更（单主套餐不变量下至多一条） */
+/** 服务端合同里的"下次续费套餐"（Phase 11B 预付费固定周期制，用户级指针） */
 const statusPendingChange = computed(() => account.value?.pending_change ?? null)
+/** 上一份已结束的套餐（0 ACTIVE 时的"上次套餐"展示） */
+const lastSubscription = computed(() => account.value?.last_subscription ?? null)
+/** 下次续费目标对应的在售套餐卡（存在时提供 [续费 {plan}] 入口） */
+const nextRenewalPlanRow = computed(() => {
+  const id = account.value?.next_renewal_plan_id
+  if (!id) return null
+  return sortedPlans.value.find((p) => p.id === id) ?? null
+})
 
 const walletDisplay = computed(() => {
   const w = wallet.value
@@ -326,19 +399,9 @@ const currentPlanName = computed(() => {
   return (sub && planForSub(sub)?.name) || sub?.display_name || ''
 })
 
-/** 已预约的到期切换（仅主订阅语义；记录为 PascalCase 合同）。 */
-const scheduledTargetName = computed(() => {
-  const rec = scheduledRecord.value
-  if (!rec) return ''
-  const target = sortedPlans.value.find((p) => p.id === rec.ToPlanID)
-  return target?.name ?? `#${rec.ToPlanID}`
-})
-
-const scheduledEffectiveText = computed(() => {
-  const rec = scheduledRecord.value
-  if (!rec?.EffectiveAt) return null
-  return formatDate(rec.EffectiveAt)
-})
+/** 已设为下次续费的目标套餐名（状态合同单一来源；无自动生效语义） */
+const scheduledTargetName = computed(() => statusPendingChange.value?.to_plan_name ?? '')
+const scheduledEffectiveText = computed(() => null)
 
 // ── 支付方式（与购买页同源 checkout-info）──
 const methodOptions = computed<PaymentMethodOption[]>(() => {
@@ -367,7 +430,6 @@ async function loadAll() {
   if (checkoutRes.status === 'fulfilled') checkout.value = checkoutRes.value.data
   if (statusRes.status === 'fulfilled') account.value = statusRes.value
   plansLoading.value = false
-  await refreshScheduled()
 }
 
 /** /payment/plans 的 features 是原始 JSON 字符串，checkout-info 才解析；这里自行容错解析。 */
@@ -382,23 +444,15 @@ function parseFeatures(raw: unknown): string[] {
   }
 }
 
-async function refreshScheduled() {
-  const sub = primarySub.value
-  if (!sub) {
-    scheduledRecord.value = null
-    return
+onMounted(async () => {
+  await loadAll()
+  // 深链：/pricing?plan=<id> 直接打开该套餐的购买确认（历史 /purchase?tab=subscription 入口的重定向落点）
+  const planParam = typeof route.query.plan === 'string' ? Number(route.query.plan) : Number.NaN
+  if (Number.isFinite(planParam) && planParam > 0) {
+    const target = plans.value.find((p) => p.id === planParam)
+    if (target) openPurchaseModal(target)
   }
-  try {
-    const records = await getSubscriptionChanges(sub.id)
-    scheduledRecord.value =
-      records.find((r) => r.ChangeType === 'scheduled_downgrade' && r.Status === 'scheduled') ??
-      null
-  } catch {
-    scheduledRecord.value = null
-  }
-}
-
-onMounted(loadAll)
+})
 
 // ── CTA 判定 ──
 function ctaKind(plan: MucPlanRow): CtaKind {
@@ -412,10 +466,10 @@ function ctaKind(plan: MucPlanRow): CtaKind {
 }
 
 function ctaLabel(plan: MucPlanRow): string {
+  // "已设为下次续费套餐"判定来自状态合同（next_plan_id 用户级指针）
   const scheduled =
     ctaKind(plan) === 'downgrade' &&
-    scheduledRecord.value &&
-    scheduledRecord.value.ToPlanID === plan.id
+    statusPendingChange.value?.to_plan_id === plan.id
   switch (scheduled ? 'scheduled' : ctaKind(plan)) {
     case 'upgrade':
       return t('pricing.cta.upgradeTo', { plan: plan.name })
@@ -490,8 +544,201 @@ function onCardCta(plan: MucPlanRow) {
       downgradeTarget.value = plan
       break
     default:
-      // 新购/并存购买走既有购买页（支付编排全部复用）
-      void router.push('/purchase')
+      // 新购在 /pricing 内完成选择与确认（全站唯一套餐目录面）
+      openPurchaseModal(plan)
+  }
+}
+
+// ── 新购（购买确认 + 支付启动；无活跃订阅时的唯一购买路径）──
+const purchaseModalOpen = ref(false)
+const purchaseModalPlan = ref<MucPlanRow | null>(null)
+const purchaseMethod = ref('')
+const creatingPurchase = ref(false)
+
+const purchaseFeeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
+const purchaseDisplayPrice = computed(() =>
+  purchaseModalPlan.value ? priceDisplay(purchaseModalPlan.value) : ''
+)
+const purchaseValidityText = computed(() =>
+  purchaseModalPlan.value
+    ? t('pricing.perValidity', { validity: planValiditySuffix(purchaseModalPlan.value, t) })
+    : ''
+)
+
+/** 与原购买页订阅 Tab 同语义：按网关限额标记方式可用性。 */
+const purchaseMethods = computed<PaymentMethodOption[]>(() => {
+  const plan = purchaseModalPlan.value
+  if (!plan || !checkout.value) return []
+  const visible = getVisibleMethods(checkout.value.methods)
+  const rate = checkout.value.subscription_usd_to_cny_rate ?? 0
+  return Object.entries(visible).map(([type, ml]) => {
+    const currency = normalizePaymentCurrency(ml?.currency)
+    const paymentAmount =
+      rate > 0 && currency === DEFAULT_PAYMENT_CURRENCY
+        ? Math.round(plan.price * rate * 100) / 100
+        : Math.round(plan.price * 100) / 100
+    const total =
+      purchaseFeeRate.value > 0 && paymentAmount > 0
+        ? Math.round(
+            (paymentAmount + Math.ceil(((paymentAmount * purchaseFeeRate.value) / 100) * 100) / 100) * 100
+          ) / 100
+        : paymentAmount
+    const fits =
+      (ml?.single_min ?? 0) <= 0 || total >= (ml?.single_min ?? 0)
+    const fitsMax =
+      (ml?.single_max ?? 0) <= 0 || total <= (ml?.single_max ?? 0)
+    return {
+      type,
+      display_name: ml?.display_name,
+      fee_rate: ml?.fee_rate ?? 0,
+      available: ml?.available !== false && fits && fitsMax
+    }
+  })
+})
+
+function openPurchaseModal(plan: MucPlanRow) {
+  purchaseModalPlan.value = plan
+  purchaseMethod.value =
+    purchaseMethods.value.find((m) => m.available)?.type ?? ''
+  purchaseModalOpen.value = true
+}
+
+function closePurchaseModal() {
+  purchaseModalOpen.value = false
+  purchaseModalPlan.value = null
+}
+
+async function onConfirmPurchase(paymentType: string) {
+  const plan = purchaseModalPlan.value
+  if (!plan || !paymentType) return
+  creatingPurchase.value = true
+  try {
+    const isMobile = isMobileDevice()
+    const isWechatBrowser =
+      typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent)
+    const forceQRCode = !!(
+      checkout.value?.alipay_force_qrcode
+      && normalizeVisibleMethod(paymentType) === 'alipay'
+    )
+    const payload = buildCreateOrderPayload({
+      amount: plan.price,
+      paymentType,
+      orderType: 'subscription',
+      planId: plan.id,
+      origin: typeof window !== 'undefined' ? window.location.origin : '',
+      isMobile,
+      isWechatBrowser,
+      forceQRCode,
+      mobilePrecreateDeepLink: checkout.value?.alipay_mobile_precreate_deep_link === true,
+    })
+    const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
+    await launchPurchaseOrder(result, plan, { isMobile, isWechatBrowser, forceQRCode })
+    closePurchaseModal()
+  } catch (err) {
+    appStore.showError(extractErrorMessage(err, t('pricing.errors.upgradeFailed')))
+  } finally {
+    creatingPurchase.value = false
+  }
+}
+
+/** 支付启动执行器：与支付落地页（QR/结果/Stripe/Airwallex/微信恢复链）复用同一套编排。 */
+async function launchPurchaseOrder(
+  result: CreateOrderResult & { resume_token?: string },
+  plan: MucPlanRow,
+  ctx: { isMobile: boolean; isWechatBrowser: boolean; forceQRCode: boolean }
+): Promise<void> {
+  const visibleMethod = normalizeVisibleMethod(result.payment_type ?? '') || ''
+  const method = visibleMethod || 'alipay'
+  const stripeMethod = visibleMethod === 'stripe'
+    ? ''
+    : visibleMethod === 'wxpay' ? 'wechat_pay' : 'alipay'
+  const stripeRouteUrl = result.client_secret && visibleMethod !== 'airwallex'
+    ? router.resolve({
+      path: '/payment/stripe',
+      query: {
+        order_id: String(result.order_id),
+        client_secret: result.client_secret,
+        method: stripeMethod || undefined,
+        resume_token: result.resume_token || undefined,
+      },
+    }).href
+    : ''
+  const airwallexRouteUrl = result.client_secret && result.intent_id
+    ? router.resolve({
+      path: '/payment/airwallex',
+      query: {
+        order_id: String(result.order_id),
+        out_trade_no: result.out_trade_no || undefined,
+        resume_token: result.resume_token || undefined,
+      },
+    }).href
+    : ''
+  const decision = decidePaymentLaunch(result, {
+    visibleMethod: method,
+    orderType: 'subscription',
+    isMobile: ctx.isMobile,
+    isWechatBrowser: ctx.isWechatBrowser,
+    forceQRCode: ctx.forceQRCode,
+    mobilePrecreateDeepLink: result.alipay_mobile_precreate_deep_link === true,
+    stripePopupUrl: stripeRouteUrl,
+    stripeRouteUrl,
+    airwallexRouteUrl,
+  })
+
+  const openWindow = (url: string) => {
+    const win = window.open(url, 'paymentPopup', getPaymentPopupFeatures())
+    if (!win || win.closed) {
+      window.location.href = url
+    }
+  }
+  const goToResult = () => router.push({
+    path: '/payment/result',
+    query: { order_id: String(result.order_id) },
+  })
+
+  switch (decision.kind) {
+    case 'wechat_oauth':
+      if (decision.oauth?.authorize_url) {
+        window.location.href = buildWechatOAuthAuthorizeUrl(decision.oauth.authorize_url, {
+          paymentType: method,
+          orderType: 'subscription',
+          planId: plan.id,
+          orderAmount: plan.price,
+        })
+      }
+      return
+    case 'stripe_popup':
+      openWindow(decision.paymentState.payUrl)
+      await goToResult()
+      return
+    case 'stripe_route':
+    case 'airwallex_route':
+      window.location.href = decision.paymentState.payUrl
+      return
+    case 'alipay_deep_link':
+      window.location.href = decision.paymentState.qrCode
+      return
+    case 'redirect_waiting':
+      if (ctx.isMobile) {
+        window.location.href = decision.paymentState.payUrl
+        return
+      }
+      openWindow(decision.paymentState.payUrl)
+      await goToResult()
+      return
+    case 'qr_waiting':
+      await router.push({
+        path: '/payment/qrcode',
+        query: {
+          order_id: String(result.order_id),
+          qr: decision.paymentState.qrCode,
+          payment_type: decision.paymentState.paymentType,
+        },
+      })
+      return
+    default:
+      // 微信 JSAPI 恢复链仅存在于 /purchase 的回调恢复路径；此处兜底跳结果页轮询。
+      await goToResult()
   }
 }
 
@@ -587,7 +834,12 @@ async function onConfirmDowngrade() {
     await scheduleDowngrade(sub.id, plan.id, cryptoRandomKey())
     downgradeTarget.value = null
     appStore.showSuccess(t('pricing.downgrade.scheduledToast'))
-    await refreshScheduled()
+    // 状态合同为"下次续费套餐"唯一来源：预约后整卡刷新
+    try {
+      account.value = await getAccountStatus()
+    } catch {
+      /* 刷新失败不阻断成功提示 */
+    }
   } catch (err) {
     appStore.showError(extractErrorMessage(err, t('pricing.errors.scheduleFailed')))
   } finally {
@@ -596,8 +848,21 @@ async function onConfirmDowngrade() {
 }
 
 function onCancelScheduled() {
-  if (!scheduledRecord.value) return
+  if (!statusPendingChange.value || !primarySub.value) return
   cancelTarget.value = true
+}
+
+/** [续费 {plan}]：0 ACTIVE 时按默认目标（或用户改选）直接进入购买确认 */
+function onRenewDefault() {
+  if (!nextRenewalPlanRow.value) return
+  openPurchaseModal(nextRenewalPlanRow.value)
+}
+
+/** [选择其他套餐]：滚动到套餐卡区，由用户自选目标 */
+function scrollToPlans() {
+  document
+    .querySelector('[data-testid="pricing-cards"]')
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 async function onConfirmCancelScheduled() {
@@ -608,7 +873,6 @@ async function onConfirmCancelScheduled() {
   try {
     await cancelScheduledDowngrade(sub.id)
     cancelTarget.value = false
-    scheduledRecord.value = null
     // 状态条 pending 区来自 /subscriptions/status 合同，取消后需同步刷新
     try {
       account.value = await getAccountStatus()

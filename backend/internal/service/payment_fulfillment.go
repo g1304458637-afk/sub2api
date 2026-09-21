@@ -16,6 +16,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionterm"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -583,12 +584,19 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 	}
 
 	recoveredFromNote := false
+	var assignedSubID int64
 	if !alreadyAssigned {
 		orderNote := paymentSubscriptionOrderNote(o.ID)
 		existing, lookupErr := s.subscriptionSvc.userSubRepo.GetByUserIDAndGroupID(txCtx, o.UserID, groupID)
 		switch {
 		case lookupErr == nil && existing != nil && hasPaymentSubscriptionOrderNote(existing.Notes, orderNote):
 			recoveredFromNote = true
+			assignedSubID = existing.ID
+			// 首次执行曾在旧版本/中断中留下"有订阅、无 term"的残局：按本订单补记，
+			// 使下方追溯断言成立（幂等：已有 term 则由断言短路，不会重复插入）
+			if existing.StartsAt.IsZero() {
+				existing.StartsAt = time.Now()
+			}
 		case lookupErr != nil && !errors.Is(lookupErr, ErrSubscriptionNotFound):
 			return fmt.Errorf("check existing subscription assignment: %w", lookupErr)
 		default:
@@ -620,6 +628,47 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 					Source:         "purchase",
 				}); err != nil {
 					return fmt.Errorf("record subscription term: %w", err)
+				}
+			}
+			if sub != nil {
+				assignedSubID = sub.ID
+			}
+		}
+
+		// Phase 11B（预付费固定周期制）：用户付费成功才允许清除"下次续费"偏好；
+		// 到期/维护/对账等系统任务绝无此权限。无偏好时为 no-op。
+		if assignedSubID > 0 {
+			if err := s.subscriptionSvc.ClosePendingChangeOnPaidRenewal(txCtx, o.UserID); err != nil {
+				return fmt.Errorf("close pending change on paid renewal: %w", err)
+			}
+		}
+
+		// Phase 11B 支付硬约束（RULE 12）：每个新付费周期必须能追溯到本订单。
+		// 订阅激活成功但订单链的 term 快照缺失 = 无来源授予，整体失败回滚。
+		if assignedSubID > 0 && o.PlanID != nil {
+			exists, err := s.termStoreHasOrderTerm(txCtx, o.ID)
+			if err != nil {
+				return fmt.Errorf("verify order-linked term: %w", err)
+			}
+			if !exists {
+				if s.termStore == nil {
+					return errors.New("paid subscription period without order-linked term (traceability violation)")
+				}
+				planID := *o.PlanID
+				orderID := o.ID
+				now := time.Now()
+				if err := s.termStore.RecordTerm(txCtx, &SubscriptionTermRecord{
+					SubscriptionID: assignedSubID,
+					OrderID:        &orderID,
+					PlanID:         &planID,
+					PricePaid:      o.Amount,
+					Currency:       planCurrencyOf(o),
+					Days:           days,
+					TermStart:      now,
+					TermEnd:        now.AddDate(0, 0, days),
+					Source:         "purchase",
+				}); err != nil {
+					return fmt.Errorf("backfill order-linked term: %w", err)
 				}
 			}
 		}
@@ -657,6 +706,17 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 		return fmt.Errorf("invalidate subscription cache after fulfillment: %w", err)
 	}
 	return nil
+}
+
+// termStoreHasOrderTerm 校验订单链的已付 term 快照是否落库（必须在履约事务内调用）。
+func (s *PaymentService) termStoreHasOrderTerm(ctx context.Context, orderID int64) (bool, error) {
+	tx := dbent.TxFromContext(ctx)
+	if tx == nil {
+		return false, errors.New("order term check requires an active transaction")
+	}
+	return tx.Client().SubscriptionTerm.Query().
+		Where(subscriptionterm.OrderIDEQ(orderID)).
+		Exist(ctx)
 }
 
 func hasPaymentSubscriptionAssignmentAudit(ctx context.Context, client *dbent.Client, orderID int64) (bool, error) {

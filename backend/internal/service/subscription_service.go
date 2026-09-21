@@ -322,13 +322,15 @@ func (s *SubscriptionService) maybeInvalidateAssignmentCaches(userID, groupID in
 	}
 }
 
-// supersedeScheduledChange 续费事务内取消 pending 预约降级（superseded_by_renewal）。
-// hook 未注入（单测）时为 no-op，仅留下 next_plan_id 由到点引擎/取消流程兜底清理。
-func (s *SubscriptionService) supersedeScheduledChange(ctx context.Context, subscriptionID int64) error {
+// ClosePendingChangeOnPaidRenewal 支付履约成功后按用户清除"下次续费"偏好
+// （superseded_by_renewal）。Phase 11B：这是除用户主动取消/改选外唯一的
+// 清除路径 —— 系统（到期/维护/对账任务）绝不允许调用本方法。
+// 必须在支付履约事务内调用（txCtx 传递）；hook 未注入（单测）时为 no-op。
+func (s *SubscriptionService) ClosePendingChangeOnPaidRenewal(ctx context.Context, userID int64) error {
 	if s.scheduledChangeSuperseder == nil {
 		return nil
 	}
-	return s.scheduledChangeSuperseder.SupersedeScheduledChangeForRenewal(ctx, subscriptionID)
+	return s.scheduledChangeSuperseder.SupersedeScheduledChangeForUser(ctx, userID)
 }
 
 // SetScheduledChangeSuperseder wire 注入续期取代回调（PlanChangeService 实现）。
@@ -393,13 +395,6 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 			if err := s.userSubRepo.Update(txCtx, renewed); err != nil {
 				return fmt.Errorf("renew expired subscription: %w", err)
 			}
-			// 续期取代 pending 预约降级（superseded_by_renewal）：用户付费续的是当前档，
-			// 原预约到期的目标档作废；在续费事务内执行避免到点引擎竞态。
-			if existingSub.NextPlanID != nil {
-				if err := s.supersedeScheduledChange(txCtx, existingSub.ID); err != nil {
-					return fmt.Errorf("supersede scheduled change on renewal: %w", err)
-				}
-			}
 			return nil
 		}
 
@@ -408,12 +403,6 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 			return fmt.Errorf("extend subscription: %w", err)
 		}
 
-		// 续期取代 pending 预约降级（同上；extend 分支）
-		if existingSub.NextPlanID != nil {
-			if err := s.supersedeScheduledChange(txCtx, existingSub.ID); err != nil {
-				return fmt.Errorf("supersede scheduled change on renewal: %w", err)
-			}
-		}
 
 		// 如果订阅被暂停，恢复为 active 状态
 		if existingSub.Status != SubscriptionStatusActive {

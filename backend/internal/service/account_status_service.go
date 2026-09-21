@@ -83,22 +83,38 @@ type AccountResetCardsStatus struct {
 // AccountPendingPlanChange 已预约、未生效的套餐变更（additive 合同，Phase 11 定稿）。
 // 当前 MUC 套餐族内只会出现 scheduled_downgrade；升级不预约（支付成功即履约）。
 type AccountPendingPlanChange struct {
-	ChangeType  string    `json:"change_type"`           // scheduled_downgrade
-	ToPlanID    int64     `json:"to_plan_id"`            // 目标 SKU
-	ToPlanName  string    `json:"to_plan_name"`          // 目标组名（与 display_name 同语义）
-	EffectiveAt time.Time `json:"effective_at"`          // = 当前订阅 expires_at（term 末）
+	ChangeType  string    `json:"change_type"`  // scheduled_downgrade
+	ToPlanID    int64     `json:"to_plan_id"`   // 目标 SKU
+	ToPlanName  string    `json:"to_plan_name"` // 目标组名（与 display_name 同语义）
+	EffectiveAt time.Time `json:"effective_at"` // = 当前订阅 expires_at（term 末）
 	CurrentEnds time.Time `json:"current_period_ends_at"`
+}
+
+// AccountLastSubscription 上一份已结束的套餐周期（预付费固定周期制下用于
+// "上次套餐：Pro"展示；无自动续费，过期即 EXPIRED，等待用户主动续费）。
+type AccountLastSubscription struct {
+	GroupID     int64     `json:"group_id"`
+	DisplayName string    `json:"display_name"`
+	ExpiresAt   time.Time `json:"expires_at"`
 }
 
 // AccountStatus 用户账户统一状态。
 type AccountStatus struct {
-	Wallet     AccountWalletStatus         `json:"wallet"`
-	ResetCards AccountResetCardsStatus     `json:"reset_cards"`
+	Wallet     AccountWalletStatus     `json:"wallet"`
+	ResetCards AccountResetCardsStatus `json:"reset_cards"`
 	// Subscriptions：单主套餐不变量（迁移 242）生效后至多一个元素；
-	// 保留数组形态兼容 MUC 消费端 legacy parser。
+	// 保留数组形态兼容 MUC 消费端 legacy parser。0 个 ACTIVE 是合法状态
+	// （预付费到期未续费），不代表数据异常。
 	Subscriptions []AccountSubscriptionStatus `json:"subscriptions"`
-	// PendingChange 已预约变更（无预约时省略）；前端渲染"于 X 日切换至 Y [取消变更]"。
+	// PendingChange 兼容字段（Phase 11 定名）：表达"下次续费套餐变更"。
+	// Phase 11B 语义收紧：effective_at = 当前（或最近一条）订阅的 expires_at，
+	// 即最早续费切换点 —— 系统绝不自动激活目标套餐，客户端不得如此解读。
 	PendingChange *AccountPendingPlanChange `json:"pending_change,omitempty"`
+	// NextRenewalPlan(Phase 11B additive)：下次续费的默认目标套餐。
+	// 与 PendingChange 同源（行上 next_plan_id 指针），为语义准确的替代字段。
+	NextRenewalPlanID *int64                   `json:"next_renewal_plan_id,omitempty"`
+	NextRenewalPlan   string                   `json:"next_renewal_plan,omitempty"`
+	LastSubscription  *AccountLastSubscription `json:"last_subscription,omitempty"`
 }
 
 // UserDisplayPercent 普通用户展示百分比（整数合同，Phase 4.1 定稿）：
@@ -154,10 +170,10 @@ type AccountStatusService struct {
 	monitorOnly bool // true = 只读监控视图（不执行窗口维护写入）
 	now         func() time.Time
 
-	// pendingChangeLookup 已预约变更查询（PlanChangeStore 提供；nil = 不返回 pending）。
-	pendingChangeLookup interface {
-		ActiveScheduledChange(ctx context.Context, subscriptionID int64) (*PlanChangeRecord, error)
-	}
+	// nextRenewalReader 用户级最近订阅行读取（预付费固定周期制：指针到期后保留）。
+	nextRenewalReader SubscriptionLatestRowReader
+	// nextRenewalPlans 目标套餐查询（PlanSnapshotService 提供；解析组名展示）。
+	nextRenewalPlans PlanService
 }
 
 func NewAccountStatusService(
@@ -182,11 +198,13 @@ func NewAccountStatusService(
 // SetNow 供测试注入时钟。
 func (s *AccountStatusService) SetNow(now func() time.Time) { s.now = now }
 
-// SetPendingChangeLookup wire 注入预约变更查询（PlanChangeStore）。
-func (s *AccountStatusService) SetPendingChangeLookup(lookup interface {
-	ActiveScheduledChange(ctx context.Context, subscriptionID int64) (*PlanChangeRecord, error)
-}) {
-	s.pendingChangeLookup = lookup
+// SetNextRenewalResolver wire 注入"下次续费套餐"解析依赖（最近行 + 目标 SKU）。
+// 仓储未实现 latest-row 能力（部分测试 stub）时为 no-op，合同字段省略。
+func (s *AccountStatusService) SetNextRenewalResolver(repo UserSubscriptionRepository, plans PlanService) {
+	if reader, ok := repo.(SubscriptionLatestRowReader); ok {
+		s.nextRenewalReader = reader
+	}
+	s.nextRenewalPlans = plans
 }
 
 // CountAvailableResetCards 账户级可用 Reset Card 数（只读；发卡 Runtime 未实现，恒 0 直到入口存在）。
@@ -221,32 +239,50 @@ func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int6
 		statuses = append(statuses, *st)
 	}
 
-	// 已预约变更（单主套餐不变量下至多一条 ACTIVE → 至多一个 pending）
+	// Phase 11B 预付费固定周期制：next_plan_id 是"下次续费默认目标"，挂在最近一条
+	// 订阅行上且到期后保留（ACTIVE=0 合法）。用户级读取，不依赖是否存在 ACTIVE。
 	var pending *AccountPendingPlanChange
-	if s.pendingChangeLookup != nil {
-		for i := range subs {
-			rec, err := s.pendingChangeLookup.ActiveScheduledChange(ctx, subs[i].ID)
-			if err != nil || rec == nil {
-				continue
-			}
-			name := ""
-			if s.groupRepo != nil {
-				if g, err := s.groupRepo.GetByID(ctx, rec.ToGroupID); err == nil {
-					name = g.Name
+	var nextRenewalID *int64
+	nextRenewalName := ""
+	var lastSub *AccountLastSubscription
+	if s.nextRenewalReader != nil {
+		if row, err := s.nextRenewalReader.FindLatestByUserID(ctx, userID); err == nil && row != nil {
+			if row.NextPlanID != nil && s.nextRenewalPlans != nil {
+				target, perr := s.nextRenewalPlans.GetPlan(ctx, *row.NextPlanID)
+				if perr == nil && target != nil {
+					name := target.Name
+					if s.groupRepo != nil {
+						if g, gerr := s.groupRepo.GetByID(ctx, target.GroupID); gerr == nil {
+							name = g.Name // 展示身份 = 组名（Phase 4.1 合同）
+						}
+					}
+					id := target.ID
+					nextRenewalID = &id
+					nextRenewalName = name
+					pending = &AccountPendingPlanChange{
+						ChangeType:  "scheduled_downgrade",
+						ToPlanID:    target.ID,
+						ToPlanName:  name,
+						EffectiveAt: row.ExpiresAt, // 最早续费切换点，非自动生效时间
+						CurrentEnds: row.ExpiresAt,
+					}
 				}
 			}
-			effective := s.now()
-			if rec.EffectiveAt != nil {
-				effective = *rec.EffectiveAt
+			if row.Status != SubscriptionStatusActive {
+				display := ""
+				if row.Group != nil {
+					display = row.Group.Name
+				} else if s.groupRepo != nil {
+					if g, gerr := s.groupRepo.GetByID(ctx, row.GroupID); gerr == nil {
+						display = g.Name
+					}
+				}
+				lastSub = &AccountLastSubscription{
+					GroupID:     row.GroupID,
+					DisplayName: display,
+					ExpiresAt:   row.ExpiresAt,
+				}
 			}
-			pending = &AccountPendingPlanChange{
-				ChangeType:  rec.ChangeType,
-				ToPlanID:    rec.ToPlanID,
-				ToPlanName:  name,
-				EffectiveAt: effective,
-				CurrentEnds: subs[i].ExpiresAt,
-			}
-			break
 		}
 	}
 
@@ -255,9 +291,12 @@ func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int6
 			Balance:           FormatWalletBalance(user.Balance),
 			CanonicalCurrency: "USD",
 		},
-		ResetCards:    AccountResetCardsStatus{Available: s.CountAvailableResetCards(ctx, userID)},
-		Subscriptions: statuses,
-		PendingChange: pending,
+		ResetCards:        AccountResetCardsStatus{Available: s.CountAvailableResetCards(ctx, userID)},
+		Subscriptions:     statuses,
+		PendingChange:     pending,
+		NextRenewalPlanID: nextRenewalID,
+		NextRenewalPlan:   nextRenewalName,
+		LastSubscription:  lastSub,
 	}, nil
 }
 

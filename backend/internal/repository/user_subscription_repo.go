@@ -156,6 +156,26 @@ func (r *userSubscriptionRepository) FindActiveByUserIDExcludingGroup(ctx contex
 	return userSubscriptionEntityToService(m), nil
 }
 
+// FindLatestByUserID 用户级最近一条未删除订阅行（expires_at DESC, id DESC）。
+// 预付费固定周期制：next_plan_id 挂在行上，到期后仍需可读（续费默认目标）。
+func (r *userSubscriptionRepository) FindLatestByUserID(ctx context.Context, userID int64) (*service.UserSubscription, error) {
+	client := clientFromContext(ctx, r.client)
+	m, err := client.UserSubscription.Query().
+		Where(
+			usersubscription.UserIDEQ(userID),
+			usersubscription.DeletedAtIsNil(),
+		).
+		Order(dbent.Desc(usersubscription.FieldExpiresAt), dbent.Desc(usersubscription.FieldID)).
+		First(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return userSubscriptionEntityToService(m), nil
+}
+
 // ExpireLapsedByUser 履约前置清理：把用户 status=active 但已过 expires_at 的订阅
 // 翻为 expired（惰性到期的提前收敛），避免 partial unique index 把合法新购买挡下。
 func (r *userSubscriptionRepository) ExpireLapsedByUser(ctx context.Context, userID int64, now time.Time) (int64, error) {

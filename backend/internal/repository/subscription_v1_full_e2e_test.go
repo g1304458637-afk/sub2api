@@ -24,6 +24,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
@@ -232,49 +233,48 @@ func TestSubscriptionV1FullBackendE2E(t *testing.T) {
 	require.NoError(t, integrationDB.QueryRow("SELECT group_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&gid))
 	require.Equal(t, proG.ID, gid, "current term stays Pro")
 
-	// ── 15a. 续期当前档（pending 降级存在时）→ 取代预约（superseded_by_renewal）──
+	// ── 15a. Phase 11B：非支付路径（兑换/赠送等走 assignOrExtend 的场景）不得清指针 ──
 	_, err = planSvc.ScheduleDowngrade(ctx, user.ID, basicSub.ID, basicPlan.ID, "e2e-sched-2")
 	require.NoError(t, err)
 	_, _, err = subSvc.AssignOrExtendSubscription(ctx, &service.AssignSubscriptionInput{
 		UserID: user.ID, GroupID: proG.ID, ValidityDays: 30,
-		Notes: "e2e renewal (supersedes scheduled basic)", PlanID: &proPlan.ID,
+		Notes: "e2e non-paid renewal must NOT supersede", PlanID: &proPlan.ID,
 	})
 	require.NoError(t, err)
 	var nextPlanID *int64
 	require.NoError(t, integrationDB.QueryRow(
 		"SELECT next_plan_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&nextPlanID))
-	require.Nil(t, nextPlanID, "renewal of current tier supersedes the scheduled downgrade")
+	require.NotNil(t, nextPlanID, "non-payment renewal must never supersede the next-renewal pointer")
 	require.NoError(t, integrationDB.QueryRow("SELECT group_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&gid))
 	require.Equal(t, proG.ID, gid, "renewal keeps current plan active")
 
-	// ── 15b. 到期切换：term 末到点引擎把行切到 Basic（lapsed → expired，不免费送），
-	// 用户按 Basic 续费后同一行以 Basic 复活 → 全程只有一条 ACTIVE ──
-	_, err = planSvc.ScheduleDowngrade(ctx, user.ID, basicSub.ID, basicPlan.ID, "e2e-sched-3")
-	require.NoError(t, err)
+	// ── 15b. Phase 11B 到期语义：到期 job 只翻 EXPIRED；指针保留；绝不产生 Basic ──
 	_, err = integrationDB.Exec(
 		"UPDATE user_subscriptions SET expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1", basicSub.ID)
 	require.NoError(t, err)
-	_, err = integrationDB.Exec(
-		"UPDATE subscription_plan_changes SET effective_at = NOW() - INTERVAL '30 minutes' WHERE subscription_id = $1 AND status = 'scheduled'", basicSub.ID)
+	expiredN, err := subRepo.BatchUpdateExpiredStatus(ctx)
 	require.NoError(t, err)
-	applied, err := planSvc.ApplyDueScheduledDowngrades(ctx, time.Now(), 100)
-	require.NoError(t, err)
-	require.Equal(t, 1, applied, "term-end engine applies the scheduled downgrade")
+	require.Equal(t, int64(1), expiredN)
 	require.NoError(t, integrationDB.QueryRow("SELECT group_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&gid))
-	require.Equal(t, basicG.ID, gid, "row switched to the Basic group at term end")
+	require.Equal(t, proG.ID, gid, "row keeps its plan identity after expiry")
 	require.NoError(t, integrationDB.QueryRow("SELECT next_plan_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&nextPlanID))
-	require.Nil(t, nextPlanID, "pointer cleared after fulfillment")
-	// 用户按 Basic 价续费（不免费送）→ 同一行以 Basic 复活
-	_, _, err = subSvc.AssignOrExtendSubscription(ctx, &service.AssignSubscriptionInput{
-		UserID: user.ID, GroupID: basicG.ID, ValidityDays: 30,
-		Notes: "e2e renewal into scheduled basic", PlanID: &basicPlan.ID,
-	})
-	require.NoError(t, err)
-
+	require.NotNil(t, nextPlanID, "pointer survives expiry (renewal default)")
 	subs, err := subRepo.ListActiveByUserID(ctx, user.ID)
 	require.NoError(t, err)
+	require.Len(t, subs, 0, "ACTIVE = 0 is the legitimate prepaid state")
+
+	// ── 15c. 用户主动付费续费 Basic（真实支付履约链）→ Basic ACTIVE + 指针清 ──
+	paySvc := service.NewPaymentService(client, payment.ProvideRegistry(), nil, nil, subSvc, nil,
+		NewUserRepository(client, integrationDB), NewGroupRepository(client, integrationDB), nil)
+	paySvc.SetPlanChangeService(nil, nil, termStore)
+	orderID := phase11CreatePaidOrder(t, client, user.ID, user.Email, basicPlan.ID, basicG.ID, 30, 39)
+	require.NoError(t, paySvc.ExecuteSubscriptionFulfillment(ctx, orderID))
+	subs, err = subRepo.ListActiveByUserID(ctx, user.ID)
+	require.NoError(t, err)
 	require.Len(t, subs, 1, "single active subscription invariant holds across downgrade+renewal")
-	require.Equal(t, basicG.ID, subs[0].GroupID, "the renewed term is on Basic")
+	require.Equal(t, basicG.ID, subs[0].GroupID, "the paid renewal is on Basic")
+	require.NoError(t, integrationDB.QueryRow("SELECT next_plan_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&nextPlanID))
+	require.Nil(t, nextPlanID, "paid renewal clears the pointer")
 
 	// ── 16. Key 迁移 Pro→Basic（降级续费后的 Key 重绑由后续前端/用户操作，此处锁定迁移原语）──
 	migrated, err := NewAPIKeyGroupMigrator(client).MigrateGroupForUser(ctx, user.ID, proG.ID, basicG.ID)

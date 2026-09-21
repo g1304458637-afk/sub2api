@@ -420,52 +420,7 @@ func TestPhase10ScheduledDowngradeMatrix(t *testing.T) {
 	require.Error(t, err)
 }
 
-// ---- Renewal 识别 scheduled plan（手动续费按目标档执行 + Key 迁移） ----
-
-func TestPhase10RenewalHonorsScheduledDowngrade(t *testing.T) {
-	withoutSingleActiveIndex(t)
-	client := testEntClient(t)
-	ctx := context.Background()
-
-	// Pro 到期 3 天后，scheduled Basic；Renewal 应按 Basic 报价并切组迁 Key
-	s := phase10Setup(t, client, 39, 99, 27, 30)
-	proSub := mustCreateSubscription(t, client, &service.UserSubscription{UserID: s.user.ID, GroupID: s.proG.ID})
-	_, err := integrationDB.ExecContext(ctx,
-		"UPDATE user_subscriptions SET plan_id = $1, starts_at = NOW() - INTERVAL '27 days', expires_at = NOW() + INTERVAL '3 days' WHERE id = $2",
-		s.proPlan.ID, proSub.ID)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_, _ = integrationDB.Exec("DELETE FROM subscription_terms WHERE subscription_id = $1", proSub.ID)
-		_, _ = integrationDB.Exec("DELETE FROM user_subscriptions WHERE id = $1", proSub.ID)
-	})
-	proPlanID := s.proPlan.ID
-	require.NoError(t, s.terms.RecordTerm(ctx, &service.SubscriptionTermRecord{
-		SubscriptionID: proSub.ID, PlanID: &proPlanID,
-		PricePaid: 99, Currency: "CNY", Days: 30,
-		TermStart: time.Now().Add(-27 * 24 * time.Hour), TermEnd: time.Now().Add(3 * 24 * time.Hour), Source: "purchase",
-	}))
-	_, err = s.svc.ScheduleDowngrade(ctx, s.user.ID, proSub.ID, s.basicPlan.ID, "p10-renew-sched")
-	require.NoError(t, err)
-
-	key := mustCreateApiKey(t, client, &service.APIKey{UserID: s.user.ID, GroupID: &s.proG.ID, Key: "sk-p10-renew", Name: "R"})
-	t.Cleanup(func() { _, _ = integrationDB.Exec("DELETE FROM api_keys WHERE id = $1", key.ID) })
-
-	// Renewal：按 scheduled plan（Basic）延长 —— 复用 assignOrExtend + PlanID + term
-	subSvc := service.NewSubscriptionService(NewGroupRepository(client, integrationDB), NewUserSubscriptionRepository(client), nil, client, nil)
-	sub, _, err := subSvc.AssignOrExtendSubscription(ctx, &service.AssignSubscriptionInput{
-		UserID: s.user.ID, GroupID: s.basicG.ID, ValidityDays: 30,
-		Notes: "renewal honoring scheduled downgrade", PlanID: &s.basicPlan.ID,
-	})
-	require.NoError(t, err)
-	// scheduled 语义：切换到 Basic 组（Key 迁移在升级/降级履约做；此处为 renewal 切组演示）
-	_ = sub
-	// 验证：renewal 按 scheduled 目标（Basic）建新组订阅；旧 Pro 订阅独立存在
-	basicSubs, err := NewUserSubscriptionRepository(client).ListActiveByUserID(ctx, s.user.ID)
-	require.NoError(t, err)
-	byGroup := map[int64]*service.UserSubscription{}
-	for i := range basicSubs {
-		byGroup[basicSubs[i].GroupID] = &basicSubs[i]
-	}
-	require.NotNil(t, byGroup[s.basicG.ID], "renewal honored the scheduled Basic plan")
-	require.NotNil(t, byGroup[s.proG.ID], "existing Pro entitlement untouched until its own expiry")
-}
+// ---- Renewal 识别 scheduled plan ----
+// （Phase 11B 移除：手动续费按目标档执行的旧语义已由预付费固定周期制取代——
+// next_plan_id 仅为续费默认目标，付费履约闭包见
+// phase11b_paid_renewal_integration_test.go 的 Case C2/E/F/G。）

@@ -50,6 +50,21 @@ type SubscriptionPaygFallbackStore interface {
 	UpdatePaygFallback(ctx context.Context, id int64, enabled bool) error
 }
 
+// UserScheduledChangeCloser 是用户级 pending 变更批量取消的可选仓储能力
+// （支付履约闭包用；生产 ent 仓储实现）。
+type UserScheduledChangeCloser interface {
+	// CancelScheduledForUser 取消该用户全部 scheduled_downgrade 审计行，返回条数。
+	CancelScheduledForUser(ctx context.Context, userID int64, reason string) (int, error)
+}
+
+// SubscriptionLatestRowReader 是用户级"最近一条订阅行（任意状态）"的可选仓储能力：
+// 预付费固定周期制下，next_plan_id 挂在行上且到期后必须保留（ACTIVE=0 合法），
+// 状态合同需要用户级读取（生产 ent 仓储实现；测试 stub 可不实现）。
+type SubscriptionLatestRowReader interface {
+	// FindLatestByUserID 返回用户最近一条未删除订阅行（expires_at DESC, id DESC）。
+	FindLatestByUserID(ctx context.Context, userID int64) (*UserSubscription, error)
+}
+
 // SubscriptionSingleActiveGuard 是单主套餐不变量（产品 RULE 1）的可选仓储能力：
 // 生产 ent 仓储实现；测试 stub 未实现时守卫跳过，由数据库 partial unique index
 // （迁移 242）兜底。接口化是为了不破坏既有 UserSubscriptionRepository 全量 stub。
@@ -60,16 +75,11 @@ type SubscriptionSingleActiveGuard interface {
 	ExpireLapsedByUser(ctx context.Context, userID int64, now time.Time) (int64, error)
 }
 
-// ScheduledChangeSuperseder 续期取代 pending 预约降级的可选回调（PlanChangeService 实现，
-// wire 注入）。必须在续费事务内调用（ent tx context 传递）。
+// ScheduledChangeSuperseder 支付履约成功后的用户级"下次续费偏好"清理
+// （PlanChangeService 实现，wire 注入）。Phase 11B：付费续费可能开新行
+// （跨档续费），指针必须按用户清理而非按订阅行。必须在支付履约事务内调用。
 type ScheduledChangeSuperseder interface {
-	SupersedeScheduledChangeForRenewal(ctx context.Context, subscriptionID int64) error
-}
-
-// ScheduledDowngradeApplier 预约降级到点执行引擎（PlanChangeService 实现，
-// 由到期扫描服务在每轮 tick 调用）。
-type ScheduledDowngradeApplier interface {
-	ApplyDueScheduledDowngrades(ctx context.Context, now time.Time, limit int) (int, error)
+	SupersedeScheduledChangeForUser(ctx context.Context, userID int64) error
 }
 
 // SubscriptionConcurrencyOverrideReader 是 UserSubscriptionRepository 的可选能力：

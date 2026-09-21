@@ -21,12 +21,12 @@ package service
 import (
 	"context"
 	"errors"
-	"log"
 	"time"
 
 	"github.com/shopspring/decimal"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
@@ -119,8 +119,6 @@ type PlanChangeStore interface {
 	// ListBySubscription 审计历史。
 	ListBySubscription(ctx context.Context, subscriptionID int64, limit int) ([]PlanChangeRecord, error)
 
-	// ListDueScheduled 到点引擎扫描：effective_at <= now 的 scheduled 变更（id 升序，限批）。
-	ListDueScheduled(ctx context.Context, now time.Time, limit int) ([]PlanChangeRecord, error)
 	// ListAll 管理端审计：按 id 倒序 + 总数；过滤条件均可选。
 	ListAll(ctx context.Context, userID, subscriptionID *int64, status *string, limit, offset int) ([]PlanChangeRecord, int64, error)
 }
@@ -583,10 +581,17 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 }
 
 // ------------------------------------------------------------------
-// Scheduled Downgrade（term 末生效；Renewal 按目标档报价）
+// Next Renewal Plan Change（预付费固定周期制：到期后下一次主动续费的默认目标）
 // ------------------------------------------------------------------
 
-// ScheduleDowngrade 记录下一周期目标档（立即不生效、不退款；同订阅仅一个 pending）。
+// ScheduleDowngrade 记录"下次续费切换至目标档"的用户偏好（同订阅仅一个 pending）。
+//
+// Phase 11B 语义收紧（预付费固定周期制，永不自动续费）：
+//   - 本指针只是未来续费偏好，不是自动执行指令；到期任务只负责 ACTIVE→EXPIRED，
+//     绝不因 effective_at 到达而切换套餐或生成新周期；
+//   - 只有三条路径会清除/取代本指针：用户付费购买/续费成功（含升级）；
+//     用户主动取消；用户改选其它目标（替换）。
+//   - EffectiveAt 语义 = 当前订阅 expires_at（最早续费切换点），不是自动生效时间。
 func (s *PlanChangeService) ScheduleDowngrade(ctx context.Context, userID, subscriptionID, targetPlanID int64, idempotencyKey string) (*PlanChangeRecord, error) {
 	sub, err := s.subRepo.GetByID(ctx, subscriptionID)
 	if err != nil {
@@ -722,114 +727,34 @@ func (s *PlanChangeService) ListChangesBySubscription(ctx context.Context, userI
 
 // ---- repo-facing helpers（订阅字段切换；由具体 repo 提供事务实现）----
 
-// SupersedeScheduledChangeForRenewal 续期取代 pending 预约降级（superseded_by_renewal）。
-// 由 SubscriptionService 续费事务内调用（txCtx 传递保证同事务）；无 pending 时空操作。
-func (s *PlanChangeService) SupersedeScheduledChangeForRenewal(ctx context.Context, subscriptionID int64) error {
-	pending, err := s.store.ActiveScheduledChange(ctx, subscriptionID)
-	if err != nil {
-		return err
-	}
-	if pending == nil {
-		return nil
-	}
-	if err := s.store.Cancel(ctx, pending.ID, "superseded_by_renewal"); err != nil {
-		return err
-	}
-	return clearNextPlan(ctx, s.subRepo, subscriptionID)
-}
-
-// ------------------------------------------------------------------
-// Scheduled Downgrade 到点执行引擎（term 末生效；无自动扣款 → 不免费送新周期）
-// ------------------------------------------------------------------
-
-// ApplyDueScheduledDowngrades 扫描并执行已到点的预约降级。
-// 每条变更独立事务：订阅行锁 + 源组校验（防 supersede/升级竞态）+ SwitchPlan 到目标组
-// （保留周期字段不动）+ 已过期的行翻 expired（用户续费后新周期才以目标档生效，不免费送）
-// + 清 next_plan_id + MarkFulfilled(CAS 幂等)。返回成功履约条数。
-func (s *PlanChangeService) ApplyDueScheduledDowngrades(ctx context.Context, now time.Time, limit int) (int, error) {
-	due, err := s.store.ListDueScheduled(ctx, now, limit)
-	if err != nil {
-		return 0, err
-	}
-	if len(due) == 0 {
-		return 0, nil
-	}
-	applied := 0
-	for i := range due {
-		change := &due[i]
-		if err := s.applyOneScheduledDowngrade(ctx, change, now); err != nil {
-			// 单条失败不阻塞其余（下轮扫描重试）；记录后继续
-			log.Printf("[PlanChange] apply scheduled downgrade #%d (sub=%d) failed: %v",
-				change.ID, change.SubscriptionID, err)
-			continue
+// SupersedeScheduledChangeForUser 支付履约成功后的用户级清理（superseded_by_renewal）：
+// 清除该用户全部订阅行上的 next_plan_id 指针 + 取消全部 pending 审计行。
+// 付费续费可能在新行上激活（跨档续费），因此必须按用户而非按行清理。
+// 由 SubscriptionService.ClosePendingChangeOnPaidRenewal 在支付履约事务内调用；
+// 到期/维护/对账等系统任务绝不允许触达本方法。
+func (s *PlanChangeService) SupersedeScheduledChangeForUser(ctx context.Context, userID int64) error {
+	if s.entClient != nil {
+		// 事务感知：履约事务内调用时必须走 tx（直接用 entClient 会绕过回滚，
+		// 造成"履约失败但指针已被清"的半提交状态）
+		client := s.entClient
+		if tx := dbent.TxFromContext(ctx); tx != nil {
+			client = tx.Client()
 		}
-		applied++
-	}
-	return applied, nil
-}
-
-func (s *PlanChangeService) applyOneScheduledDowngrade(ctx context.Context, change *PlanChangeRecord, now time.Time) error {
-	tx, err := s.entClient.Tx(ctx)
-	if err != nil {
-		return err
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
-	txCtx := dbent.NewTxContext(ctx, tx)
-
-	sub, err := s.subRepo.GetByIDForUpdate(txCtx, change.SubscriptionID)
-	if err != nil {
-		return err
-	}
-	if sub.UserID != change.UserID {
-		return ErrSubscriptionNotFound
-	}
-	// 行已不在源组：期间发生过升级/迁移，本变更应已被 supersede；补取消防重放
-	if change.FromGroupID != nil && sub.GroupID != *change.FromGroupID {
-		if err := s.store.Cancel(txCtx, change.ID, "stale_source_group"); err != nil {
-			return err
-		}
-		return tx.Commit()
-	}
-	// 双保险：指针已被清（理论上有 pending 行残留）→ 直接作废，不执行
-	if sub.NextPlanID == nil || *sub.NextPlanID != change.ToPlanID {
-		if err := s.store.Cancel(txCtx, change.ID, "pointer_cleared"); err != nil {
-			return err
-		}
-		return tx.Commit()
-	}
-
-	// 切到目标组/档：周期字段（starts_at/expires_at/窗口锚点/usage）全部不动
-	if err := switchSubscriptionPlan(txCtx, s.subRepo, sub.ID, change.ToGroupID, change.ToPlanID); err != nil {
-		return err
-	}
-	// 预付制：term 已结束且用户未续费 → 行保持/翻为 expired，不免费送目标档周期；
-	// 用户随后按目标档购买时 assignOrExtend 复用本行 → 新周期以 Basic 生效（Case E）。
-	lapsed := !sub.ExpiresAt.After(now)
-	if lapsed && sub.Status == SubscriptionStatusActive {
-		if err := s.subRepo.UpdateStatus(txCtx, sub.ID, SubscriptionStatusExpired); err != nil {
+		if _, err := client.UserSubscription.Update().
+			Where(
+				usersubscription.UserIDEQ(userID),
+				usersubscription.NextPlanIDNotNil(),
+			).
+			ClearNextPlanID().
+			Save(ctx); err != nil {
 			return err
 		}
 	}
-
-	if err := s.store.MarkFulfilled(txCtx, change.ID, now); err != nil {
-		return err
+	if closer, ok := s.store.(UserScheduledChangeCloser); ok {
+		if _, err := closer.CancelScheduledForUser(ctx, userID, "superseded_by_renewal"); err != nil {
+			return err
+		}
 	}
-	// 清空预约指针：变更已履约，避免后续续费/升级读到悬空目标
-	if err := clearNextPlan(txCtx, s.subRepo, sub.ID); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	committed = true
-
-	s.invalidateCaches(ctx, sub.UserID, sub.GroupID)
-	s.invalidateCaches(ctx, sub.UserID, change.ToGroupID)
 	return nil
 }
 
