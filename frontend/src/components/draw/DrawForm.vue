@@ -1,26 +1,40 @@
 <template>
-  <div class="card space-y-5">
-    <!-- 模型 -->
-    <div>
-      <label class="input-label">{{ t('draw.form.model') }}</label>
-      <Select
-        :model-value="model"
-        :options="modelOptions"
-        :placeholder="t('draw.form.modelPlaceholder')"
-        :empty-text="t('draw.form.modelEmpty')"
-        @update:model-value="$emit('update:model', String($event ?? ''))"
-      />
-      <p v-if="selectedModel" class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-        <span v-if="selectedModel.vendor" class="mr-1.5">{{ selectedModel.vendor }}</span>
-        <span v-if="selectedModel.description">{{ selectedModel.description }}</span>
-      </p>
-    </div>
+  <div
+    class="rounded-3xl border border-gray-200/90 bg-white p-3 shadow-lg shadow-gray-200/50 transition-colors focus-within:border-primary-500/60 dark:border-dark-600 dark:bg-dark-900 dark:shadow-black/20 dark:focus-within:border-primary-500/60"
+  >
+    <!-- 提示词 -->
+    <textarea
+      :value="prompt"
+      rows="3"
+      class="w-full resize-none bg-transparent px-2 pt-1.5 text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none disabled:cursor-not-allowed dark:text-gray-100 dark:placeholder:text-dark-500"
+      :placeholder="t('draw.form.promptPlaceholder')"
+      :aria-label="t('draw.form.prompt')"
+      @input="onPromptInput"
+    ></textarea>
 
-    <!-- 尺寸 -->
-    <div>
-      <label class="input-label">{{ t('draw.form.size') }}</label>
+    <!-- 提示词必填错误 -->
+    <p v-if="promptErrorText" class="mt-1 px-2 text-xs text-red-500 dark:text-red-400">
+      {{ promptErrorText }}
+    </p>
+
+    <!-- 控件行：模型 / 尺寸 / 张数 / 生成 -->
+    <div class="mt-1 flex flex-wrap items-center gap-2 px-1">
+      <!-- 模型 chip（点击打开选择弹窗） -->
+      <button
+        type="button"
+        class="flex max-w-[12rem] items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 disabled:cursor-not-allowed disabled:opacity-60 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-dark-200"
+        :aria-label="t('draw.form.model')"
+        :disabled="modelOptions.length === 0"
+        @click="pickerOpen = true"
+      >
+        <Icon name="cube" size="sm" class="shrink-0 text-primary-500/80 dark:text-primary-400/80" />
+        <span class="truncate">{{ modelLabel }}</span>
+        <Icon name="chevronDown" size="xs" class="shrink-0 text-gray-400 dark:text-dark-500" />
+      </button>
+
+      <!-- 尺寸 -->
       <div
-        class="inline-flex w-full max-w-sm rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900/40"
+        class="inline-flex rounded-full bg-gray-100 p-1 dark:bg-dark-800"
         role="radiogroup"
         :aria-label="t('draw.form.size')"
       >
@@ -30,82 +44,78 @@
           type="button"
           role="radio"
           :aria-checked="size === option.value"
-          class="inline-flex flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1.5 text-xs font-medium transition"
+          :title="option.value"
+          class="rounded-full px-3 py-1 text-xs font-medium transition"
           :class="
             size === option.value
-              ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-              : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
+              ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-700 dark:text-primary-300'
+              : 'text-gray-500 hover:text-gray-900 dark:text-dark-400 dark:hover:text-white'
           "
           @click="$emit('update:size', option.value)"
         >
-          <span>{{ t(option.labelKey) }}</span>
-          <span class="font-mono text-[10px] font-normal opacity-70">{{ option.value }}</span>
+          {{ t(option.labelKey) }}
         </button>
       </div>
-    </div>
 
-    <!-- 张数 -->
-    <div>
-      <label class="input-label">{{ t('draw.form.count') }}</label>
-      <div class="inline-flex items-center gap-2" role="radiogroup" :aria-label="t('draw.form.count')">
+      <!-- 张数 -->
+      <div class="inline-flex items-center gap-1" role="radiogroup" :aria-label="t('draw.form.count')">
         <button
           v-for="n in DRAW_COUNT_MAX"
           :key="n"
           type="button"
           role="radio"
           :aria-checked="count === n"
-          class="inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition"
+          :title="`${t('draw.form.count')} × ${n}`"
+          class="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition"
           :class="
             count === n
-              ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-500 dark:bg-primary-900/30 dark:text-primary-300'
-              : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-dark-600 dark:text-dark-300 dark:hover:border-dark-500'
+              ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+              : 'text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800'
           "
           @click="$emit('update:count', n)"
         >
           {{ n }}
         </button>
       </div>
+
+      <!-- 生成按钮 -->
+      <button
+        type="button"
+        class="btn btn-primary ml-auto h-9 rounded-full px-4"
+        :disabled="generating || modelOptions.length === 0"
+        @click="$emit('submit')"
+      >
+        <Icon
+          :name="generating ? 'refresh' : 'sparkles'"
+          size="sm"
+          class="mr-1.5"
+          :class="generating ? 'animate-spin' : ''"
+        />
+        {{ generating ? t('draw.form.generating') : t('draw.form.generate') }}
+      </button>
     </div>
 
-    <!-- 提示词 -->
-    <TextArea
-      :model-value="prompt"
-      :label="t('draw.form.prompt')"
-      :required="true"
-      :rows="4"
-      :placeholder="t('draw.form.promptPlaceholder')"
-      :error="promptErrorText"
-      @update:model-value="$emit('update:prompt', String($event ?? ''))"
+    <!-- 模型选择弹窗（与聊天页共用） -->
+    <ModelPickerModal
+      :show="pickerOpen"
+      :models="models"
+      :selected="model"
+      @select="onSelectModel"
+      @close="pickerOpen = false"
     />
-
-    <!-- 生成按钮 -->
-    <button
-      type="button"
-      class="btn btn-primary w-full"
-      :disabled="generating || modelOptions.length === 0"
-      @click="$emit('submit')"
-    >
-      <Icon
-        :name="generating ? 'refresh' : 'sparkles'"
-        size="sm"
-        class="mr-2"
-        :class="generating ? 'animate-spin' : ''"
-      />
-      {{ generating ? t('draw.form.generating') : t('draw.form.generate') }}
-    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * 绘图表单：模型 / 尺寸 / 张数 / 提示词 / 生成按钮。
+ * 绘图输入区：与聊天页同一套扁平风格——单个输入胶囊内含提示词与内联控件
+ * （模型 chip + 尺寸/张数胶囊 + 生成按钮），不再有独立表单卡片。
  * 状态由 DrawView 持有，本组件只做展示与回传（update:* + submit）。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { WebChatModelInfo } from '@/api/webChat'
-import Select from '@/components/common/Select.vue'
-import TextArea from '@/components/common/TextArea.vue'
+import ModelPickerModal from '@/components/chat/ModelPickerModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { DRAW_SIZE_OPTIONS, DRAW_COUNT_MAX } from './types'
 
@@ -122,7 +132,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'update:model', value: string): void
   (e: 'update:size', value: string): void
   (e: 'update:count', value: number): void
@@ -132,15 +142,27 @@ defineEmits<{
 
 const { t } = useI18n()
 
+const pickerOpen = ref(false)
+
 const modelOptions = computed(() =>
   props.models.map((m) => ({ value: m.model, label: m.display_name || m.model })),
 )
 
-const selectedModel = computed(
-  () => props.models.find((m) => m.model === props.model) ?? null,
-)
+const modelLabel = computed(() => {
+  if (!props.model) return t('draw.form.modelPlaceholder')
+  return props.models.find((m) => m.model === props.model)?.display_name || props.model
+})
 
 const promptErrorText = computed(() =>
   props.showPromptError && !props.prompt.trim() ? t('draw.form.promptRequired') : '',
 )
+
+function onPromptInput(event: Event): void {
+  emit('update:prompt', String((event.target as HTMLTextAreaElement | null)?.value ?? ''))
+}
+
+function onSelectModel(value: string): void {
+  emit('update:model', value)
+  pickerOpen.value = false
+}
 </script>
