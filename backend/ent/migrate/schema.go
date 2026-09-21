@@ -2417,6 +2417,14 @@ var (
 				Columns: []*schema.Column{UserSubscriptionsColumns[19], UserSubscriptionsColumns[18]},
 			},
 			{
+				Name:    "uq_user_subscriptions_single_active",
+				Unique:  true,
+				Columns: []*schema.Column{UserSubscriptionsColumns[19]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND status = 'active'",
+				},
+			},
+			{
 				Name:    "usersubscription_deleted_at",
 				Unique:  false,
 				Columns: []*schema.Column{UserSubscriptionsColumns[3]},

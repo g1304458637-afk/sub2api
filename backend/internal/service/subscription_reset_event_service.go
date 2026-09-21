@@ -26,6 +26,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -140,13 +141,15 @@ type ResetApplicationRecord struct {
 
 // ResetEventService Direct Reset Runtime。
 type ResetEventService struct {
-	store     ResetEventStore
-	targets   ResetTargetResolver
-	resetCore WeeklyResetCore
-	subRepo   UserSubscriptionRepository
-	entClient *dbent.Client
-	now       func() time.Time
-	batchSize int
+	store      ResetEventStore
+	targets    ResetTargetResolver
+	resetCore  WeeklyResetCore
+	subRepo    UserSubscriptionRepository
+	entClient  *dbent.Client
+	now        func() time.Time
+	batchSize  int
+	stopWorker context.CancelFunc
+	workerWG   sync.WaitGroup
 }
 
 func NewResetEventService(
@@ -176,7 +179,9 @@ func (s *ResetEventService) StartWorker(ctx context.Context, interval time.Durat
 	if interval <= 0 {
 		interval = 30 * time.Second
 	}
+	s.workerWG.Add(1)
 	go func() {
+		defer s.workerWG.Done()
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Printf("reset event worker panic: %v\n", r)
@@ -193,6 +198,16 @@ func (s *ResetEventService) StartWorker(ctx context.Context, interval time.Durat
 			}
 		}
 	}()
+}
+
+func (s *ResetEventService) Stop() {
+	if s == nil {
+		return
+	}
+	if s.stopWorker != nil {
+		s.stopWorker()
+	}
+	s.workerWG.Wait()
 }
 
 // CreateResetEvent 创建 Direct Reset 事件（snapshot + durable 幂等）。

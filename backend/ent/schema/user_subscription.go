@@ -135,8 +135,9 @@ func (UserSubscription) Indexes() []ent.Index {
 		index.Fields("user_id", "group_id"),
 		// 单主套餐不变量（产品 RULE 1）：每用户至多一条 ACTIVE 订阅。
 		// 唯一性由部分索引实现（WHERE deleted_at IS NULL AND status='active'），
-		// 见迁移文件 242_user_subscriptions_single_active.sql；schema 仅作可读性对齐。
-		index.Fields("user_id"),
+		// 与迁移 242 的唯一索引名称及谓词保持一致。
+		index.Fields("user_id").Unique().StorageKey("uq_user_subscriptions_single_active").
+			Annotations(entsql.IndexWhere("deleted_at IS NULL AND status = 'active'")),
 		index.Fields("deleted_at"),
 	}
 }

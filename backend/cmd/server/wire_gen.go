@@ -173,22 +173,14 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	opsService := service.ProvideOpsService(opsRepository, settingRepository, configConfig, accountRepository, userRepository, concurrencyService, gatewayService, openAIGatewayService, geminiMessagesCompatService, antigravityGatewayService, opsSystemLogSink, settingService, authCacheInvalidationWorker, apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, opsService, settingService)
 	redeemHandler := handler.NewRedeemHandler(redeemService)
-	subscriptionResetCardRepository := repository.NewSubscriptionResetCardRepository(client)
-	subscriptionResetCardStore := repository.NewSubscriptionResetCardStore(client)
-	subscriptionResetTargetRepo := repository.NewSubscriptionResetTargetRepo(client)
-	subscriptionResetEventStore := repository.NewSubscriptionResetEventStore(client)
-	resetCardService := service.NewResetCardService(subscriptionResetCardStore, userSubscriptionRepository, groupRepository, subscriptionService, subscriptionResetTargetRepo, client)
-	resetEventService := service.NewResetEventService(subscriptionResetEventStore, subscriptionResetTargetRepo, subscriptionService, userSubscriptionRepository, client)
-	resetEventService.StartWorker(context.Background(), 30*time.Second)
-
-	adminResetEventHandler := admin.NewAdminResetEventHandler(resetEventService, resetCardService)
-	adminResetCardHandler := admin.NewAdminSubscriptionResetHandler(resetCardService)
-	accountStatusService := service.NewAccountStatusService(userRepository, userSubscriptionRepository, groupRepository, subscriptionService, subscriptionResetCardRepository, false)
-	// 单主套餐不变量配套装配（Phase 11B 预付费固定周期制）：
-	// status 合同"下次续费套餐"解析（用户级最近行 + 目标 SKU）
-	subscriptionPlanChangeStore := repository.NewSubscriptionPlanChangeStore(client)
-	planSnapshotServiceForStatus := repository.NewPlanSnapshotService(client)
-	accountStatusService.SetNextRenewalResolver(userSubscriptionRepository, planSnapshotServiceForStatus)
+	subscriptionResetCardReader := repository.NewSubscriptionResetCardRepository(client)
+	planService := repository.NewPlanSnapshotService(client)
+	accountStatusService := service.ProvideAccountStatusService(userRepository, userSubscriptionRepository, groupRepository, subscriptionService, subscriptionResetCardReader, planService)
+	resetCardStore := repository.NewSubscriptionResetCardStore(client)
+	resetTargetResolver := repository.NewSubscriptionResetTargetRepo(client)
+	idempotencyRepository := repository.NewIdempotencyRepository(client, db)
+	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
+	resetCardService := service.ProvideResetCardService(resetCardStore, userSubscriptionRepository, groupRepository, subscriptionService, resetTargetResolver, client, idempotencyCoordinator)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, accountStatusService, resetCardService)
 	announcementRepository := repository.NewAnnouncementRepository(client)
 	announcementReadRepository := repository.NewAnnouncementReadRepository(client)
@@ -254,25 +246,17 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	paymentConfigService := service.ProvidePaymentConfigService(client, settingRepository, encryptionKey)
 	registry := payment.ProvideRegistry()
 	defaultLoadBalancer := payment.ProvideDefaultLoadBalancer(client, encryptionKey)
-	paymentService := service.ProvidePaymentService(client, registry, defaultLoadBalancer, redeemService, subscriptionService, paymentConfigService, userRepository, groupRepository, affiliateService, notificationEmailService)
-	subscriptionTermStore := repository.NewSubscriptionTermStore(client)
-	planSnapshotService := repository.NewPlanSnapshotService(client)
+	planChangeStore := repository.NewSubscriptionPlanChangeStore(client)
+	termStore := repository.NewSubscriptionTermStore(client)
 	apiKeyGroupMigrator := repository.NewAPIKeyGroupMigrator(client)
-	planChangeService := service.NewPlanChangeService(subscriptionPlanChangeStore, subscriptionTermStore, planSnapshotService, userSubscriptionRepository, groupRepository, apiKeyGroupMigrator, accountStatusService, client)
-	// 单主套餐不变量配套装配（续期取代 + 提交后缓存失效）
-	subscriptionService.SetScheduledChangeSuperseder(planChangeService)
-	planChangeService.SetCacheInvalidator(subscriptionService.InvalidateSubCacheSync)
-	paymentService.SetPlanChangeService(planChangeService, subscriptionPlanChangeStore, subscriptionTermStore)
-	planChangeHandler := handler.NewPlanChangeHandler(planChangeService, paymentService)
-	walletLedgerService := service.NewWalletLedgerService(client, repository.NewRewardGrantRepository(client))
-	walletLedgerHandler := handler.NewWalletLedgerHandler(walletLedgerService, planChangeService)
+	planChangeService := service.ProvidePlanChangeService(planChangeStore, termStore, planService, userSubscriptionRepository, groupRepository, apiKeyGroupMigrator, accountStatusService, client, subscriptionService)
+	paymentService := service.ProvidePaymentService(client, registry, defaultLoadBalancer, redeemService, subscriptionService, paymentConfigService, userRepository, groupRepository, affiliateService, notificationEmailService, planChangeService, planChangeStore, termStore)
 	settingHandler := handler.ProvideAdminSettingHandler(settingService, emailService, turnstileService, aliyunCaptchaService, opsService, paymentConfigService, paymentService, userAttributeService, notificationEmailService, totpService, userService)
 	opsHandler := admin.NewOpsHandler(opsService)
 	updateCache := repository.NewUpdateCache(redisClient)
 	gitHubReleaseClient := repository.ProvideGitHubReleaseClient(configConfig)
 	serviceBuildInfo := provideServiceBuildInfo(buildInfo)
 	updateService := service.ProvideUpdateService(updateCache, gitHubReleaseClient, serviceBuildInfo)
-	idempotencyRepository := repository.NewIdempotencyRepository(client, db)
 	systemOperationLockService := service.ProvideSystemOperationLockService(idempotencyRepository, configConfig)
 	systemHandler := handler.ProvideSystemHandler(updateService, systemOperationLockService)
 	adminSubscriptionHandler := admin.NewSubscriptionHandler(subscriptionService)
@@ -313,12 +297,16 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	auditLogRepository := repository.NewAuditLogRepository(db)
 	auditLogService := service.ProvideAuditLogService(auditLogRepository, settingService)
 	auditLogHandler := admin.NewAuditLogHandler(auditLogService, totpService)
-	upstreamBillingProbeService := service.ProvideUpstreamBillingProbeService(accountRepository, accountTestService, settingService, leaderLockCache, db)
 	researchApplicationRepository := repository.NewResearchApplicationRepository(client)
 	researchAttachmentUploadRepository := repository.NewResearchAttachmentUploadRepository(client)
 	researchApplicationService := handler.ProvideResearchApplicationService(researchApplicationRepository, researchAttachmentUploadRepository, redeemService, userService)
-	adminResearchHandler := admin.NewResearchHandler(researchApplicationService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, cnProviderHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, pluginHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, promptAdminHandler, paymentHandler, affiliateHandler, complianceHandler, auditLogHandler, adminResearchHandler, adminResetEventHandler, adminResetCardHandler, upstreamBillingProbeService, ollamaCloudUsageService)
+	researchHandler := admin.NewResearchHandler(researchApplicationService)
+	resetEventStore := repository.NewSubscriptionResetEventStore(client)
+	resetEventService := service.ProvideResetEventService(resetEventStore, resetTargetResolver, subscriptionService, userSubscriptionRepository, client, idempotencyCoordinator)
+	adminResetEventHandler := admin.NewAdminResetEventHandler(resetEventService, resetCardService)
+	adminSubscriptionResetHandler := admin.NewAdminSubscriptionResetHandler(resetCardService)
+	upstreamBillingProbeService := service.ProvideUpstreamBillingProbeService(accountRepository, accountTestService, settingService, leaderLockCache, db)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, cnProviderHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, pluginHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, promptAdminHandler, paymentHandler, affiliateHandler, complianceHandler, auditLogHandler, researchHandler, adminResetEventHandler, adminSubscriptionResetHandler, upstreamBillingProbeService, ollamaCloudUsageService)
 	usageRecordWorkerPool := service.NewUsageRecordWorkerPool(configConfig)
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
@@ -340,6 +328,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
 	modelPlazaService := service.NewModelPlazaService(channelRepository, groupRepository, pricingService, billingService, modelPricingResolver)
 	modelPlazaHandler := handler.NewModelPlazaHandler(modelPlazaService, apiKeyService, settingService)
+	groupService := service.NewGroupService(groupRepository, apiKeyAuthCacheInvalidator)
+	webChatService := service.NewWebChatService(settingService, apiKeyService, gatewayService, groupService, configConfig)
+	webChatHandler := handler.NewWebChatHandler(webChatService)
 	imageTaskStore := repository.NewImageTaskStore(redisClient)
 	imageTaskService := service.ProvideImageTaskService(imageTaskStore, imageStorageSettingService)
 	asyncImageHandler := handler.NewAsyncImageHandler(imageTaskService, openAIGatewayHandler)
@@ -356,13 +347,13 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageHandler := handler.ProvideBatchImageHandler(batchImagePublicService, batchImageDownloadService, batchImageCleanupService, openAIGatewayHandler)
 	codeStore := muccode.NewCodeStore(redisClient)
 	mucConnectHandler := handler.NewMucConnectHandler(codeStore, apiKeyService, userService, gatewayService)
-	groupService := service.NewGroupService(groupRepository, apiKeyAuthCacheInvalidator)
-	webChatService := service.NewWebChatService(settingService, apiKeyService, gatewayService, groupService, configConfig)
-	webChatHandler := handler.NewWebChatHandler(webChatService)
 	researchApplicationHandler := handler.NewResearchApplicationHandler(researchApplicationService)
-	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	openAIQuotaAutoResetService := service.ProvideOpenAIQuotaAutoResetService(accountRepository, openAIQuotaService, rateLimitService, idempotencyCoordinator, auditLogService, settingService, leaderLockCache)
+	planChangeHandler := handler.NewPlanChangeHandler(planChangeService, paymentService)
+	rewardGrantRepository := repository.NewRewardGrantRepository(client)
+	walletLedgerService := handler.ProvideWalletLedgerService(client, rewardGrantRepository)
+	walletLedgerHandler := handler.ProvideWalletLedgerHandler(walletLedgerService, planChangeService)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, channelMonitorV2Handler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelPlazaHandler, webChatHandler, asyncImageHandler, asyncMusicHandler, batchImageHandler, mucConnectHandler, researchApplicationHandler, idempotencyCoordinator, idempotencyCleanupService, openAIQuotaAutoResetService, planChangeHandler, walletLedgerHandler)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	optionalJWTAuthMiddleware := middleware.NewOptionalJWTAuthMiddleware(authService, userService, settingService, auditLogService)
@@ -390,7 +381,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService, channelMonitorQuotaFetcher)
 	channelMonitorV2Aggregator := service.ProvideChannelMonitorV2Aggregator(channelMonitorV2Repository, db, settingService)
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, openAIQuotaAutoResetService, promptService, pluginManager)
+	v := provideCleanup(resetEventService, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, openAIQuotaAutoResetService, promptService, pluginManager)
 	application := &Application{
 		Server:        httpServer,
 		PromptAudit:   promptService,
@@ -428,6 +419,7 @@ func providePluginHostInfo(buildInfo handler.BuildInfo) service.PluginHostInfo {
 }
 
 func provideCleanup(
+	resetEvents *service.ResetEventService,
 	entClient *ent.Client,
 	rdb *redis.Client,
 	opsMetricsCollector *service.OpsMetricsCollector,
@@ -476,6 +468,7 @@ func provideCleanup(
 	pluginManager *service.PluginManager,
 ) func() {
 	return func() {
+		resetEvents.Stop()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 

@@ -459,11 +459,12 @@ func (c *Client) Use(hooks ...Hook) {
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.ResearchApplication, c.ResearchAttachmentUpload,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SubscriptionPlanChange, c.SubscriptionTerm,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SubscriptionPlanChange,
 		c.SubscriptionResetApplication, c.SubscriptionResetCard,
-		c.SubscriptionResetEvent, c.TLSFingerprintProfile, c.UsageCleanupTask,
-		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
-		c.UserAttributeValue, c.UserPlatformQuota, c.UserSubscription,
+		c.SubscriptionResetEvent, c.SubscriptionTerm, c.TLSFingerprintProfile,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
+		c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -481,11 +482,12 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.ResearchApplication, c.ResearchAttachmentUpload,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SubscriptionPlanChange, c.SubscriptionTerm,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SubscriptionPlanChange,
 		c.SubscriptionResetApplication, c.SubscriptionResetCard,
-		c.SubscriptionResetEvent, c.TLSFingerprintProfile, c.UsageCleanupTask,
-		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
-		c.UserAttributeValue, c.UserPlatformQuota, c.UserSubscription,
+		c.SubscriptionResetEvent, c.SubscriptionTerm, c.TLSFingerprintProfile,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
+		c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -8099,11 +8101,11 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, ResearchApplication,
-		ResearchAttachmentUpload, SecuritySecret, Setting, SubscriptionPlan, SubscriptionPlanChange, SubscriptionTerm,
-		SubscriptionResetApplication, SubscriptionResetCard, SubscriptionResetEvent,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Hook
+		ResearchAttachmentUpload, SecuritySecret, Setting, SubscriptionPlan,
+		SubscriptionPlanChange, SubscriptionResetApplication, SubscriptionResetCard,
+		SubscriptionResetEvent, SubscriptionTerm, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
@@ -8113,11 +8115,11 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, ResearchApplication,
-		ResearchAttachmentUpload, SecuritySecret, Setting, SubscriptionPlan, SubscriptionPlanChange, SubscriptionTerm,
-		SubscriptionResetApplication, SubscriptionResetCard, SubscriptionResetEvent,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Interceptor
+		ResearchAttachmentUpload, SecuritySecret, Setting, SubscriptionPlan,
+		SubscriptionPlanChange, SubscriptionResetApplication, SubscriptionResetCard,
+		SubscriptionResetEvent, SubscriptionTerm, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Interceptor
 	}
 )
 
