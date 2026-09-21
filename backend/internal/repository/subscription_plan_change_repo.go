@@ -174,33 +174,51 @@ func (r *subscriptionPlanChangeRepo) GetByOrder(ctx context.Context, orderID int
 }
 
 func (r *subscriptionPlanChangeRepo) MarkPendingPayment(ctx context.Context, id, orderID int64) error {
-	_, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Update().
+	n, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Update().
 		Where(subscriptionplanchange.IDEQ(id), subscriptionplanchange.StatusEQ("quoted")).
 		SetStatus("pending_payment").
 		SetOrderID(orderID).
 		Save(ctx)
-	return err
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return service.ErrPlanQuoteStatusInvalid
+	}
+	return nil
 }
 
 func (r *subscriptionPlanChangeRepo) MarkPaid(ctx context.Context, id int64) error {
-	_, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Update().
-		Where(subscriptionplanchange.IDEQ(id),
-			subscriptionplanchange.StatusIn("quoted", "pending_payment")).
-		SetStatus("paid").
-		SetPaidAt(time.Now()).
-		Save(ctx)
-	return err
+	n, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Update().
+		Where(subscriptionplanchange.IDEQ(id), subscriptionplanchange.StatusIn("quoted", "pending_payment")).
+		SetStatus("paid").SetPaidAt(time.Now()).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if n == 1 {
+		return nil
+	}
+	current, err := r.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current.Status == "paid" || current.Status == "fulfilled" {
+		return nil
+	}
+	return service.ErrPlanQuoteStatusInvalid
 }
 
 func (r *subscriptionPlanChangeRepo) MarkFulfilled(ctx context.Context, id int64, effectiveAt time.Time) error {
-	_, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Update().
-		Where(subscriptionplanchange.IDEQ(id),
-			subscriptionplanchange.StatusIn("paid", "pending_payment")).
-		SetStatus("fulfilled").
-		SetFulfilledAt(time.Now()).
-		SetEffectiveAt(effectiveAt).
-		Save(ctx)
-	return err
+	n, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Update().
+		Where(subscriptionplanchange.IDEQ(id), subscriptionplanchange.StatusEQ("paid")).
+		SetStatus("fulfilled").SetFulfilledAt(time.Now()).SetEffectiveAt(effectiveAt).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return service.ErrPlanQuoteStatusInvalid
+	}
+	return nil
 }
 
 func (r *subscriptionPlanChangeRepo) Cancel(ctx context.Context, id int64, reason string) error {
@@ -236,8 +254,11 @@ func (r *subscriptionPlanChangeRepo) ActiveScheduledChange(ctx context.Context, 
 			subscriptionplanchange.StatusEQ("scheduled"),
 		).
 		Only(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, nil
+	}
 	if err != nil {
-		return nil, nil // 无 pending：非错误
+		return nil, err
 	}
 	return planChangeEntityToService(m), nil
 }
@@ -383,4 +404,15 @@ func (m *apiKeyGroupMigrator) CountByUserAndGroup(ctx context.Context, userID, g
 		).
 		Count(ctx)
 	return int64(n), err
+}
+
+func (r *subscriptionPlanChangeRepo) GetByIdempotencyKey(ctx context.Context, key string) (*service.PlanChangeRecord, error) {
+	row, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Query().Where(subscriptionplanchange.IdempotencyKeyEQ(key)).Only(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, service.ErrPlanChangeNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return planChangeEntityToService(row), nil
 }

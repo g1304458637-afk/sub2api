@@ -588,15 +588,16 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 	if !alreadyAssigned {
 		orderNote := paymentSubscriptionOrderNote(o.ID)
 		existing, lookupErr := s.subscriptionSvc.userSubRepo.GetByUserIDAndGroupID(txCtx, o.UserID, groupID)
+		if lookupErr == nil && existing != nil {
+			// The previous end must come from the same locked row used by renewal.
+			existing, lookupErr = s.subscriptionSvc.userSubRepo.GetByIDForUpdate(txCtx, existing.ID)
+		}
 		switch {
 		case lookupErr == nil && existing != nil && hasPaymentSubscriptionOrderNote(existing.Notes, orderNote):
 			recoveredFromNote = true
 			assignedSubID = existing.ID
-			// 首次执行曾在旧版本/中断中留下"有订阅、无 term"的残局：按本订单补记，
-			// 使下方追溯断言成立（幂等：已有 term 则由断言短路，不会重复插入）
-			if existing.StartsAt.IsZero() {
-				existing.StartsAt = time.Now()
-			}
+			// 旧版本遗留的订单必须已有权威 term；缺失时要求对账，不能猜测时间窗。
+
 		case lookupErr != nil && !errors.Is(lookupErr, ErrSubscriptionNotFound):
 			return fmt.Errorf("check existing subscription assignment: %w", lookupErr)
 		default:
@@ -613,7 +614,7 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 			}
 			// Gate 1/2：新购买/续费落 plan identity + 已付 term 快照（升级价格真相）
 			if sub != nil && o.PlanID != nil && s.termStore != nil {
-				now := time.Now()
+				termStart, termEnd, source := paidSubscriptionTermWindow(existing, sub)
 				planID := *o.PlanID
 				orderID := o.ID
 				if err := s.termStore.RecordTerm(txCtx, &SubscriptionTermRecord{
@@ -623,9 +624,9 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 					PricePaid:      o.Amount,
 					Currency:       planCurrencyOf(o),
 					Days:           days,
-					TermStart:      now,
-					TermEnd:        now.AddDate(0, 0, days),
-					Source:         "purchase",
+					TermStart:      termStart,
+					TermEnd:        termEnd,
+					Source:         source,
 				}); err != nil {
 					return fmt.Errorf("record subscription term: %w", err)
 				}
@@ -651,25 +652,9 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 				return fmt.Errorf("verify order-linked term: %w", err)
 			}
 			if !exists {
-				if s.termStore == nil {
-					return errors.New("paid subscription period without order-linked term (traceability violation)")
-				}
-				planID := *o.PlanID
-				orderID := o.ID
-				now := time.Now()
-				if err := s.termStore.RecordTerm(txCtx, &SubscriptionTermRecord{
-					SubscriptionID: assignedSubID,
-					OrderID:        &orderID,
-					PlanID:         &planID,
-					PricePaid:      o.Amount,
-					Currency:       planCurrencyOf(o),
-					Days:           days,
-					TermStart:      now,
-					TermEnd:        now.AddDate(0, 0, days),
-					Source:         "purchase",
-				}); err != nil {
-					return fmt.Errorf("backfill order-linked term: %w", err)
-				}
+				// A legacy note proves the order was processed, not when its
+				// paid entitlement started. Never invent a new now-based term.
+				return errors.New("paid subscription period missing authoritative order-linked term; reconciliation required")
 			}
 		}
 
@@ -1008,6 +993,12 @@ func (s *PaymentService) ExecutePlanChangeFulfillment(ctx context.Context, oid i
 	if s.planChanges == nil {
 		return errors.New("plan change service is unavailable")
 	}
+	change, err := s.planChangeStore.GetByID(ctx, *o.PlanChangeID)
+	if err != nil || change == nil || change.UserID != o.UserID || change.OrderID == nil || *change.OrderID != o.ID || change.AmountDue != o.Amount {
+		err = errors.New("plan change order does not match its frozen quote")
+		s.markFailed(ctx, oid, lease, err)
+		return err
+	}
 	// quote → paid（幂等：paid/fulfilled 均放行）
 	if err := s.planChangeStore.MarkPaid(ctx, *o.PlanChangeID); err != nil {
 		s.markFailed(ctx, oid, lease, err)
@@ -1031,4 +1022,19 @@ func planCurrencyOf(o *dbent.PaymentOrder) string {
 		}
 	}
 	return "CNY"
+}
+
+// paidSubscriptionTermWindow uses the locked prior entitlement and the actual
+// assigned result. Early renewal starts at old expiry; expired/new purchases
+// start at the newly assigned starts_at. This also respects expiry clamping.
+func paidSubscriptionTermWindow(previous, assigned *UserSubscription) (time.Time, time.Time, string) {
+	start := assigned.StartsAt
+	source := "purchase"
+	if previous != nil {
+		source = "renewal"
+		if previous.ExpiresAt.After(start) {
+			start = previous.ExpiresAt
+		}
+	}
+	return start, assigned.ExpiresAt, source
 }

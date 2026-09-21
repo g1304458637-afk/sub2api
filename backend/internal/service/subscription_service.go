@@ -245,8 +245,10 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 
 	// 查询是否已有订阅
 	existingSub, err := s.userSubRepo.GetByUserIDAndGroupID(ctx, input.UserID, input.GroupID)
-	if err != nil {
-		// 不存在记录是正常情况，其他错误需要返回
+	if err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
+		return nil, false, err
+	}
+	if errors.Is(err, ErrSubscriptionNotFound) {
 		existingSub = nil
 	}
 
@@ -284,6 +286,11 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 			return nil, false, err
 		}
 
+		if input.PlanID != nil {
+			if err := switchSubscriptionPlan(ctx, s.userSubRepo, existingSub.ID, input.GroupID, *input.PlanID); err != nil {
+				return nil, false, err
+			}
+		}
 		// 失效订阅缓存
 		s.maybeInvalidateAssignmentCaches(input.UserID, input.GroupID, deferCacheInvalidation)
 
@@ -368,6 +375,15 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 		}
 		if assignmentSemantics && existingSub.Status == SubscriptionStatusSuspended {
 			return nil
+		}
+
+		if err := s.CheckPrimarySubscriptionAllowed(txCtx, existingSub.UserID, existingSub.GroupID); err != nil {
+			return err
+		}
+		if guard, ok := s.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+			if _, err := guard.ExpireLapsedByUser(txCtx, existingSub.UserID, s.now()); err != nil {
+				return err
+			}
 		}
 
 		now := time.Now()
@@ -476,6 +492,15 @@ func appendSubscriptionNotes(existingNotes, newNotes string) string {
 
 // createSubscription 创建新订阅（内部方法）
 func (s *SubscriptionService) createSubscription(ctx context.Context, input *AssignSubscriptionInput) (*UserSubscription, error) {
+	if err := s.CheckPrimarySubscriptionAllowed(ctx, input.UserID, input.GroupID); err != nil {
+		return nil, err
+	}
+	if guard, ok := s.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+		if _, err := guard.ExpireLapsedByUser(ctx, input.UserID, s.now()); err != nil {
+			return nil, err
+		}
+	}
+
 	validityDays := input.ValidityDays
 	if validityDays <= 0 {
 		validityDays = 30
@@ -767,6 +792,14 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 			return ErrAdjustWouldExpire
 		}
 
+		if err := s.CheckPrimarySubscriptionAllowed(txCtx, sub.UserID, sub.GroupID); err != nil {
+			return err
+		}
+		if guard, ok := s.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+			if _, err := guard.ExpireLapsedByUser(txCtx, sub.UserID, now); err != nil {
+				return err
+			}
+		}
 		if err := s.userSubRepo.ExtendExpiry(txCtx, subscriptionID, newExpiresAt); err != nil {
 			return err
 		}

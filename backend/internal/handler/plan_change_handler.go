@@ -4,6 +4,7 @@ package handler
 // cancel scheduled / 审计查询）。金额全部服务端权威。
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -69,34 +70,33 @@ func (h *PlanChangeHandler) CreateUpgrade(c *gin.Context) {
 		response.BadRequest(c, "target_plan_id and payment_type are required")
 		return
 	}
-	ctx := c.Request.Context()
-	_, changeID, err := h.planChanges.CreateUpgradeQuote(ctx, subject.UserID, subscriptionID, req.TargetPlanID, c.GetHeader("Idempotency-Key"))
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	// 创建支付订单：金额唯一来源 = 冻结报价行（客户端不传 amount）
-	order, err := h.payments.CreateOrder(ctx, service.CreateOrderRequest{
-		UserID:       subject.UserID,
-		PaymentType:  req.PaymentType,
-		OrderType:    "plan_change",
-		PlanChangeID: changeID,
-		ClientIP:     c.ClientIP(),
-		SrcHost:      c.Request.Host,
-	})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, gin.H{
-		"order_id":       order.OrderID,
-		"plan_change_id": changeID,
-		"amount":         order.Amount,
-		"pay_amount":     order.PayAmount,
-		"payment_type":   order.PaymentType,
-		"status":         order.Status,
-		"pay_url":        order.PayURL,
-		"qr_code":        order.QRCode,
+	executeUserIdempotentJSON(c, "user.subscription.upgrade", gin.H{"subscription_id": subscriptionID, "request": req}, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		_, changeID, err := h.planChanges.CreateUpgradeQuote(ctx, subject.UserID, subscriptionID, req.TargetPlanID, c.GetHeader("Idempotency-Key"))
+		if err != nil {
+			return nil, err
+		}
+		// 创建支付订单：金额唯一来源 = 冻结报价行（客户端不传 amount）
+		order, err := h.payments.CreateOrder(ctx, service.CreateOrderRequest{
+			UserID:       subject.UserID,
+			PaymentType:  req.PaymentType,
+			OrderType:    "plan_change",
+			PlanChangeID: changeID,
+			ClientIP:     c.ClientIP(),
+			SrcHost:      c.Request.Host,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return gin.H{
+			"order_id":       order.OrderID,
+			"plan_change_id": changeID,
+			"amount":         order.Amount,
+			"pay_amount":     order.PayAmount,
+			"payment_type":   order.PaymentType,
+			"status":         order.Status,
+			"pay_url":        order.PayURL,
+			"qr_code":        order.QRCode,
+		}, nil
 	})
 }
 

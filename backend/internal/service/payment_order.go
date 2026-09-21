@@ -260,6 +260,14 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	if err != nil {
 		return nil, fmt.Errorf("set recharge code: %w", err)
 	}
+	if planChangeID > 0 {
+		if s.planChangeStore == nil {
+			return nil, errors.New("plan change store unavailable")
+		}
+		if err := s.planChangeStore.MarkPendingPayment(dbent.NewTxContext(ctx, tx), planChangeID, order.ID); err != nil {
+			return nil, err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit order transaction: %w", err)
 	}

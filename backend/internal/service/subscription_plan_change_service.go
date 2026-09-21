@@ -20,7 +20,11 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -232,6 +236,16 @@ func (s *PlanChangeService) PreviewUpgrade(ctx context.Context, userID, subscrip
 
 // CreateUpgradeQuote 报价落库冻结（quoted；后续创建订单只能引用此行金额）。
 func (s *PlanChangeService) CreateUpgradeQuote(ctx context.Context, userID, subscriptionID, targetPlanID int64, idempotencyKey string) (*PlanChangeQuote, int64, error) {
+	if strings.TrimSpace(idempotencyKey) != "" {
+		digest := sha256.Sum256([]byte(idempotencyKey))
+		idempotencyKey = fmt.Sprintf("user:%d:upgrade:%x", userID, digest)
+		if rec, err := s.findUpgradeReplay(ctx, idempotencyKey, userID, subscriptionID, targetPlanID); err != nil {
+			return nil, 0, err
+		} else if rec != nil {
+			return frozenUpgradeQuote(rec), rec.ID, nil
+		}
+	}
+
 	quote, basis, err := s.buildUpgradeQuote(ctx, userID, subscriptionID, targetPlanID)
 	if err != nil {
 		return nil, 0, err
@@ -265,6 +279,13 @@ func (s *PlanChangeService) CreateUpgradeQuote(ctx context.Context, userID, subs
 	}
 	id, err := s.store.CreateQuote(ctx, rec)
 	if err != nil {
+		if idempotencyKey != "" {
+			if replay, replayErr := s.findUpgradeReplay(ctx, idempotencyKey, userID, subscriptionID, targetPlanID); replayErr != nil {
+				return nil, 0, replayErr
+			} else if replay != nil {
+				return frozenUpgradeQuote(replay), replay.ID, nil
+			}
+		}
 		return nil, 0, err
 	}
 	return quote, id, nil
@@ -322,7 +343,9 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 
 	// 冲突：目标 Group 已有 active 订阅 → Preview 即拒绝（不自动 merge）
 	if toPlan.GroupID != sub.GroupID {
-		if existing, err := s.subRepo.GetActiveByUserIDAndGroupID(ctx, userID, toPlan.GroupID); err == nil && existing != nil {
+		if existing, err := s.subRepo.GetActiveByUserIDAndGroupID(ctx, userID, toPlan.GroupID); err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
+			return nil, nil, err
+		} else if existing != nil {
 			return nil, nil, ErrPlanTargetGroupActive
 		}
 	}
@@ -346,43 +369,44 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 		return nil, nil, ErrPlanTermMismatch
 	}
 
+	// A subscription grants one continuous interval. Terms are immutable payment
+	// contributions: upgrade deltas can overlap purchase terms, but they never
+	// create a second copy of the entitlement's remaining calendar time.
 	credit := decimal.Zero
-	charge := decimal.Zero
-	var windowStart time.Time
-	// 目标 Plan 的按日价（标称周期归一）
+	windowStart := now
 	toPlanNominal := planNominalDays(toPlan)
-	if toPlanNominal <= 0 {
+	if toPlanNominal <= 0 || toPlan.Price < 0 || math.IsNaN(toPlan.Price) || math.IsInf(toPlan.Price, 0) {
 		return nil, nil, ErrPlanTermMismatch
 	}
 	toDaily := decimal.NewFromFloat(toPlan.Price).Div(decimal.NewFromInt(int64(toPlanNominal)))
+	charge := toDaily.Mul(decimal.NewFromInt(sub.ExpiresAt.Sub(now).Milliseconds())).Div(decimal.NewFromInt((24 * time.Hour).Milliseconds()))
 	for i := range terms {
 		term := &terms[i]
 		if term.Currency != currency {
 			return nil, nil, ErrPlanCrossCurrency
 		}
-		if i == 0 || term.TermStart.Before(windowStart) {
-			windowStart = term.TermStart
+		if !term.TermEnd.After(term.TermStart) || term.PricePaid < 0 || math.IsNaN(term.PricePaid) || math.IsInf(term.PricePaid, 0) {
+			return nil, nil, ErrPlanIdentityUnresolved
 		}
-		// 未消费起点 = max(now, termStart)：未来才开始的段（预付追加）不得重复
-		// 计入已被前段覆盖的 [now, termStart) 区间
 		consumeFrom := now
 		if term.TermStart.After(consumeFrom) {
 			consumeFrom = term.TermStart
 		}
-		remainingMs := term.TermEnd.Sub(consumeFrom).Milliseconds()
+		consumeUntil := term.TermEnd
+		if sub.ExpiresAt.Before(consumeUntil) {
+			consumeUntil = sub.ExpiresAt
+		}
+		remainingMs := consumeUntil.Sub(consumeFrom).Milliseconds()
 		if remainingMs <= 0 {
 			continue
 		}
-		totalMs := term.TermEnd.Sub(term.TermStart).Milliseconds()
-		if totalMs <= 0 {
-			continue
-		}
-		// credit：该段实付按毫秒比例折算未消费部分（价格真相=实付快照）
-		ratio := decimal.NewFromInt(remainingMs).Div(decimal.NewFromInt(totalMs))
+		ratio := decimal.NewFromInt(remainingMs).Div(decimal.NewFromInt(term.TermEnd.Sub(term.TermStart).Milliseconds()))
 		credit = credit.Add(decimal.NewFromFloat(term.PricePaid).Mul(ratio))
-		// charge：目标 Plan 按日价 × 该段未消费毫秒天数（逐段、不平均）
-		charge = charge.Add(toDaily.Mul(decimal.NewFromInt(remainingMs)).Div(decimal.NewFromInt(int64(24 * time.Hour.Milliseconds()))))
 	}
+	// Each displayed monetary component is rounded once before computing due.
+	// Thus gross - credit == the frozen order amount, including last-day quotes.
+	credit = credit.Round(2)
+	charge = charge.Round(2)
 	amountDue := charge.Sub(credit)
 	if amountDue.IsNegative() {
 		// 折算为负（理论 corner：旧实付高于新价）：最低 0，不自动退款
@@ -425,7 +449,7 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 			quote.WeeklyUsagePercentBefore = st.WeeklyUsagePercent
 		}
 		group, err := s.groupRepo.GetByID(ctx, toPlan.GroupID)
-		if err == nil && group.HasWeeklyLimit() && sub.Group != nil && sub.Group.HasWeeklyLimit() {
+		if err == nil && group != nil && group.HasWeeklyLimit() && sub.Group != nil && sub.Group.HasWeeklyLimit() {
 			raw := sub.WeeklyUsageUSD / *group.WeeklyLimitUSD * 100
 			after := UserDisplayPercent(raw)
 			quote.WeeklyUsagePercentAfter = &after
@@ -482,7 +506,7 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 	if change.Status == "fulfilled" {
 		return nil // 幂等：支付回调重放
 	}
-	if change.Status != "paid" && change.Status != "pending_payment" {
+	if change.Status != "paid" {
 		return ErrPlanQuoteStatusInvalid
 	}
 
@@ -506,15 +530,36 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 	if sub.UserID != change.UserID {
 		return ErrSubscriptionNotFound
 	}
+	// Re-read after the subscription lock. Concurrent callbacks must observe
+	// the fulfilled marker before attempting a second switch or adding a term.
+	change, err = s.store.GetByID(txCtx, changeID)
+	if err != nil {
+		return err
+	}
+	if change.Status == "fulfilled" {
+		return nil
+	}
+	if change.Status != "paid" {
+		return ErrPlanQuoteStatusInvalid
+	}
+	if change.FromPlanID != nil && (sub.PlanID == nil || *sub.PlanID != *change.FromPlanID) {
+		return ErrPlanQuoteStatusInvalid
+	}
+	if change.TermStart == nil || change.TermEnd == nil || !change.TermEnd.Equal(sub.ExpiresAt) {
+		return ErrPlanQuoteStatusInvalid
+	}
+
 	if change.FromGroupID != nil && sub.GroupID != *change.FromGroupID {
 		return ErrPlanQuoteStatusInvalid // 已不在源组：不得重复迁移
 	}
-	if sub.Status != SubscriptionStatusActive {
+	if sub.Status != SubscriptionStatusActive || !sub.ExpiresAt.After(s.now()) {
 		return ErrSubscriptionExpired
 	}
 
 	// 目标组冲突终检（Preview 之后可能新建了该组订阅）
-	if existing, err := s.subRepo.GetActiveByUserIDAndGroupID(txCtx, change.UserID, change.ToGroupID); err == nil && existing != nil && existing.ID != sub.ID {
+	if existing, err := s.subRepo.GetActiveByUserIDAndGroupID(txCtx, change.UserID, change.ToGroupID); err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
+		return err
+	} else if existing != nil && existing.ID != sub.ID {
 		return ErrPlanTargetGroupActive
 	}
 
@@ -522,7 +567,7 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 	if err != nil {
 		return err
 	}
-	if toGroup.Status != StatusActive || !toGroup.IsSubscriptionType() {
+	if toGroup == nil || toGroup.Status != StatusActive || !toGroup.IsSubscriptionType() {
 		return ErrPlanTargetGroupActive
 	}
 
@@ -531,7 +576,7 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 		return err
 	}
 
-	// 升级段 term：价格=amount_due，窗口=now→expires_at（表达"剩余时间升级为新档"）
+	// 升级段 term：实付差额及时间窗都来自冻结报价，与订单金额一致。
 	now := s.now()
 	orderID := change.OrderID
 	toPlanID := change.ToPlanID
@@ -541,9 +586,9 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 		PlanID:         &toPlanID,
 		PricePaid:      change.AmountDue,
 		Currency:       change.Currency,
-		Days:           int(sub.ExpiresAt.Sub(now).Hours() / 24),
-		TermStart:      now,
-		TermEnd:        sub.ExpiresAt,
+		Days:           int(change.TermEnd.Sub(*change.TermStart).Hours() / 24),
+		TermStart:      *change.TermStart,
+		TermEnd:        *change.TermEnd,
 		Source:         "upgrade",
 	}); err != nil {
 		return err
@@ -557,7 +602,11 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 	}
 
 	// 升级取消旧 scheduled downgrade（superseded_by_upgrade）
-	if pending, err := s.store.ActiveScheduledChange(txCtx, sub.ID); err == nil && pending != nil {
+	pending, err := s.store.ActiveScheduledChange(txCtx, sub.ID)
+	if err != nil {
+		return err
+	}
+	if pending != nil {
 		if err := s.store.Cancel(txCtx, pending.ID, "superseded_by_upgrade"); err != nil {
 			return err
 		}
@@ -625,7 +674,11 @@ func (s *PlanChangeService) ScheduleDowngrade(ctx context.Context, userID, subsc
 	}
 
 	// 替换语义：新 scheduled 取消旧 scheduled（保留审计）
-	if pending, err := s.store.ActiveScheduledChange(ctx, subscriptionID); err == nil && pending != nil {
+	pending, err := s.store.ActiveScheduledChange(ctx, subscriptionID)
+	if err != nil {
+		return nil, err
+	}
+	if pending != nil {
 		if err := s.store.Cancel(ctx, pending.ID, "superseded_by_reschedule"); err != nil {
 			return nil, err
 		}
@@ -783,4 +836,41 @@ func clearNextPlan(ctx context.Context, subRepo UserSubscriptionRepository, subs
 type SubscriptionPlanSwitcher interface {
 	SwitchPlan(ctx context.Context, subscriptionID, groupID, planID int64) error
 	SetNextPlan(ctx context.Context, subscriptionID int64, planID *int64) error
+}
+
+// Optional for in-memory quote calculators; production storage implements this.
+type PlanChangeIdempotencyReader interface {
+	GetByIdempotencyKey(context.Context, string) (*PlanChangeRecord, error)
+}
+
+func (s *PlanChangeService) findUpgradeReplay(ctx context.Context, key string, userID, subscriptionID, targetPlanID int64) (*PlanChangeRecord, error) {
+	reader, ok := s.store.(PlanChangeIdempotencyReader)
+	if !ok {
+		return nil, nil
+	}
+	rec, err := reader.GetByIdempotencyKey(ctx, key)
+	if errors.Is(err, ErrPlanChangeNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if rec.UserID != userID || rec.SubscriptionID != subscriptionID || rec.ToPlanID != targetPlanID || rec.ChangeType != "upgrade" {
+		return nil, infraerrors.Conflict("IDEMPOTENCY_CONFLICT", "idempotency key was used for a different plan change")
+	}
+	return rec, nil
+}
+func frozenUpgradeQuote(rec *PlanChangeRecord) *PlanChangeQuote {
+	q := &PlanChangeQuote{SubscriptionID: rec.SubscriptionID, ChangeType: rec.ChangeType, ToPlanID: rec.ToPlanID, RemainingSeconds: rec.RemainingSeconds, UnusedCredit: rec.UnusedCredit, ProratedCharge: rec.ProratedCharge, AmountDue: rec.AmountDue, Currency: rec.Currency}
+	if rec.FromPlanID != nil {
+		q.FromPlanID = *rec.FromPlanID
+	}
+	if rec.QuoteCreatedAt != nil {
+		q.EffectiveAt = *rec.QuoteCreatedAt
+	}
+	if rec.TermEnd != nil {
+		q.CurrentExpiry = *rec.TermEnd
+		q.NewExpiry = *rec.TermEnd
+	}
+	return q
 }
