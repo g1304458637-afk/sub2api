@@ -599,7 +599,7 @@
 
   .dark .sidebar-link-active,
   .dark .sidebar-link-active:hover {
-    background: rgba(200, 36, 51, 0.14);
+    background: rgba(var(--muc-red-rgb, 200, 36, 51), 0.14);
     color: var(--muc-red-bright, #e23848);
   }
 

@@ -1,3 +1,4 @@
+import { currentBrand } from '@/brand'
 /**
  * Vue Router configuration for Sub2API frontend
  * Defines all application routes with lazy loading and navigation guards
@@ -254,13 +255,13 @@ const routes: RouteRecordRaw[] = [
   },
   // MUC Harness: 桌面客户端下载与一键连接
   {
-    path: '/muc',
+    path: currentBrand.homePath,
     name: 'Muc',
     component: () => import('@/views/user/MucView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'MUC AI Harness'
+      title: currentBrand.productName
     }
   },
   {

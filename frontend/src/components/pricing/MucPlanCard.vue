@@ -149,14 +149,14 @@ const { t } = useI18n()
   border-color: var(--muc-red-border-hover);
   box-shadow:
     0 18px 60px rgba(0, 0, 0, 0.4),
-    0 0 32px rgba(238, 56, 72, 0.14);
+    0 0 32px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.14);
   transform: translateY(-2px);
 }
 
 /* Pro：民大红主强调 */
 .plan-card--pro {
   border-color: var(--muc-red-border);
-  background: linear-gradient(170deg, rgba(200, 36, 51, 0.14), rgba(15, 15, 17, 0.62) 46%),
+  background: linear-gradient(170deg, rgba(var(--muc-red-rgb, 200, 36, 51), 0.14), rgba(15, 15, 17, 0.62) 46%),
     var(--muc-glass);
   box-shadow: 0 14px 50px rgba(0, 0, 0, 0.38), 0 0 26px var(--muc-red-glow);
 }
@@ -165,7 +165,7 @@ const { t } = useI18n()
   border-color: var(--muc-red-border-hover);
   box-shadow:
     0 18px 60px rgba(0, 0, 0, 0.4),
-    0 0 40px rgba(238, 56, 72, 0.2);
+    0 0 40px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.2);
 }
 
 /* Max：深色玻璃 + 极少量暖金点缀（整卡仍是深色，不做金卡） */
@@ -370,7 +370,7 @@ const { t } = useI18n()
 }
 
 .plan-card__cta--primary:hover:not(:disabled) {
-  box-shadow: 0 6px 26px rgba(238, 56, 72, 0.3);
+  box-shadow: 0 6px 26px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.3);
   transform: translateY(-1px);
 }
 

@@ -94,6 +94,7 @@
 </template>
 
 <script setup lang="ts">
+import { currentBrand } from '@/brand'
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { sendEducationEmailCode, verifyEducationEmail } from '@/api/user'
@@ -102,8 +103,8 @@ import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
 
 // 校园邮箱认证只接受精确的 @muc.edu.cn 域名（不含子域名或相似后缀）。
-const EDUCATION_EMAIL_DOMAIN = '@muc.edu.cn'
-const EDUCATION_EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@muc\.edu\.cn$/
+const EDUCATION_EMAIL_DOMAIN = '@' + currentBrand.educationDomain
+const EDUCATION_EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[^@\s]+$/
 
 const props = defineProps<{
   user: User

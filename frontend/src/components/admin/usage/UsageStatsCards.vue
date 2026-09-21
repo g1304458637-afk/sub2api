@@ -170,7 +170,7 @@ const cacheDetailLabel = () => t('usage.cacheBreakdown')
 /* 低饱和数据区分色：红 / 金 / 绿 / 紫（不使用强品牌红铺满） */
 .usage-stat__icon--red {
   color: #e86a74;
-  background: rgba(200, 36, 51, 0.16);
+  background: rgba(var(--muc-red-rgb, 200, 36, 51), 0.16);
 }
 
 .usage-stat__icon--gold {
@@ -190,7 +190,7 @@ const cacheDetailLabel = () => t('usage.cacheBreakdown')
 
 :root:not(.dark) .usage-stat__icon--red {
   color: #c82433;
-  background: rgba(200, 36, 51, 0.1);
+  background: rgba(var(--muc-red-rgb, 200, 36, 51), 0.1);
 }
 
 :root:not(.dark) .usage-stat__icon--gold {

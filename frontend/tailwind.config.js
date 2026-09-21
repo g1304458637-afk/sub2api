@@ -1,23 +1,60 @@
 /** @type {import('tailwindcss').Config} */
+
+// 校园品牌调色板：构建期 BRAND env 决定（默认 muc，历史构建零变化）。
+// hubu 深湖大绿锚点采样自湖北大学主视觉图（横幅深绿 #17503A/#104B37、青铜金 #BC9D53），
+// 为采样值而非湖北大学官方 VI 标准色。
+const PALETTES = {
+  muc: {
+    50: '#fdf3f3',
+    100: '#fcdcda',
+    200: '#f9b9b9',
+    300: '#f28d8d',
+    400: '#e75758',
+    500: '#c92a2b',
+    600: '#ac0e0f',
+    700: '#8f0c0d',
+    800: '#771012',
+    900: '#631215',
+    950: '#380608'
+  },
+  hubu: {
+    50: '#eaf6f0',
+    100: '#c7e8da',
+    200: '#93d2bb',
+    300: '#57b493',
+    400: '#2e9070',
+    500: '#1b6e54',
+    600: '#135440',
+    700: '#0f4433',
+    800: '#0c3629',
+    900: '#0a2b21',
+    950: '#051711'
+  }
+}
+
+const BRAND = process.env.BRAND || 'muc'
+
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // MUC Harness: 主色调 - 民大红（中央民族大学校色）
-        primary: {
-          50: '#fdf3f3',
-          100: '#fcdcda',
-          200: '#f9b9b9',
-          300: '#f28d8d',
-          400: '#e75758',
-          500: '#c92a2b',
-          600: '#ac0e0f',
-          700: '#8f0c0d',
-          800: '#771012',
-          900: '#631215',
-          950: '#380608'
+        // 校园品牌主色调（BRAND=muc 民大红 / BRAND=hubu 深湖大绿）
+        primary: PALETTES[BRAND] || PALETTES.muc,
+        // 校园品牌辅色：青铜金（楚文化饰线）
+        bronze: {
+          50: '#fbf8ef',
+          100: '#f6eed8',
+          200: '#ecdbac',
+          300: '#e0c57c',
+          400: '#d3af5e',
+          500: '#bc9d53',
+          600: '#a5813b',
+          700: '#87672f',
+          800: '#6c5227',
+          900: '#523e1f',
+          950: '#2f2411'
         },
         // 辅助色 - 深蓝灰
         accent: {

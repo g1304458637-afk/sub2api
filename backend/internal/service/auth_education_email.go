@@ -11,22 +11,23 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/campus"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 const (
 	educationEmailProvider      = "education_email"
-	educationEmailProviderKey   = "muc.edu.cn"
 	educationEmailCodeKeyPrefix = "education-email-identity:user:"
 
 	// EducationEmailProviderType / EducationEmailProviderKey 是上面对应常量的导出别名，
 	// 供仓储层与管理端撤销流程定位校园邮箱认证身份，避免重复散落字面量。
 	EducationEmailProviderType = educationEmailProvider
-	EducationEmailProviderKey  = educationEmailProviderKey
 )
 
 var (
-	ErrEducationEmailInvalid              = infraerrors.BadRequest("EDUCATION_EMAIL_INVALID", "use an exact @muc.edu.cn email address")
+	educationEmailProviderKey             = campus.Current().EducationDomain
+	EducationEmailProviderKey             = educationEmailProviderKey
+	ErrEducationEmailInvalid              = infraerrors.BadRequest("EDUCATION_EMAIL_INVALID", "use an exact campus email address")
 	ErrEducationEmailAlreadyBound         = infraerrors.Conflict("EDUCATION_EMAIL_ALREADY_BOUND", "this education email is already verified")
 	ErrEducationEmailVerificationDisabled = infraerrors.Forbidden("EDUCATION_EMAIL_VERIFICATION_DISABLED", "campus email verification is not enabled")
 )
@@ -134,7 +135,7 @@ func (s *AuthService) VerifyAndBindEducationEmail(ctx context.Context, userID in
 		SetProviderKey(educationEmailProviderKey).
 		SetProviderSubject(normalizedEmail).
 		SetVerifiedAt(time.Now().UTC()).
-		SetMetadata(map[string]any{"source": "muc_education_email_verification"}).
+		SetMetadata(map[string]any{"source": campus.Current().ID + "_education_email_verification"}).
 		OnConflictColumns(
 			authidentity.FieldProviderType,
 			authidentity.FieldProviderKey,

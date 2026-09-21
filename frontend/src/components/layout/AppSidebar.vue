@@ -312,6 +312,7 @@
 </template>
 
 <script setup lang="ts">
+import { currentBrand } from '@/brand'
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -1075,7 +1076,7 @@ function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
     { path: '/tts', label: t('nav.tts'), icon: SpeakerIcon, featureFlag: flagTtsEntrance },
     { path: '/music', label: t('nav.music'), icon: MusicNoteIcon, featureFlag: flagMusicEntrance },
     // MUC Harness: mucode 桌面端下载与一键连接
-    { path: '/muc', label: t('nav.mucDownload'), icon: MucDownloadIcon },
+    { path: currentBrand.homePath, label: currentBrand.downloadLabel, icon: MucDownloadIcon },
   ]
 
   // 条目顺序：密钥 → 用量 → 批量生图 → 可用渠道 → 订阅/支付 → 兑换/资料 → 自定义页面。
@@ -1405,8 +1406,8 @@ onBeforeUnmount(() => {
 
 :global(.dark) .sidebar-logo-glow {
   box-shadow:
-    0 0 18px rgba(200, 36, 51, 0.28),
-    inset 0 0 0 1px rgba(238, 56, 72, 0.25);
+    0 0 18px rgba(var(--muc-red-rgb, 200, 36, 51), 0.28),
+    inset 0 0 0 1px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.25);
 }
 
 /* 底部操作区发丝分隔线（dark Shell） */

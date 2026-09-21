@@ -6,7 +6,7 @@
     <div class="muc-pricing__content">
       <!-- 品牌水印：大字民大红渐变 + 小字 MUCODE 暖白 -->
       <div class="muc-pricing__watermark" aria-hidden="true">
-        <span class="muc-pricing__watermark-caption">MUCODE</span>
+        <span class="muc-pricing__watermark-caption">{{ currentBrand.desktopLabel }}</span>
         <span class="muc-pricing__watermark-word">PRICING</span>
       </div>
 
@@ -271,6 +271,7 @@
 </template>
 
 <script setup lang="ts">
+import { currentBrand } from '@/brand'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -1308,7 +1309,7 @@ function statusBarClass(status: UsageStatus): string {
   border-radius: 18px;
   border: 1px solid var(--muc-glass-border-strong);
   background: linear-gradient(175deg, rgba(24, 24, 27, 0.94), rgba(12, 12, 14, 0.97));
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), 0 0 40px rgba(238, 56, 72, 0.1);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.1);
   padding: 22px;
   color: var(--muc-text-primary);
 }
@@ -1358,7 +1359,7 @@ function statusBarClass(status: UsageStatus): string {
 }
 
 .muc-dialog__confirm:hover:not(:disabled) {
-  box-shadow: 0 6px 26px rgba(238, 56, 72, 0.3);
+  box-shadow: 0 6px 26px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.3);
 }
 
 .muc-dialog__confirm:disabled {

@@ -381,7 +381,7 @@ function fmtDate(iso?: string | null): string {
 }
 
 .act-btn:hover:not(:disabled) {
-  border-color: rgba(238, 56, 72, 0.68);
+  border-color: rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.68);
 }
 
 .act-btn:disabled {

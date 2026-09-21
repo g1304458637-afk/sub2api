@@ -214,6 +214,7 @@ export interface LoginAgreementDocument {
 }
 
 export interface PublicSettings {
+  campus_brand?: { id: string; education_email_domain?: string; download_base_url?: string }
   registration_enabled: boolean
   email_verify_enabled: boolean
   force_email_on_third_party_signup: boolean

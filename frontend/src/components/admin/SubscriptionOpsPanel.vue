@@ -290,7 +290,7 @@ onMounted(load)
 }
 
 .stat-card:hover {
-  border-color: rgba(238, 56, 72, 0.68);
+  border-color: rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.68);
 }
 
 .stat-label {

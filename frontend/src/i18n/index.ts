@@ -1,3 +1,4 @@
+import { brandMessages } from '@/brand'
 import { createI18n } from 'vue-i18n'
 
 type LocaleCode = 'en' | 'zh'
@@ -45,7 +46,7 @@ export async function loadLocaleMessages(locale: LocaleCode): Promise<void> {
 
   const loader = localeLoaders[locale]
   const module = await loader()
-  i18n.global.setLocaleMessage(locale, module.default)
+  i18n.global.setLocaleMessage(locale, brandMessages(module.default))
   loadedLocales.add(locale)
 }
 

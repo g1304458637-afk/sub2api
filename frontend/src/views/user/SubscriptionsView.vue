@@ -534,7 +534,7 @@ function goPricing() {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(70% 40% at 50% 0%, rgba(200, 36, 51, 0.12), transparent 70%),
+    radial-gradient(70% 40% at 50% 0%, rgba(var(--muc-red-rgb, 200, 36, 51), 0.12), transparent 70%),
     linear-gradient(180deg, var(--muc-bg-primary), var(--muc-bg-secondary));
   pointer-events: none;
 }

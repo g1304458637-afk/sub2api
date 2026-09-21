@@ -46,9 +46,10 @@ export function parseMucodeManifest(body: unknown): MucodeManifest | null {
 
 export async function fetchLatestMucodeManifest(
   fetchImpl: typeof fetch = fetch,
+  manifestURL = '/downloads/latest-mucode.json',
 ): Promise<MucodeManifest | null> {
   try {
-    const res = await fetchImpl('/downloads/latest-mucode.json', {
+    const res = await fetchImpl(manifestURL, {
       cache: 'no-store',
       signal: AbortSignal.timeout(5000),
     })

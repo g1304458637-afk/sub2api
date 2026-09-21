@@ -67,7 +67,7 @@ withDefaults(
 }
 
 .muc-btn--primary:hover:not(:disabled) {
-  box-shadow: 0 6px 26px rgba(238, 56, 72, 0.3);
+  box-shadow: 0 6px 26px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.3);
   transform: translateY(-1px);
 }
 

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/muccode"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/stretchr/testify/require"
 )
 
 // ---- 打桩 ----
@@ -220,7 +222,7 @@ func TestMucExchange_UnrestrictedUserBindsGroupWithAccounts(t *testing.T) {
 
 	issue := func(code string, userID int64) {
 		sum := sha256Hex(code)
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
 		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
 	}
 	issue("unres-code-11111111111111111", 42)
@@ -245,7 +247,7 @@ func TestMucExchange_BindsSmallestAllowedGroup(t *testing.T) {
 
 	issue := func(code string, userID int64) {
 		sum := sha256Hex(code)
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
 		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
 	}
 	issue("group-code-1111111111111111", 42)
@@ -267,7 +269,7 @@ func TestMucExchange_UnrestrictedUserKeepsNullGroup(t *testing.T) {
 
 	issue := func(code string, userID int64) {
 		sum := sha256Hex(code)
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
 		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
 	}
 	issue("nullgrp-code-111111111111111", 42)
@@ -288,7 +290,7 @@ func TestMucExchange_HappyPath_SingleUse(t *testing.T) {
 	// 直接向 miniredis 写入一个有效 code 的哈希键（模拟 ConnectCode 已签发）
 	issue := func(code string, userID int64) {
 		sum := sha256Hex(code)
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
 		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
 	}
 	issue("valid-code-aaaaaaaaaaaaaaaaaa", 42)
@@ -354,7 +356,7 @@ func TestMucExchange_KeyCreateFailure_Propagates(t *testing.T) {
 	h, mr, creator := newMucTestEnv(t)
 	creator.err = context.DeadlineExceeded
 	sum := sha256Hex("code-fail-aaaaaaaaaaaaaaaa")
-	payload, _ := json.Marshal(mucCodePayload{UserID: 7})
+	payload, _ := json.Marshal(mucCodePayload{UserID: 7, Brand: "muc", Audience: "muc:desktop"})
 	_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
 
 	c, w := mucCtxWithBody(t, `{"code":"code-fail-aaaaaaaaaaaaaaaa"}`)
@@ -376,7 +378,7 @@ func TestMucExchange_RotatesDeviceKey(t *testing.T) {
 
 	issue := func(code string, userID int64) {
 		sum := sha256.Sum256([]byte(code))
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
 		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
 	}
 
@@ -416,7 +418,7 @@ func TestMucExchange_RotationExactMatch_NoCollateralDelete(t *testing.T) {
 
 	issue := func(code string, userID int64) {
 		sum := sha256.Sum256([]byte(code))
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
 		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
 	}
 
@@ -455,7 +457,7 @@ func TestMucExchange_RotationEscapedName(t *testing.T) {
 
 	issue := func(code string, userID int64) {
 		sum := sha256.Sum256([]byte(code))
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
 		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
 	}
 
@@ -484,7 +486,7 @@ func TestMucExchange_LongChineseDeviceName(t *testing.T) {
 
 	issue := func(code string, userID int64) {
 		sum := sha256.Sum256([]byte(code))
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
 		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
 	}
 
@@ -520,5 +522,56 @@ func TestMucExchange_RedisInfraErrorIsServerError(t *testing.T) {
 	}
 	if w.Code < 500 {
 		t.Fatalf("expected 5xx for redis infra error, got %d", w.Code)
+	}
+}
+
+func TestCampusExchangeIsolationAndAudience(t *testing.T) {
+	for _, id := range []string{"muc", "hubu"} {
+		t.Run(id, func(t *testing.T) {
+			t.Setenv("BRAND", id)
+			h, mr, creator := newMucTestEnv(t)
+			c, w := mucCtxWithUser(t, 1)
+			h.ConnectCode(c)
+			var issued struct {
+				Data struct {
+					Code     string `json:"code"`
+					Brand    string `json:"brand"`
+					Audience string `json:"audience"`
+				} `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &issued))
+			require.Equal(t, id, issued.Data.Brand)
+			key := id + ":code:" + sha256Hex(issued.Data.Code)
+			payload, err := mr.Get(key)
+			require.NoError(t, err)
+			require.NotContains(t, payload, issued.Data.Code)
+			other := "hubu"
+			if id == "hubu" {
+				other = "muc"
+			}
+			c, w = mucCtxWithBody(t, fmt.Sprintf(`{"code":%q,"brand":%q,"audience":%q}`, issued.Data.Code, other, other+":desktop"))
+			h.Exchange(c)
+			require.Equal(t, 403, w.Code)
+			require.True(t, mr.Exists(key))
+			require.Zero(t, creator.calls)
+			// Even copying a payload into the wrong Redis namespace cannot cross the brand boundary.
+			wrong := strings.ReplaceAll(payload, `"brand":"`+id+`"`, `"brand":"`+other+`"`)
+			require.NoError(t, mr.Set(key, wrong))
+			c, w = mucCtxWithBody(t, fmt.Sprintf(`{"code":%q,"brand":%q}`, issued.Data.Code, id))
+			h.Exchange(c)
+			require.Equal(t, 404, w.Code)
+			require.Zero(t, creator.calls)
+			require.NoError(t, mr.Set(key, payload))
+			c, w = mucCtxWithBody(t, fmt.Sprintf(`{"code":%q,"brand":%q,"audience":%q}`, issued.Data.Code, id, id+":desktop"))
+			h.Exchange(c)
+			require.Equal(t, 200, w.Code)
+			require.Equal(t, 1, creator.calls)
+			require.Contains(t, w.Body.String(), `"brand":"`+id+`"`)
+			require.Contains(t, creator.lastReq.Name, strings.ToUpper(id))
+			c, w = mucCtxWithBody(t, fmt.Sprintf(`{"code":%q}`, issued.Data.Code))
+			h.Exchange(c)
+			require.Equal(t, 404, w.Code)
+			require.Equal(t, 1, creator.calls)
+		})
 	}
 }

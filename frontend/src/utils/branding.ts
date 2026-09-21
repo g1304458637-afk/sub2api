@@ -1,6 +1,8 @@
+import { currentBrand } from '@/brand'
 import { sanitizeUrl } from '@/utils/url'
 
-export const DEFAULT_SITE_NAME = '中央民族大学 AI 服务平台'
+// 默认站名随品牌（MUC → 历史文案逐字节一致；HUBU → 湖北大学 AI 服务平台）
+export const DEFAULT_SITE_NAME = `${currentBrand.name} AI 服务平台`
 
 export function resolveSiteName(value?: string | null): string {
   const name = value?.trim() || ''

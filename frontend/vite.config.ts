@@ -81,6 +81,9 @@ export default defineConfig(({ mode }) => {
   // 加载环境变量
   const env = loadEnv(mode, process.cwd(), '')
   const backendUrl = env.VITE_DEV_PROXY_TARGET || 'http://localhost:8080'
+  const campusBrand = process.env.BRAND || env.VITE_BRAND || 'muc'
+  if (!['muc', 'hubu'].includes(campusBrand)) throw new Error('Unknown campus brand')
+  process.env.BRAND = campusBrand
   const devPort = Number(env.VITE_DEV_PORT || 3000)
 
   return {
@@ -89,7 +92,8 @@ export default defineConfig(({ mode }) => {
       checker({
         vueTsc: true
       }),
-      injectPublicSettings(backendUrl)
+      injectPublicSettings(backendUrl),
+      { name: 'campus-brand-title', transformIndexHtml: (html: string) => html.replace(/<title>[^<]*<\/title>/i, `<title>${campusBrand === 'hubu' ? '湖北大学' : '中央民族大学'} AI 服务平台</title>`) }
     ],
   resolve: {
     alias: {
@@ -101,7 +105,8 @@ export default defineConfig(({ mode }) => {
   define: {
     // 启用 vue-i18n JIT 编译，在 CSP 环境下处理消息插值
     // JIT 编译器生成 AST 对象而非 JS 代码，无需 unsafe-eval
-    __INTLIFY_JIT_COMPILATION__: true
+    __INTLIFY_JIT_COMPILATION__: true,
+    'import.meta.env.VITE_BRAND': JSON.stringify(campusBrand)
   },
   build: {
     outDir: '../backend/internal/web/dist',
@@ -158,6 +163,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: devPort,
       proxy: {
+        '/campus-assets': { target: backendUrl, changeOrigin: true },
+        '/downloads': { target: backendUrl, changeOrigin: true },
         '/api': {
           target: backendUrl,
           changeOrigin: true

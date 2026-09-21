@@ -175,7 +175,7 @@ function goRecharge() {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(60% 36% at 50% 0%, rgba(200, 36, 51, 0.1), transparent 70%),
+    radial-gradient(60% 36% at 50% 0%, rgba(var(--muc-red-rgb, 200, 36, 51), 0.1), transparent 70%),
     linear-gradient(180deg, var(--muc-bg-primary), var(--muc-bg-secondary));
   pointer-events: none;
 }

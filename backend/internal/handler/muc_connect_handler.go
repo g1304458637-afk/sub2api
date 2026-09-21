@@ -26,6 +26,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/campus"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/muccode"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -38,8 +39,6 @@ const (
 	mucMaxCodeLength  = 128
 	mucMaxDeviceRunes = 64
 	mucMaxStoredName  = 255 // api_keys.name 列宽；轮换/截断都按转义后的落库名称对齐
-	mucDefaultKeyHint = "MUC Desktop"
-	mucSearchPrefix   = "MUC "
 )
 
 // 窄接口：handler 层禁止直接依赖 redis 客户端（depguard: handler-no-repository）。
@@ -66,6 +65,7 @@ type mucGroupLookup interface {
 }
 
 type MucConnectHandler struct {
+	brand       campus.Brand
 	codes       mucCodeStore
 	keys        mucKeyManager
 	userLookup  mucUserLookup
@@ -74,6 +74,7 @@ type MucConnectHandler struct {
 
 func NewMucConnectHandler(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, gatewayService *service.GatewayService) *MucConnectHandler {
 	return &MucConnectHandler{
+		brand:       campus.Current(),
 		codes:       codeStore,
 		keys:        apiKeyService,
 		userLookup:  userService,
@@ -82,12 +83,15 @@ func NewMucConnectHandler(codeStore *muccode.CodeStore, apiKeyService *service.A
 }
 
 type mucCodePayload struct {
-	UserID int64 `json:"user_id"`
+	Brand    string `json:"brand"`
+	Audience string `json:"audience"`
+	UserID   int64  `json:"user_id"`
 }
 
 // ConnectCode 为已登录用户签发一次性授权码（TTL 60s）。
 // POST /api/v1/muc/connect-code   （需网站登录态）
 func (h *MucConnectHandler) ConnectCode(c *gin.Context) {
+	brand := h.campusBrand()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -102,12 +106,12 @@ func (h *MucConnectHandler) ConnectCode(c *gin.Context) {
 	code := base64.RawURLEncoding.EncodeToString(buf)
 
 	sum := sha256.Sum256([]byte(code))
-	payload, err := json.Marshal(mucCodePayload{UserID: subject.UserID})
+	payload, err := json.Marshal(mucCodePayload{UserID: subject.UserID, Brand: brand.ID, Audience: brand.Audience()})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if err := h.codes.SetCode(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:]), payload, mucCodeTTL); err != nil {
+	if err := h.codes.SetCode(c.Request.Context(), brand.RedisPrefix+hex.EncodeToString(sum[:]), payload, mucCodeTTL); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -115,18 +119,26 @@ func (h *MucConnectHandler) ConnectCode(c *gin.Context) {
 	response.Success(c, gin.H{
 		"code":       code,
 		"expires_in": int(mucCodeTTL.Seconds()),
+		"brand":      brand.ID, "audience": brand.Audience(), "scheme": brand.ProtocolScheme,
 	})
 }
 
 // Exchange 用一次性授权码换取 per-device API Key（公开接口，靠 code 本身授权）。
 // POST /api/v1/muc/exchange   body: {"code": "...", "device_name": "..."}
 func (h *MucConnectHandler) Exchange(c *gin.Context) {
+	brand := h.campusBrand()
 	var req struct {
 		Code       string `json:"code"`
+		Brand      string `json:"brand"`
+		Audience   string `json:"audience"`
 		DeviceName string `json:"device_name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.Code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "bad_request"})
+		return
+	}
+	if (req.Brand != "" && req.Brand != brand.ID) || (req.Audience != "" && req.Audience != brand.Audience()) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "brand_mismatch"})
 		return
 	}
 	if len(req.Code) > mucMaxCodeLength {
@@ -136,7 +148,7 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 
 	sum := sha256.Sum256([]byte(req.Code))
 	// GETDEL：原子取出并删除 —— 单次使用（验收 D/E）
-	payload, err := h.codes.GetDelCode(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:]))
+	payload, err := h.codes.GetDelCode(c.Request.Context(), brand.RedisPrefix+hex.EncodeToString(sum[:]))
 	if err != nil {
 		// 不存在的 code（未签发/已过期/已使用）统一 404，不泄露具体原因；
 		// 其余错误是 Redis 基础设施故障，必须与 404 区分，否则故障被伪装成"码无效"。
@@ -148,14 +160,14 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		return
 	}
 	var payloadData mucCodePayload
-	if err := json.Unmarshal([]byte(payload), &payloadData); err != nil || payloadData.UserID <= 0 {
+	if err := json.Unmarshal([]byte(payload), &payloadData); err != nil || payloadData.UserID <= 0 || payloadData.Brand != brand.ID || payloadData.Audience != brand.Audience() {
 		c.JSON(http.StatusNotFound, gin.H{"error": "code_not_found"})
 		return
 	}
 
-	deviceName := mucDefaultKeyHint
+	deviceName := brand.DeviceHint
 	if req.DeviceName != "" {
-		deviceName = "MUC " + mucTruncateDeviceName(req.DeviceName)
+		deviceName = brand.KeyPrefix + mucTruncateDeviceName(req.DeviceName)
 	}
 	// service.CreateAPIKey 落库时会做 html.EscapeString；轮换必须按转义后的
 	// 完整名称精确匹配，按子串匹配会误删其他设备/用户手建的同前缀 Key。
@@ -195,7 +207,7 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 
 	// MUC Harness: 轮换——删除该设备此前的旧 Key（转义后名称精确相等，排除刚创建的）。
 	// 搜索失败视为轮换失败但不阻断换取（旧 Key 可另行清理）。
-	if olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, mucSearchPrefix, 50); err == nil {
+	if olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, brand.KeyPrefix, 50); err == nil {
 		for _, old := range olds {
 			if old.ID == key.ID || old.Name != storedName {
 				continue
@@ -211,8 +223,13 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		}
 	}
 
+	gateway := brand.GatewayURL
+	if gateway == "" {
+		gateway = mucPublicGatewayURL(c)
+	}
 	response.Success(c, gin.H{
-		"gateway":  mucPublicGatewayURL(c),
+		"brand": brand.ID, "audience": brand.Audience(),
+		"gateway":  gateway,
 		"api_key":  key.Key,
 		"key_name": key.Name,
 		"user":     userDisplay,
@@ -262,4 +279,11 @@ func mucMaskEmail(email string) string {
 		return local
 	}
 	return local + "@" + domain
+}
+
+func (h *MucConnectHandler) campusBrand() campus.Brand {
+	if h.brand.ID == "" {
+		return campus.Current()
+	}
+	return h.brand
 }

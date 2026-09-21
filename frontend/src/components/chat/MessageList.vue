@@ -14,7 +14,7 @@
         class="mb-3 flex items-center gap-2.5 text-xs font-medium tracking-[0.2em] text-primary-600/80 dark:text-primary-400/80"
       >
         <span class="inline-block h-px w-6 bg-primary-300/70 dark:bg-primary-700/60"></span>
-        {{ t('chat.welcome.motto') }}
+        {{ currentBrand.chatMottoLine || t('chat.welcome.motto') }}
         <span class="inline-block h-px w-6 bg-primary-300/70 dark:bg-primary-700/60"></span>
       </p>
       <h2
@@ -62,6 +62,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MessageItem from './MessageItem.vue'
+import { currentBrand } from '@/brand'
 import type { ChatMessage } from './types'
 
 const props = withDefaults(

@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
   border-radius: 20px;
   border: 1px solid var(--muc-glass-border-strong);
   background: linear-gradient(175deg, rgba(24, 24, 27, 0.92), rgba(12, 12, 14, 0.96));
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), 0 0 40px rgba(238, 56, 72, 0.1);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.1);
   color: var(--muc-text-primary);
 }
 

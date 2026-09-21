@@ -11,7 +11,7 @@
       aria-hidden="true"
     ></span>
 
-    <div class="muc-gift__brand">MUCODE</div>
+    <div class="muc-gift__brand">{{ currentBrand.desktopLabel }}</div>
     <p class="muc-gift__title">{{ title }}</p>
     <div class="muc-gift__amount" :class="{ 'muc-gift__amount--done': countDone }">
       {{ displayAmount }}
@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { currentBrand } from '@/brand'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import '@/components/pricing/muc-tokens.css'
@@ -152,7 +153,7 @@ onBeforeUnmount(() => {
   border-radius: 26px;
   border: 1px solid rgba(214, 180, 106, 0.55);
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(200, 36, 51, 0.22), transparent 60%),
+    radial-gradient(120% 90% at 50% 0%, rgba(var(--muc-red-rgb, 200, 36, 51), 0.22), transparent 60%),
     var(--muc-glass-strong);
   box-shadow:
     0 24px 80px rgba(0, 0, 0, 0.55),

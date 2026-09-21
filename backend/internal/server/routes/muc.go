@@ -10,6 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/campus"
 )
 
 // RegisterMucRoutes MUC Harness: 桌面客户端一键连接授权路由。
@@ -27,6 +29,7 @@ func RegisterMucRoutes(
 	settingService *service.SettingService,
 	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
+	brand := campus.Current()
 	rateLimiter := ratelimit.NewRateLimiter(redisClient)
 
 	authenticated := v1.Group("")
@@ -35,10 +38,10 @@ func RegisterMucRoutes(
 	authenticated.Use(panelRateLimiter.Global())
 	authenticated.Use(gin.HandlerFunc(auditLog))
 	{
-		authenticated.POST("/muc/connect-code", h.MucConnect.ConnectCode)
+		authenticated.POST("/"+brand.PathSegment+"/connect-code", h.MucConnect.ConnectCode)
 	}
 
-	v1.POST("/muc/exchange", rateLimiter.LimitWithOptions("muc-exchange", 10, time.Minute, ratelimit.RateLimitOptions{
+	v1.POST("/"+brand.PathSegment+"/exchange", rateLimiter.LimitWithOptions(brand.ID+"-exchange", 10, time.Minute, ratelimit.RateLimitOptions{
 		FailureMode: ratelimit.RateLimitFailClose,
 	}), h.MucConnect.Exchange)
 }
