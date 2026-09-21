@@ -556,6 +556,10 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyWebChatEnabled] = strconv.FormatBool(settings.WebChatEnabled)
 	updates[SettingKeyWebChatModels] = settings.WebChatModels
 	updates[SettingKeyWebChatDefaultModel] = strings.TrimSpace(settings.WebChatDefaultModel)
+	updates[SettingKeyWebChatEntranceChat] = strconv.FormatBool(settings.WebChatEntranceChat)
+	updates[SettingKeyWebChatEntranceDraw] = strconv.FormatBool(settings.WebChatEntranceDraw)
+	updates[SettingKeyWebChatEntranceTTS] = strconv.FormatBool(settings.WebChatEntranceTTS)
+	updates[SettingKeyWebChatEntranceMusic] = strconv.FormatBool(settings.WebChatEntranceMusic)
 
 	return updates, nil
 }

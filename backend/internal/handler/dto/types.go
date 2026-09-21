@@ -51,6 +51,8 @@ type AdminUser struct {
 	// RestrictPublicGroups 为 true 时，该用户仅可使用 allowed_groups 中列出的
 	// 公开分组。这是管理侧的权限开关，不下发给用户自身的接口。
 	RestrictPublicGroups bool `json:"restrict_public_groups"`
+	// EducationEmails 该用户已认证的校园邮箱地址（muc.edu.cn），列表认证徽标展示用。
+	EducationEmails []string `json:"education_emails,omitempty"`
 }
 
 type APIKey struct {

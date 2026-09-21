@@ -564,6 +564,22 @@ const AcademicCapIcon = {
     )
 }
 
+// BanknotesIcon: 奖励发放记录入口图标（纸币）
+const BanknotesIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z'
+        })
+      ]
+    )
+}
+
 const UserIcon = {
   render: () =>
     h(
@@ -985,13 +1001,23 @@ const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
-// 网页聊天开关：控制 AI 对话 / 绘图两个门户入口的显隐。
-// config 为 null（尚未返回或加载失败）时默认显示；仅在配置成功加载且明确 enabled === false 时隐藏。
+// 网页聊天开关 + 后台入口显示开关：控制大模型服务分组内各入口的显隐。
+// config 为 null（尚未返回或加载失败）时默认显示；仅在配置成功加载且明确为 false 时隐藏。
 // getter 在 computed（finalizeNav → applyFeatureFlags）内求值，store 状态变化时菜单自动更新。
-const flagWebChatEntrance = (): boolean => webChatStore.config?.enabled !== false
+const flagWebChatEntrance =
+  (entrance: "chat" | "draw" | "tts" | "music") =>
+  (): boolean => {
+    const config = webChatStore.config
+    if (config?.enabled === false) return false
+    return config?.entrances?.[entrance] !== false
+  }
+const flagChatEntrance = flagWebChatEntrance("chat")
+const flagDrawEntrance = flagWebChatEntrance("draw")
+const flagTtsEntrance = flagWebChatEntrance("tts")
+const flagMusicEntrance = flagWebChatEntrance("music")
 
-// 会话列表显隐跟随网页聊天开关（配置未返回时默认显示），与 /chat、/draw 两个入口一致
-const showChatHistory = computed(() => webChatStore.config?.enabled !== false)
+// 会话列表显隐跟随 AI 对话入口（历史会话属于对话页；配置未返回时默认显示）
+const showChatHistory = computed(() => flagChatEntrance())
 
 // buildSelfNavGroups 构造用户自己的导航，按门户分成两个可折叠分组：
 // 「大模型服务」（AI 对话 / 绘图 / 下载 MUC）与「我的」（账户、密钥、用量、订阅等）。
@@ -1005,12 +1031,11 @@ const showChatHistory = computed(() => webChatStore.config?.enabled !== false)
 // 用户端不再展示「渠道状态」入口（/monitor 路由仍保留）。
 function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
   const llmItems: NavItem[] = [
-    // AI 对话 / 绘图：显隐跟随网页聊天开关（关闭时隐藏，配置未返回时默认显示）
-    { path: '/chat', label: t('nav.chat'), icon: ChatBubbleIcon, featureFlag: flagWebChatEntrance },
-    { path: '/draw', label: t('nav.draw'), icon: PaintBrushIcon, featureFlag: flagWebChatEntrance },
-    // 语音合成 / 音乐合成：同样跟随网页聊天开关
-    { path: '/tts', label: t('nav.tts'), icon: SpeakerIcon, featureFlag: flagWebChatEntrance },
-    { path: '/music', label: t('nav.music'), icon: MusicNoteIcon, featureFlag: flagWebChatEntrance },
+    // AI 对话 / 绘图 / 语音合成 / 音乐合成：显隐跟随网页聊天总开关 + 后台各入口显示开关
+    { path: '/chat', label: t('nav.chat'), icon: ChatBubbleIcon, featureFlag: flagChatEntrance },
+    { path: '/draw', label: t('nav.draw'), icon: PaintBrushIcon, featureFlag: flagDrawEntrance },
+    { path: '/tts', label: t('nav.tts'), icon: SpeakerIcon, featureFlag: flagTtsEntrance },
+    { path: '/music', label: t('nav.music'), icon: MusicNoteIcon, featureFlag: flagMusicEntrance },
     // MUC Harness: mucode 桌面端下载与一键连接
     { path: '/muc', label: t('nav.mucDownload'), icon: MucDownloadIcon },
   ]
@@ -1163,6 +1188,7 @@ const adminNavItems = computed((): NavItem[] => {
     },
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
     { path: '/admin/research', label: t('nav.adminResearch'), icon: AcademicCapIcon, hideInSimpleMode: true },
+    { path: '/admin/reward-grants', label: t('nav.rewardGrants'), icon: BanknotesIcon, hideInSimpleMode: true },
     { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
     {
       path: '/admin/affiliates',

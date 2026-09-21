@@ -26,8 +26,19 @@ export async function updateApiKeyGroup(id: number, groupId: number | null): Pro
   return data
 }
 
+/**
+ * Delete (revoke) an API key of any user
+ * @param id - API Key ID
+ * @returns Deletion confirmation message
+ */
+export async function deleteApiKey(id: number): Promise<{ message: string }> {
+  const { data } = await apiClient.delete<{ message: string }>(`/admin/api-keys/${id}`)
+  return data
+}
+
 export const apiKeysAPI = {
-  updateApiKeyGroup
+  updateApiKeyGroup,
+  deleteApiKey
 }
 
 export default apiKeysAPI

@@ -275,6 +275,12 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyWebChatEnabled:      "true",
 		SettingKeyWebChatModels:       "",
 		SettingKeyWebChatDefaultModel: "",
+
+		// 大模型服务分组入口显示开关（缺省 = 显示）
+		SettingKeyWebChatEntranceChat:  "true",
+		SettingKeyWebChatEntranceDraw:  "true",
+		SettingKeyWebChatEntranceTTS:   "true",
+		SettingKeyWebChatEntranceMusic: "true",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -1000,6 +1006,12 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// 网页聊天开关：键缺失（存量站点未写入设置行）或显式 "true" 均视为开启（门户首页是产品默认形态）；
 	// 显式 "false" 关闭；脏值（"1"/"True" 等）按关闭处理（fail-closed）。
 	result.WebChatEnabled = settings[SettingKeyWebChatEnabled] == "true" || settings[SettingKeyWebChatEnabled] == ""
+
+	// 大模型服务分组入口显示开关：键缺失（存量站点）或 "true" = 显示；显式 "false" = 隐藏；脏值按显示处理。
+	result.WebChatEntranceChat = settings[SettingKeyWebChatEntranceChat] != "false"
+	result.WebChatEntranceDraw = settings[SettingKeyWebChatEntranceDraw] != "false"
+	result.WebChatEntranceTTS = settings[SettingKeyWebChatEntranceTTS] != "false"
+	result.WebChatEntranceMusic = settings[SettingKeyWebChatEntranceMusic] != "false"
 	// web_chat_models 保存原始 JSON 数组字符串（空串 = 回退模式），由 web_chat_service 按条目容错解析。
 	result.WebChatModels = settings[SettingKeyWebChatModels]
 	result.WebChatDefaultModel = strings.TrimSpace(settings[SettingKeyWebChatDefaultModel])

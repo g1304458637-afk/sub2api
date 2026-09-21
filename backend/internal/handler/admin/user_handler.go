@@ -123,6 +123,7 @@ type BindUserAuthIdentityChannelRequest struct {
 //   - attr[{id}]: filter by custom attribute value, e.g. attr[1]=company
 //   - group_name: fuzzy filter by allowed group name
 //   - api_key_group_id: filter by the exact group bound to the user's API keys
+//   - education_email_verified: "true"/"false" filter by campus-email verification status
 func (h *UserHandler) List(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 
@@ -143,6 +144,20 @@ func (h *UserHandler) List(c *gin.Context) {
 	if raw := strings.TrimSpace(c.Query("api_key_group_id")); raw != "" {
 		if id, parseErr := strconv.ParseInt(raw, 10, 64); parseErr == nil && id > 0 {
 			filters.APIKeyGroupID = id
+		}
+	}
+	// 教育邮箱认证筛选三态：缺省/空 = 不过滤；"true"/"false" 显式设置；其他值拒绝。
+	if raw := strings.TrimSpace(c.Query("education_email_verified")); raw != "" {
+		switch raw {
+		case "true":
+			verified := true
+			filters.EducationEmailVerified = &verified
+		case "false":
+			verified := false
+			filters.EducationEmailVerified = &verified
+		default:
+			response.BadRequest(c, "invalid education_email_verified: must be true or false")
+			return
 		}
 	}
 	sortBy := c.DefaultQuery("sort_by", "created_at")
@@ -259,6 +274,37 @@ func (h *UserHandler) GetEducationEmailStatus(c *gin.Context) {
 		"user_id":                              userID,
 		"education_email_verification_enabled": h.settingService.IsEducationEmailVerificationEnabled(c.Request.Context()),
 		"education_email":                      identities.EducationEmail,
+	})
+}
+
+// RevokeEducationEmail revokes every campus-email verification identity of one
+// user. Like GetEducationEmailStatus it stays available when the feature is
+// disabled so administrators can still clean up historical verification records.
+// DELETE /api/v1/admin/users/:id/education-email
+func (h *UserHandler) RevokeEducationEmail(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	if h.userService == nil {
+		response.InternalError(c, "Campus email verification revoke is unavailable")
+		return
+	}
+	revoked, err := h.adminService.RevokeUserEducationEmail(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	identities, err := h.userService.GetProfileIdentitySummaries(c.Request.Context(), userID, nil)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"user_id":         userID,
+		"revoked_count":   revoked,
+		"education_email": identities.EducationEmail,
 	})
 }
 
@@ -461,7 +507,14 @@ func (h *UserHandler) GetUserAPIKeys(c *gin.Context) {
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 
-	keys, total, err := h.adminService.GetUserAPIKeys(c.Request.Context(), userID, page, pageSize, sortBy, sortOrder)
+	// search 透传给 repo 的 NameContainsFold OR KeyContainsFold；
+	// 传 "MUC " 即可筛出 mucode 桌面端设备 Key。
+	search := strings.TrimSpace(c.Query("search"))
+	if len(search) > 100 {
+		search = search[:100]
+	}
+
+	keys, total, err := h.adminService.GetUserAPIKeys(c.Request.Context(), userID, page, pageSize, sortBy, sortOrder, search)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

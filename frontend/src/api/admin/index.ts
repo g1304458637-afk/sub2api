@@ -38,6 +38,7 @@ import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import pluginsAPI from './plugins'
 import researchAPI from './research'
+import rewardGrantsAPI from './rewardGrants'
 
 /**
  * Unified admin API object for convenient access
@@ -80,7 +81,8 @@ export const adminAPI = {
   compliance: adminComplianceAPI,
   audit: auditAPI,
   plugins: pluginsAPI,
-  research: researchAPI
+  research: researchAPI,
+  rewardGrants: rewardGrantsAPI
 }
 
 export {
@@ -116,7 +118,8 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
-  pluginsAPI
+  pluginsAPI,
+  rewardGrantsAPI
 }
 
 export default adminAPI
@@ -134,3 +137,8 @@ export type {
   PluginUISession,
   PluginTestResult
 } from './plugins'
+export type {
+  RewardGrantRecord,
+  RewardGrantQuery,
+  RewardGrantListResponse
+} from './rewardGrants'

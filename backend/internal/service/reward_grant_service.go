@@ -122,5 +122,14 @@ func (s *RewardGrantService) GetRewardBySource(ctx context.Context, sourceType s
 	return s.rewardRepo.GetBySource(ctx, sourceType, sourceID)
 }
 
+// AdminListRewardGrants 管理端分页查询发放记录（只读台账）。
+// filter 为 nil 或 repo 不可用时返回空列表（防御式，不报错），与 ListRewardsByUser 口径一致。
+func (s *RewardGrantService) AdminListRewardGrants(ctx context.Context, filter *RewardGrantAdminFilter) (*RewardGrantList, error) {
+	if s == nil || s.rewardRepo == nil {
+		return &RewardGrantList{Items: []RewardGrantAdminItem{}}, nil
+	}
+	return s.rewardRepo.AdminList(ctx, filter)
+}
+
 // compile-time 接口满足性检查：*SettingService 必须实现 StudentRewardConfigReader。
 var _ StudentRewardConfigReader = (*SettingService)(nil)

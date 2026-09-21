@@ -267,6 +267,14 @@ func (m *mockUserRepo) UnbindUserAuthProvider(_ context.Context, _ int64, provid
 	return nil
 }
 
+func (m *mockUserRepo) RevokeUserEducationEmailIdentities(context.Context, int64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockUserRepo) ListVerifiedEducationEmailsByUserIDs(context.Context, []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func (m *mockUserRepo) GetByIDIncludeDeleted(ctx context.Context, id int64) (*User, error) {
 	return m.GetByID(ctx, id)
 }

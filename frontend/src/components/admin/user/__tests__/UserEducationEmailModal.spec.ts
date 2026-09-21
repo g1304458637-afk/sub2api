@@ -1,13 +1,15 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import UserEducationEmailModal from '@/components/admin/user/UserEducationEmailModal.vue'
 
-const { getEducationEmailStatus } = vi.hoisted(() => ({
+const { getEducationEmailStatus, revokeEducationEmail } = vi.hoisted(() => ({
   getEducationEmailStatus: vi.fn(),
+  revokeEducationEmail: vi.fn(),
 }))
 
 vi.mock('@/api/admin', () => ({
-  adminAPI: { users: { getEducationEmailStatus } },
+  adminAPI: { users: { getEducationEmailStatus, revokeEducationEmail } },
 }))
 
 vi.mock('@/utils/format', () => ({
@@ -35,8 +37,18 @@ const user = {
   notes: '',
 } as any
 
+// BaseDialog stub 同时渲染 footer slot，让 ConfirmDialog 的确认/取消按钮进入 DOM。
+const stubs = {
+  BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+  Icon: true,
+}
+
 describe('UserEducationEmailModal', () => {
-  beforeEach(() => getEducationEmailStatus.mockReset())
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    getEducationEmailStatus.mockReset()
+    revokeEducationEmail.mockReset()
+  })
 
   it('shows the administrator both feature state and verified campus email', async () => {
     getEducationEmailStatus.mockResolvedValue({
@@ -50,7 +62,7 @@ describe('UserEducationEmailModal', () => {
     })
     const wrapper = mount(UserEducationEmailModal, {
       props: { show: true, user },
-      global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, Icon: true } },
+      global: { stubs },
     })
 
     await flushPromises()
@@ -69,7 +81,7 @@ describe('UserEducationEmailModal', () => {
     })
     const wrapper = mount(UserEducationEmailModal, {
       props: { show: true, user },
-      global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, Icon: true } },
+      global: { stubs },
     })
 
     await flushPromises()
@@ -77,5 +89,46 @@ describe('UserEducationEmailModal', () => {
     expect(wrapper.text()).toContain('admin.users.educationEmail.notVerified')
     expect(wrapper.text()).toContain('admin.users.educationEmail.noRecord')
     expect(wrapper.text()).not.toContain('@muc.edu.cn')
+    // 未认证时不出现"撤销认证"按钮
+    expect(wrapper.findAll('button').some((b) => b.text() === 'admin.users.educationEmail.revoke')).toBe(false)
+  })
+
+  it('revokes via the confirm dialog, reloads, and emits success', async () => {
+    getEducationEmailStatus
+      .mockResolvedValueOnce({
+        user_id: 7,
+        education_email_verification_enabled: false,
+        education_email: {
+          bound: true,
+          display_name: 'student@muc.edu.cn',
+          verified_at: '2026-09-20T01:02:03Z',
+        },
+      })
+      .mockResolvedValue({
+        user_id: 7,
+        education_email_verification_enabled: false,
+        education_email: { bound: false },
+      })
+    revokeEducationEmail.mockResolvedValue({ user_id: 7, revoked_count: 1 })
+
+    const wrapper = mount(UserEducationEmailModal, {
+      props: { show: true, user },
+      global: { stubs },
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('admin.users.educationEmail.revoke')
+
+    // 点击"撤销认证"→ 弹出确认框 → 点击确认
+    await wrapper.findAll('button').find((b) => b.text() === 'admin.users.educationEmail.revoke')!.trigger('click')
+    await flushPromises()
+    expect(revokeEducationEmail).not.toHaveBeenCalled()
+
+    await wrapper.findAll('button').find((b) => b.text() === 'common.confirm')!.trigger('click')
+    await flushPromises()
+
+    expect(revokeEducationEmail).toHaveBeenCalledWith(7)
+    expect(wrapper.emitted('success')).toHaveLength(1)
+    // 撤销后 modal 数据已重载为未认证状态
+    expect(wrapper.text()).toContain('admin.users.educationEmail.noRecord')
   })
 })

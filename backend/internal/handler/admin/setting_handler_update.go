@@ -395,6 +395,11 @@ type UpdateSettingsRequest struct {
 	WebChatEnabled      bool   `json:"web_chat_enabled"`
 	WebChatModels       string `json:"web_chat_models"`
 	WebChatDefaultModel string `json:"web_chat_default_model"`
+
+	WebChatEntranceChat  bool `json:"web_chat_entrance_chat"`
+	WebChatEntranceDraw  bool `json:"web_chat_entrance_draw"`
+	WebChatEntranceTTS   bool `json:"web_chat_entrance_tts"`
+	WebChatEntranceMusic bool `json:"web_chat_entrance_music"`
 }
 
 // UpdateSettings 更新系统设置
@@ -2025,6 +2030,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		WebChatEnabled:      req.WebChatEnabled,
 		WebChatModels:       req.WebChatModels,
 		WebChatDefaultModel: strings.TrimSpace(req.WebChatDefaultModel),
+
+		WebChatEntranceChat:  req.WebChatEntranceChat,
+		WebChatEntranceDraw:  req.WebChatEntranceDraw,
+		WebChatEntranceTTS:   req.WebChatEntranceTTS,
+		WebChatEntranceMusic: req.WebChatEntranceMusic,
 	}
 
 	// req.AuthSourceXxxPlatformQuotas 为 nil 表示本次请求未包含该 source 的 quota 配置（保留 previousAuthSourceDefaults 中的值）；

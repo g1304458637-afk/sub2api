@@ -32,4 +32,6 @@ type RewardGrantRepository interface {
 
 	// StatsRange 统计时间范围内的发放笔数与总金额；userID 为 nil 时全局统计。
 	StatsRange(ctx context.Context, userID *int64, from, to time.Time) (count int64, amount float64, err error)
+	// AdminList 管理端分页查询发放记录（created_at 倒序，回填用户与发放人邮箱/用户名）。
+	AdminList(ctx context.Context, filter *RewardGrantAdminFilter) (*RewardGrantList, error)
 }

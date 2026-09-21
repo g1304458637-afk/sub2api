@@ -403,6 +403,11 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		WebChatEnabled:      settings.WebChatEnabled,
 		WebChatModels:       settings.WebChatModels,
 		WebChatDefaultModel: settings.WebChatDefaultModel,
+
+		WebChatEntranceChat:  settings.WebChatEntranceChat,
+		WebChatEntranceDraw:  settings.WebChatEntranceDraw,
+		WebChatEntranceTTS:   settings.WebChatEntranceTTS,
+		WebChatEntranceMusic: settings.WebChatEntranceMusic,
 	}
 
 	// OpenAI fast policy (stored under a dedicated setting key)

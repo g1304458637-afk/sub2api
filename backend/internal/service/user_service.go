@@ -74,7 +74,10 @@ type UserListFilters struct {
 	// bound to this group (api_keys.group_id). 0 = no filter. Covers all three
 	// group types since it matches the key's group directly, not allowed_groups.
 	APIKeyGroupID int64
-	Attributes    map[int64]string // Custom attribute filters: attributeID -> value
+	// EducationEmailVerified 按校园邮箱认证状态过滤：true=存在已认证的
+	// education_email 身份，false=不存在，nil=不过滤。
+	EducationEmailVerified *bool
+	Attributes             map[int64]string // Custom attribute filters: attributeID -> value
 	// IncludeSubscriptions controls whether ListWithFilters should load active subscriptions.
 	// For large datasets this can be expensive; admin list pages should enable it on demand.
 	// nil means not specified (default: load subscriptions for backward compatibility).
@@ -176,6 +179,13 @@ type UserRepository interface {
 	RemoveGroupFromUserAllowedGroups(ctx context.Context, userID int64, groupID int64) error
 	ListUserAuthIdentities(ctx context.Context, userID int64) ([]UserAuthIdentityRecord, error)
 	UnbindUserAuthProvider(ctx context.Context, userID int64, provider string) error
+	// RevokeUserEducationEmailIdentities 删除指定用户的全部校园邮箱认证身份，
+	// 返回删除条数；无匹配行时返回 (0, nil)（幂等）。管理端撤销认证专用，
+	// 不做功能开关门控，便于在功能关闭后清理历史认证记录。
+	RevokeUserEducationEmailIdentities(ctx context.Context, userID int64) (int64, error)
+	// ListVerifiedEducationEmailsByUserIDs 批量返回每个用户已认证的校园邮箱地址，
+	// 用户列表展示认证徽标用，避免 N+1 查询。
+	ListVerifiedEducationEmailsByUserIDs(ctx context.Context, userIDs []int64) (map[int64][]string, error)
 
 	// TOTP 双因素认证
 	UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error

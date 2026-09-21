@@ -1461,6 +1461,20 @@ func (s *adminServiceImpl) AdminResetAPIKeyRateLimitUsage(ctx context.Context, k
 	return apiKey, nil
 }
 
+// AdminDeleteAPIKey 管理员删除任意用户的 API Key。
+// 先取 Key 的所有者，再以所有者身份复用用户侧 APIKeyService.Delete，
+// 完整继承软删(tombstone)+审计+认证缓存失效；不校验调用者是否为所有者。
+func (s *adminServiceImpl) AdminDeleteAPIKey(ctx context.Context, keyID int64) error {
+	if s.apiKeyService == nil {
+		return infraerrors.InternalServer("API_KEY_SERVICE_UNAVAILABLE", "api key service is not configured")
+	}
+	_, ownerID, err := s.apiKeyRepo.GetKeyAndOwnerID(ctx, keyID)
+	if err != nil {
+		return err
+	}
+	return s.apiKeyService.Delete(ctx, keyID, ownerID)
+}
+
 // ReplaceUserGroup 替换用户的专属分组
 func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error) {
 	if oldGroupID == newGroupID {

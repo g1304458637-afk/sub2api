@@ -324,6 +324,12 @@ type SystemSettings struct {
 	WebChatEnabled      bool   // 功能开关（严格 "true" 才开启 = fail-closed）
 	WebChatModels       string // 模型列表原始 JSON 数组字符串；空串 = 回退模式（用户可见分组可用模型并集）
 	WebChatDefaultModel string // 默认模型；空串 = 未指定
+
+	// 大模型服务分组入口显示开关（false = 侧边栏隐藏该入口）
+	WebChatEntranceChat  bool
+	WebChatEntranceDraw  bool
+	WebChatEntranceTTS   bool
+	WebChatEntranceMusic bool
 }
 
 type DefaultSubscriptionSetting struct {

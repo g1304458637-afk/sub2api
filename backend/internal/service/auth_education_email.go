@@ -18,6 +18,11 @@ const (
 	educationEmailProvider      = "education_email"
 	educationEmailProviderKey   = "muc.edu.cn"
 	educationEmailCodeKeyPrefix = "education-email-identity:user:"
+
+	// EducationEmailProviderType / EducationEmailProviderKey 是上面对应常量的导出别名，
+	// 供仓储层与管理端撤销流程定位校园邮箱认证身份，避免重复散落字面量。
+	EducationEmailProviderType = educationEmailProvider
+	EducationEmailProviderKey  = educationEmailProviderKey
 )
 
 var (

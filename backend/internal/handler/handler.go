@@ -46,6 +46,7 @@ type AdminHandlers struct {
 	Research               *admin.ResearchHandler
 	ResetEvent             *admin.AdminResetEventHandler
 	ResetCard              *admin.AdminSubscriptionResetHandler
+	RewardGrant            *admin.RewardGrantHandler
 }
 
 // Handlers contains all HTTP handlers

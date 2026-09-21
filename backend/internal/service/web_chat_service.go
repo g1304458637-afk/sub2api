@@ -75,9 +75,19 @@ type WebChatModel struct {
 
 // WebChatConfig GET /api/v1/web-chat/config 的 data
 type WebChatConfig struct {
-	Enabled      bool           `json:"enabled"`
-	DefaultModel string         `json:"default_model"`
-	Models       []WebChatModel `json:"models"`
+	Enabled      bool             `json:"enabled"`
+	DefaultModel string           `json:"default_model"`
+	Models       []WebChatModel   `json:"models"`
+	Entrances    WebChatEntrances `json:"entrances"`
+}
+
+// WebChatEntrances 大模型服务分组各入口的显示开关（后台可配；缺省全显示）。
+// 纯入口可见性控制：接口本身仍受 web_chat_enabled 与模型白名单保护。
+type WebChatEntrances struct {
+	Chat  bool `json:"chat"`
+	Draw  bool `json:"draw"`
+	TTS   bool `json:"tts"`
+	Music bool `json:"music"`
 }
 
 // WebChatMessage 聊天请求消息（content 以原始 JSON 透传，避免有损转换）
@@ -356,6 +366,12 @@ func (s *WebChatService) GetConfig(ctx context.Context, userID int64) (*WebChatC
 		Enabled:      settings.WebChatEnabled,
 		DefaultModel: settings.WebChatDefaultModel,
 		Models:       models,
+		Entrances: WebChatEntrances{
+			Chat:  settings.WebChatEntranceChat,
+			Draw:  settings.WebChatEntranceDraw,
+			TTS:   settings.WebChatEntranceTTS,
+			Music: settings.WebChatEntranceMusic,
+		},
 	}, nil
 }
 

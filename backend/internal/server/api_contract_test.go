@@ -1056,6 +1056,10 @@ func TestAPIContracts(t *testing.T) {
 					"web_chat_enabled": true,
 					"web_chat_models": "",
 					"web_chat_default_model": "",
+					"web_chat_entrance_chat": true,
+					"web_chat_entrance_draw": true,
+					"web_chat_entrance_tts": true,
+					"web_chat_entrance_music": true,
 					"student_verification_reward_enabled": false,
 					"student_verification_reward_campaign": "",
 					"student_verification_reward_amount": 0
@@ -1415,6 +1419,10 @@ func TestAPIContracts(t *testing.T) {
 					"web_chat_enabled": true,
 					"web_chat_models": "",
 					"web_chat_default_model": "",
+					"web_chat_entrance_chat": true,
+					"web_chat_entrance_draw": true,
+					"web_chat_entrance_tts": true,
+					"web_chat_entrance_music": true,
 					"student_verification_reward_enabled": false,
 					"student_verification_reward_campaign": "",
 					"student_verification_reward_amount": 0
@@ -1527,7 +1535,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 
-	adminService := service.NewAdminService(nil, userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminService := service.NewAdminService(nil, userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, apiKeyService, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, nil, nil)
@@ -1736,6 +1744,14 @@ func (r *stubUserRepo) ListUserAuthIdentities(ctx context.Context, userID int64)
 
 func (r *stubUserRepo) UnbindUserAuthProvider(context.Context, int64, string) error {
 	return errors.New("not implemented")
+}
+
+func (r *stubUserRepo) RevokeUserEducationEmailIdentities(ctx context.Context, userID int64) (int64, error) {
+	return 0, nil
+}
+
+func (r *stubUserRepo) ListVerifiedEducationEmailsByUserIDs(ctx context.Context, userIDs []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
 }
 
 func (r *stubUserRepo) GetLatestUsedAtByUserIDs(ctx context.Context, userIDs []int64) (map[int64]*time.Time, error) {
