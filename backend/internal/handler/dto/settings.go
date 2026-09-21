@@ -359,6 +359,12 @@ type SystemSettings struct {
 	WebChatEnabled      bool   `json:"web_chat_enabled"`
 	WebChatModels       string `json:"web_chat_models"`
 	WebChatDefaultModel string `json:"web_chat_default_model"`
+
+	// 大模型服务分组入口显示开关
+	WebChatEntranceChat  bool `json:"web_chat_entrance_chat"`
+	WebChatEntranceDraw  bool `json:"web_chat_entrance_draw"`
+	WebChatEntranceTTS   bool `json:"web_chat_entrance_tts"`
+	WebChatEntranceMusic bool `json:"web_chat_entrance_music"`
 }
 
 type DefaultSubscriptionSetting struct {

@@ -20,10 +20,19 @@ export interface WebChatModelInfo {
   api_only: boolean
 }
 
+export interface WebChatEntrances {
+  chat: boolean
+  draw: boolean
+  tts: boolean
+  music: boolean
+}
+
 export interface WebChatConfig {
   enabled: boolean
   default_model: string
   models: WebChatModelInfo[]
+  /** 大模型服务分组各入口显示开关（后台可配；缺省全显示） */
+  entrances?: Partial<WebChatEntrances>
 }
 
 export interface WebChatImageParams {

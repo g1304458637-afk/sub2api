@@ -928,13 +928,23 @@ const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
-// 网页聊天开关：控制 AI 对话 / 绘图两个门户入口的显隐。
-// config 为 null（尚未返回或加载失败）时默认显示；仅在配置成功加载且明确 enabled === false 时隐藏。
+// 网页聊天开关 + 后台入口显示开关：控制大模型服务分组内各入口的显隐。
+// config 为 null（尚未返回或加载失败）时默认显示；仅在配置成功加载且明确为 false 时隐藏。
 // getter 在 computed（finalizeNav → applyFeatureFlags）内求值，store 状态变化时菜单自动更新。
-const flagWebChatEntrance = (): boolean => webChatStore.config?.enabled !== false
+const flagWebChatEntrance =
+  (entrance: "chat" | "draw" | "tts" | "music") =>
+  (): boolean => {
+    const config = webChatStore.config
+    if (config?.enabled === false) return false
+    return config?.entrances?.[entrance] !== false
+  }
+const flagChatEntrance = flagWebChatEntrance("chat")
+const flagDrawEntrance = flagWebChatEntrance("draw")
+const flagTtsEntrance = flagWebChatEntrance("tts")
+const flagMusicEntrance = flagWebChatEntrance("music")
 
-// 会话列表显隐跟随网页聊天开关（配置未返回时默认显示），与 /chat、/draw 两个入口一致
-const showChatHistory = computed(() => webChatStore.config?.enabled !== false)
+// 会话列表显隐跟随 AI 对话入口（历史会话属于对话页；配置未返回时默认显示）
+const showChatHistory = computed(() => flagChatEntrance())
 
 // buildSelfNavGroups 构造用户自己的导航，按门户分成两个可折叠分组：
 // 「大模型服务」（AI 对话 / 绘图 / 下载 MUC）与「我的」（账户、密钥、用量、订阅等）。
@@ -948,12 +958,11 @@ const showChatHistory = computed(() => webChatStore.config?.enabled !== false)
 // 用户端不再展示「渠道状态」入口（/monitor 路由仍保留）。
 function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
   const llmItems: NavItem[] = [
-    // AI 对话 / 绘图：显隐跟随网页聊天开关（关闭时隐藏，配置未返回时默认显示）
-    { path: '/chat', label: t('nav.chat'), icon: ChatBubbleIcon, featureFlag: flagWebChatEntrance },
-    { path: '/draw', label: t('nav.draw'), icon: PaintBrushIcon, featureFlag: flagWebChatEntrance },
-    // 语音合成 / 音乐合成：同样跟随网页聊天开关
-    { path: '/tts', label: t('nav.tts'), icon: SpeakerIcon, featureFlag: flagWebChatEntrance },
-    { path: '/music', label: t('nav.music'), icon: MusicNoteIcon, featureFlag: flagWebChatEntrance },
+    // AI 对话 / 绘图 / 语音合成 / 音乐合成：显隐跟随网页聊天总开关 + 后台各入口显示开关
+    { path: '/chat', label: t('nav.chat'), icon: ChatBubbleIcon, featureFlag: flagChatEntrance },
+    { path: '/draw', label: t('nav.draw'), icon: PaintBrushIcon, featureFlag: flagDrawEntrance },
+    { path: '/tts', label: t('nav.tts'), icon: SpeakerIcon, featureFlag: flagTtsEntrance },
+    { path: '/music', label: t('nav.music'), icon: MusicNoteIcon, featureFlag: flagMusicEntrance },
     // MUC Harness: mucode 桌面端下载与一键连接
     { path: currentBrand.homePath, label: currentBrand.downloadLabel, icon: MucDownloadIcon },
   ]

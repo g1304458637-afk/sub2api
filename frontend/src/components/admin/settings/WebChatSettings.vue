@@ -24,6 +24,26 @@
       </div>
 
       <template v-if="enabled">
+        <!-- 大模型服务分组入口显示开关 -->
+        <div class="space-y-3 rounded-xl border border-gray-100 p-4 dark:border-dark-700">
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.settings.features.webChat.entrancesTitle') }}
+          </p>
+          <div
+            v-for="item in entranceToggles"
+            :key="item.key"
+            class="flex items-center justify-between"
+          >
+            <div>
+              <label class="text-sm text-gray-600 dark:text-gray-300">{{ item.label }}</label>
+              <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.features.webChat.entranceHint') }}
+              </p>
+            </div>
+            <Toggle v-model="item.model.value" />
+          </div>
+        </div>
+
         <!-- 默认模型 -->
         <div>
           <label class="input-label">
@@ -181,6 +201,10 @@ interface WebChatSettingsFormState {
   web_chat_enabled?: boolean
   web_chat_models?: string
   web_chat_default_model?: string
+  web_chat_entrance_chat?: boolean
+  web_chat_entrance_draw?: boolean
+  web_chat_entrance_tts?: boolean
+  web_chat_entrance_music?: boolean
 }
 
 const props = defineProps<{ form: WebChatSettingsFormState }>()
@@ -194,6 +218,22 @@ const enabled = computed({
     props.form.web_chat_enabled = value
   },
 })
+
+// 大模型服务分组各入口显示开关（缺省 = 显示，与后端解析语义一致）
+const entranceModel = (key: 'web_chat_entrance_chat' | 'web_chat_entrance_draw' | 'web_chat_entrance_tts' | 'web_chat_entrance_music') =>
+  computed({
+    get: () => props.form[key] !== false,
+    set: (value: boolean) => {
+      props.form[key] = value
+    },
+  })
+
+const entranceToggles = [
+  { key: 'web_chat_entrance_chat' as const, label: t('nav.chat'), model: entranceModel('web_chat_entrance_chat') },
+  { key: 'web_chat_entrance_draw' as const, label: t('nav.draw'), model: entranceModel('web_chat_entrance_draw') },
+  { key: 'web_chat_entrance_tts' as const, label: t('nav.tts'), model: entranceModel('web_chat_entrance_tts') },
+  { key: 'web_chat_entrance_music' as const, label: t('nav.music'), model: entranceModel('web_chat_entrance_music') },
+]
 
 const defaultModel = computed({
   get: () => props.form.web_chat_default_model ?? '',

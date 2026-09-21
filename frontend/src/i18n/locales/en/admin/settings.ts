@@ -148,6 +148,8 @@ export default {
           description: 'When enabled, users can chat and draw images directly on the web. The model list below controls what is exposed. Changes apply immediately after saving.',
           enabled: 'Enable Web Chat',
           enabledHint: 'When disabled, the web chat / draw entries are hidden for users; existing configuration is kept.',
+          entrancesTitle: 'LLM services entrance visibility',
+          entranceHint: 'When disabled, the entry is hidden from the user sidebar; APIs remain protected by the model allowlist.',
           defaultModel: 'Default Model',
           defaultModelPlaceholder: 'Select or enter a model ID',
           defaultModelEmpty: 'No available model; you can enter a custom model ID',

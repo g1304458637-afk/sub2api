@@ -148,6 +148,8 @@ export default {
           description: '启用后用户可在网页端直接使用聊天与绘图，模型列表决定对用户暴露的能力。保存后即时生效。',
           enabled: '启用网页聊天',
           enabledHint: '关闭后用户端网页聊天 / 绘图入口隐藏；已有配置保留。',
+          entrancesTitle: '大模型服务入口显示',
+          entranceHint: '关闭后普通用户侧边栏隐藏该入口；接口仍受模型白名单保护。',
           defaultModel: '默认模型',
           defaultModelPlaceholder: '选择或输入模型 ID',
           defaultModelEmpty: '暂无可用模型，可手动输入模型 ID',
