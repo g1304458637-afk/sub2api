@@ -136,7 +136,7 @@
               <p class="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">{{ t('user360.resetConfirmBody', { id: primarySubId }) }}</p>
               <div class="mt-4 flex justify-end gap-2">
                 <button class="rounded-lg px-3 py-1.5 text-sm text-gray-500" @click="resetConfirming = false">{{ t('common.cancel') }}</button>
-                <button class="rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-white dark:text-black" @click="confirmDirectReset">
+                <button class="rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-white/10 dark:text-white" @click="confirmDirectReset">
                   {{ t('user360.resetConfirmOk') }}
                 </button>
               </div>

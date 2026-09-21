@@ -1,6 +1,7 @@
 package service
 
 import (
+	"time"
 	"context"
 	"testing"
 
@@ -52,6 +53,14 @@ func (f *fakeRewardGrantRepo) ListByUser(ctx context.Context, userID int64, limi
 
 func (f *fakeRewardGrantRepo) CountByUser(ctx context.Context, userID int64) (int64, error) {
 	return 0, nil
+}
+
+func (f *fakeRewardGrantRepo) ListAll(ctx context.Context, userID *int64, limit, offset int) ([]RewardGrant, int64, error) {
+	return nil, 0, nil
+}
+
+func (f *fakeRewardGrantRepo) StatsRange(ctx context.Context, userID *int64, from, to time.Time) (int64, float64, error) {
+	return 0, 0, nil
 }
 
 func (f *fakeRewardGrantRepo) GetBySource(ctx context.Context, sourceType string, sourceID int64) ([]RewardGrant, error) {

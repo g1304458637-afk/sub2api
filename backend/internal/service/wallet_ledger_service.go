@@ -11,11 +11,11 @@ import (
 // WalletLedgerService 统一钱包流水（Final Frontend CLOSURE：解除 BLOCKED #1/#2）。
 //
 // 组合既有事实表，不新建账本、不改余额语义：
-//   - recharge  充值订单（payment_orders，order_type=balance，COMPLETED）
-//   - redeem    兑换码（redeem_codes，status=used）
+//   - recharge  充值到账（redeem_codes.type=balance 的已用码——余额充值的履约
+//     就是以自动兑换码入账，码表即充值流水；因此不再重复计 payment_orders）
+//   - redeem    其他来源兑换码（status=used）
 //   - reward    系统奖励（reward_grants：学生认证/活动等）
-//   - payg_day  按量消费日聚合（usage_logs.actual_cost 按天汇总；订阅扣减额度，
-//     钱包扣费的真实金额以此为准）
+//   - payg_day  按量消费日聚合（usage_logs.actual_cost 按天汇总）
 type WalletLedgerService struct {
 	entClient  *dbent.Client
 	rewardRepo RewardGrantRepository
@@ -41,30 +41,9 @@ func (s *WalletLedgerService) ListUserLedger(ctx context.Context, userID int64, 
 	perSource := limit
 	entries := make([]WalletLedgerEntry, 0, limit)
 
-	// recharge
+	// 兑换码（含余额充值履约码 type=balance 与普通兑换码；即全部余额入账流水）
 	rows, err := s.entClient.QueryContext(ctx, `
-SELECT pay_amount, out_trade_no, created_at
-FROM payment_orders
-WHERE user_id = $1 AND order_type = 'balance' AND status = 'COMPLETED'
-ORDER BY created_at DESC LIMIT $2`, userID, perSource)
-	if err != nil {
-		return nil, fmt.Errorf("ledger recharge: %w", err)
-	}
-	for rows.Next() {
-		var amount float64
-		var ref string
-		var at time.Time
-		if err := rows.Scan(&amount, &ref, &at); err != nil {
-			_ = rows.Close()
-			return nil, err
-		}
-		entries = append(entries, WalletLedgerEntry{Type: "recharge", Amount: amount, Ref: ref, CreatedAt: at})
-	}
-	_ = rows.Close()
-
-	// redeem
-	rows, err = s.entClient.QueryContext(ctx, `
-SELECT value, code, used_at
+SELECT value, code, type, used_at
 FROM redeem_codes
 WHERE used_by = $1 AND status = 'used'
 ORDER BY used_at DESC LIMIT $2`, userID, perSource)
@@ -73,13 +52,17 @@ ORDER BY used_at DESC LIMIT $2`, userID, perSource)
 	}
 	for rows.Next() {
 		var amount float64
-		var code string
+		var code, codeType string
 		var at time.Time
-		if err := rows.Scan(&amount, &code, &at); err != nil {
+		if err := rows.Scan(&amount, &code, &codeType, &at); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
-		entries = append(entries, WalletLedgerEntry{Type: "redeem", Amount: amount, Ref: code, CreatedAt: at})
+		entryType := "redeem"
+		if codeType == "balance" {
+			entryType = "recharge"
+		}
+		entries = append(entries, WalletLedgerEntry{Type: entryType, Amount: amount, Ref: code, CreatedAt: at})
 	}
 	_ = rows.Close()
 

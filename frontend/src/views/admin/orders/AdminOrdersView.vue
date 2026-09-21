@@ -11,7 +11,7 @@
             :aria-selected="financeTab === tab"
             class="flex-1 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
             :class="financeTab === tab
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+              ? 'bg-gray-900 text-white dark:bg-white/10 dark:text-white'
               : 'text-gray-600 hover:bg-gray-100 dark:text-dark-300 dark:hover:bg-dark-700'"
             @click="switchFinanceTab(tab)"
           >
