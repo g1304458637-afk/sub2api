@@ -248,12 +248,12 @@ func campusPublicGatewayURL(c *gin.Context) string {
 	return scheme + "://" + c.Request.Host
 }
 
-// mucTruncateDeviceName 按 rune 截断设备名（保证 UTF-8 完整，中文不被切碎），
+// campusTruncateDeviceName 按 rune 截断设备名（保证 UTF-8 完整，中文不被切碎），
 // 并确保 html.EscapeString 转义后的长度不超过 api_keys.name 列宽。
 func campusTruncateDeviceName(name string) string {
 	runes := []rune(name)
 	if len(runes) > campusMaxDeviceRunes {
-		runes = runes[:mucMaxDeviceRunes]
+		runes = runes[:campusMaxDeviceRunes]
 	}
 	for len(html.EscapeString(string(runes))) > campusMaxStoredName && len(runes) > 0 {
 		runes = runes[:len(runes)-1]
@@ -261,7 +261,7 @@ func campusTruncateDeviceName(name string) string {
 	return string(runes)
 }
 
-// mucMaskEmail 兑换响应会连同授权码一起留在客户端与浏览器历史里，
+// campusMaskEmail 兑换响应会连同授权码一起留在客户端与浏览器历史里，
 // 邮箱只回显足以辨识的脱敏形式。
 func campusMaskEmail(email string) string {
 	at := strings.LastIndex(email, "@")
