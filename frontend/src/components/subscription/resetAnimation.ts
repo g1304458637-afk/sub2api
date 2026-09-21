@@ -64,24 +64,27 @@ export function mucTween(options: TweenOptions): () => void {
     onDone?.()
     return () => {}
   }
-  let rafId = 0
+  // interval 驱动（非 rAF）：遮挡窗口 rAF 停发会让动画冻结；interval 前台平滑、
+  // 后台节流仍推进，保证动画必然完成且无常驻 CPU。
+  let timer = 0
   let start = 0
   let cancelled = false
-  const step = (ts: number) => {
+  const step = () => {
     if (cancelled) return
-    if (!start) start = ts
-    const progress = Math.min((ts - start) / durationMs, 1)
+    const now = performance.now()
+    if (!start) start = now
+    const progress = Math.min((now - start) / durationMs, 1)
     onUpdate(from + (to - from) * ease(progress))
-    if (progress < 1) {
-      rafId = requestAnimationFrame(step)
-    } else {
+    if (progress >= 1) {
+      clearInterval(timer)
+      timer = 0
       onDone?.()
     }
   }
-  rafId = requestAnimationFrame(step)
+  timer = window.setInterval(step, 16)
   return () => {
     cancelled = true
-    if (rafId) cancelAnimationFrame(rafId)
+    if (timer) clearInterval(timer)
   }
 }
 
