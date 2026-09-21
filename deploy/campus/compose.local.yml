@@ -26,6 +26,8 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?generate a unique local password}
       DATA_DIR: /app/data
       DOWNLOADS_DIR: /app/downloads
+      CAMPUS_LOCAL_BUILD: "1"
+      CAMPUS_PAYG_GROUP_ID: ${CAMPUS_PAYG_GROUP_ID:-}
       MUC_GATEWAY_URL: ${MUC_GATEWAY_URL:-}
       MUC_PUBLIC_URL: ${MUC_PUBLIC_URL:-}
       MUC_ADMIN_URL: ${MUC_ADMIN_URL:-}

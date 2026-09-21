@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -140,7 +141,15 @@ type ResetTargetSample struct {
 }
 
 // ResetCardStore Reset Card 持久化端口。
+type ResetCardOperation struct {
+	Status string                  `json:"status"`
+	Result *ConsumeResetCardResult `json:"result,omitempty"`
+}
+
 type ResetCardStore interface {
+	LockOperation(context.Context, int64, int64, string, string) (*ResetCardOperation, error)
+	CompleteOperation(context.Context, int64, string, *ConsumeResetCardResult) error
+	CancelOperation(context.Context, int64, string) error
 	SubscriptionResetCardReader
 	GrantCards(ctx context.Context, eventID int64, targets []GrantCardTarget, expiresAt *time.Time, sourceType string, createdBy *int64, notes string) (int, error)
 	GetAvailableForUserForUpdate(ctx context.Context, userID int64, now time.Time) (*ResetCard, error)
@@ -333,7 +342,7 @@ func (s *ResetCardService) ConsumeForSubscription(ctx context.Context, userID, s
 		Payload:        map[string]any{"user_id": userID, "subscription_id": subscriptionID},
 		RequireKey:     true,
 	}, func(ctx context.Context) (any, error) {
-		return s.consumeOnce(ctx, userID, subscriptionID)
+		return s.consumeOnce(ctx, userID, subscriptionID, idempotencyKey)
 	})
 	if err != nil {
 		return nil, err
@@ -341,7 +350,7 @@ func (s *ResetCardService) ConsumeForSubscription(ctx context.Context, userID, s
 	return decodeSubscriptionOperationResult[ConsumeResetCardResult](execRes.Data)
 }
 
-func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscriptionID int64) (*ConsumeResetCardResult, error) {
+func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscriptionID int64, key string) (*ConsumeResetCardResult, error) {
 	if s.entClient == nil {
 		return nil, errors.New("reset card: storage unavailable")
 	}
@@ -361,6 +370,16 @@ func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscription
 	}
 	if sub.UserID != userID {
 		return nil, ErrSubscriptionNotFound // 不向越权者泄露存在性
+	}
+	operation, err := s.store.LockOperation(txCtx, userID, subscriptionID, key, "pending")
+	if err != nil {
+		return nil, err
+	}
+	if operation.Status == "succeeded" {
+		return operation.Result, nil
+	}
+	if operation.Status == "cancelled" {
+		return nil, infraerrors.Conflict("RESET_OPERATION_CANCELLED", "reset operation was reconciled as not executed")
 	}
 	if sub.Status != SubscriptionStatusActive || !sub.ExpiresAt.After(now) {
 		return nil, ErrSubscriptionExpired
@@ -398,19 +417,18 @@ func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscription
 		// stale（锚点已 >= now）：整体回滚，卡不白烧
 		return nil, ErrResetCardNotNeeded
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 	var periodEnds *time.Time
 	if result.Subscription != nil {
 		periodEnds = result.Subscription.WeeklyResetTime()
 	}
-	return &ConsumeResetCardResult{
-		CardID:             card.ID,
-		SubscriptionID:     subscriptionID,
-		Applied:            true,
-		WeeklyPeriodEndsAt: periodEnds,
-	}, nil
+	receipt := &ConsumeResetCardResult{CardID: card.ID, SubscriptionID: subscriptionID, Applied: true, WeeklyPeriodEndsAt: periodEnds}
+	if err := s.store.CompleteOperation(txCtx, userID, key, receipt); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return receipt, nil
 }
 
 // resetScopeTypeFor：selector mode → events.scope_type
@@ -451,4 +469,84 @@ func nonZero64Ptr(v int64) *int64 {
 		return nil
 	}
 	return &v
+}
+
+// ReconcileResetOperation also fences a never-executed v2 operation. A delayed POST
+// with that key can then never consume a card after the client creates its next key.
+func (s *ResetCardService) ReconcileResetOperation(ctx context.Context, userID, subscriptionID int64, key string) (*ResetCardOperation, error) {
+	return s.resolveResetOperation(ctx, userID, subscriptionID, key, false)
+}
+func (s *ResetCardService) PrepareResetOperation(ctx context.Context, userID, subscriptionID int64, key string) (*ResetCardOperation, error) {
+	return s.resolveResetOperation(ctx, userID, subscriptionID, key, true)
+}
+func (s *ResetCardService) resolveResetOperation(ctx context.Context, userID, subscriptionID int64, key string, prepare bool) (*ResetCardOperation, error) {
+	if key == "" || len(key) > 128 {
+		return nil, ErrIdempotencyKeyRequired
+	}
+	if s.entClient == nil {
+		return nil, errors.New("reset card storage unavailable")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	sub, err := s.subRepo.GetByIDForUpdate(txCtx, subscriptionID)
+	if err != nil || sub == nil || sub.UserID != userID {
+		return nil, ErrSubscriptionNotFound
+	}
+	initial := ""
+	if strings.HasPrefix(key, "reset-v2-") {
+		initial = "cancelled"
+		if prepare {
+			initial = "pending"
+		}
+	}
+	operation, err := s.store.LockOperation(txCtx, userID, subscriptionID, key, initial)
+	if err != nil {
+		return nil, err
+	}
+	// Legacy clients lack durable receipts, but an intact authenticated cached
+	// success can still be recovered. Absence/expiry alone never proves non-execution.
+	if operation.Status == "unknown" {
+		coordinator := DefaultIdempotencyCoordinator()
+		if coordinator != nil && coordinator.repo != nil {
+			record, lookupErr := coordinator.repo.GetByScopeAndKeyHash(txCtx, "subscription.reset_card.consume", HashIdempotencyKey(key))
+			if lookupErr != nil {
+				return nil, lookupErr
+			}
+			fingerprint, fingerprintErr := BuildIdempotencyFingerprint("POST", "/subscriptions/:id/reset-with-card", fmt.Sprintf("user:%d", userID), map[string]any{"user_id": userID, "subscription_id": subscriptionID})
+			if fingerprintErr != nil {
+				return nil, fingerprintErr
+			}
+			if record != nil && record.RequestFingerprint == fingerprint && record.Status == IdempotencyStatusSucceeded {
+				data, decodeErr := coordinator.decodeStoredResponse(record.ResponseBody)
+				if decodeErr != nil {
+					return nil, decodeErr
+				}
+				result, decodeErr := decodeSubscriptionOperationResult[ConsumeResetCardResult](data)
+				if decodeErr != nil {
+					return nil, decodeErr
+				}
+				if _, err := s.store.LockOperation(txCtx, userID, subscriptionID, key, "pending"); err != nil {
+					return nil, err
+				}
+				if err := s.store.CompleteOperation(txCtx, userID, key, result); err != nil {
+					return nil, err
+				}
+				operation = &ResetCardOperation{Status: "succeeded", Result: result}
+			}
+		}
+	}
+	if !prepare && operation.Status == "pending" {
+		if err := s.store.CancelOperation(txCtx, userID, key); err != nil {
+			return nil, err
+		}
+		operation.Status = "cancelled"
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return operation, nil
 }

@@ -39,6 +39,7 @@ type stubKeyManager struct {
 	// GetUserGroupVisibility 桩返回值：restrict=true 时 handler 应绑定 allowedGroups 中最小 ID
 	allowedGroups map[int64]struct{}
 	restrict      bool
+	visibilityErr error
 }
 
 func newStubKeyManager() *stubKeyManager {
@@ -50,7 +51,7 @@ func newStubKeyManager() *stubKeyManager {
 }
 
 func (s *stubKeyManager) GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error) {
-	return s.allowedGroups, s.restrict, nil
+	return s.allowedGroups, s.restrict, s.visibilityErr
 }
 
 func (s *stubKeyManager) Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error) {
@@ -88,20 +89,27 @@ func (s *stubKeyManager) SearchAPIKeys(ctx context.Context, userID int64, keywor
 }
 
 type stubGroupLookup struct {
-	groups []*int64
+	group *service.Group
+	err   error
 }
 
-func (s stubGroupLookup) DefaultGroupIDWithAccounts(ctx context.Context) (*int64, error) {
-	if len(s.groups) == 0 {
+func (s stubGroupLookup) GetByID(context.Context, int64) (*service.Group, error) {
+	return s.group, s.err
+}
+
+type stubDesktopSubscriptions struct {
+	groupID int64
+	err     error
+}
+
+func (s stubDesktopSubscriptions) ListActiveUserSubscriptions(_ context.Context, userID int64) ([]service.UserSubscription, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.groupID == 0 {
 		return nil, nil
 	}
-	smallest := *s.groups[0]
-	for _, g := range s.groups[1:] {
-		if g != nil && *g < smallest {
-			smallest = *g
-		}
-	}
-	return &smallest, nil
+	return []service.UserSubscription{{UserID: userID, GroupID: s.groupID, Status: service.SubscriptionStatusActive, ExpiresAt: time.Now().Add(time.Hour)}}, nil
 }
 
 type stubUserLookup struct {
@@ -144,13 +152,15 @@ func (s *stubCodeStore) setInfraErr(err error) {
 func newMucTestEnv(t *testing.T) (*MucConnectHandler, *miniredis.Miniredis, *stubKeyManager) {
 	t.Helper()
 	mr := miniredis.RunT(t)
-	h := NewMucConnectHandler(nil, nil, nil, nil)
+	h := NewMucConnectHandler(nil, nil, nil, nil, nil)
 	h.codes = &stubCodeStore{mr: mr}
 	creator := newStubKeyManager()
 	creator.key = &service.APIKey{Key: "sk-muc-test-key", Name: "MUC test"}
 	// 替换 keys/user 为可观察桩
 	h.keys = creator
-	h.userLookup = &stubUserLookup{user: &service.User{Email: "student@muc.edu.cn"}}
+	h.userLookup = &stubUserLookup{user: &service.User{Email: "student@muc.edu.cn", Status: service.StatusActive, Balance: 10}}
+	h.subscriptions = stubDesktopSubscriptions{groupID: 5}
+	h.groupLookup = stubGroupLookup{group: &service.Group{ID: 5, Status: service.StatusActive, SubscriptionType: service.SubscriptionTypeSubscription}}
 	return h, mr, creator
 }
 
@@ -169,7 +179,7 @@ func mucCtxWithBody(t *testing.T, body string) (*gin.Context, *httptest.Response
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/muc/exchange", strings.NewReader(body))
+	c.Request = httptest.NewRequest(http.MethodPost, "https://admin.wuxuexi.top/api/v1/muc/exchange", strings.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	return c, w
 }
@@ -213,74 +223,48 @@ func TestMucConnectCode_IssuesCode(t *testing.T) {
 	}
 }
 
-// 未限定分组用户（管理员测试号）：自动绑定挂有可调度账号的最小分组。
-func TestMucExchange_UnrestrictedUserBindsGroupWithAccounts(t *testing.T) {
-	h, mr, creator := newMucTestEnv(t)
-	g14 := int64(14)
-	g99 := int64(99)
-	h.groupLookup = stubGroupLookup{groups: []*int64{&g99, &g14}} // 返回顺序不应影响结果
-
-	issue := func(code string, userID int64) {
-		sum := sha256Hex(code)
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
-		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
-	}
-	issue("unres-code-11111111111111111", 42)
-
-	c, w := mucCtxWithBody(t, `{"code":"unres-code-11111111111111111","device_name":"admin测试"}`)
-	h.Exchange(c)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-	got := creator.lastReq.GroupID
-	if got == nil || *got != 14 {
-		t.Fatalf("expected group 14 (smallest with accounts), got %v", got)
-	}
-}
-
-// 限定分组的用户换码：Key 必须绑定其允许分组中 ID 最小的一个，
-// 否则生产 allow_ungrouped_key_scheduling=false 时 Key 无法调用网关。
-func TestMucExchange_BindsSmallestAllowedGroup(t *testing.T) {
-	h, mr, creator := newMucTestEnv(t)
-	creator.allowedGroups = map[int64]struct{}{14: {}, 7: {}, 21: {}}
-	creator.restrict = true
-
-	issue := func(code string, userID int64) {
-		sum := sha256Hex(code)
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
-		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
-	}
-	issue("group-code-1111111111111111", 42)
-
-	c, w := mucCtxWithBody(t, `{"code":"group-code-1111111111111111","device_name":"测试设备"}`)
-	h.Exchange(c)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-	got := creator.lastReq.GroupID
-	if got == nil || *got != 7 {
-		t.Fatalf("expected group 7 (smallest allowed), got %v", got)
-	}
-}
-
-// 未限定分组的管理员：保持 NULL，沿用站点未分组调度策略。
-func TestMucExchange_UnrestrictedUserKeepsNullGroup(t *testing.T) {
-	h, mr, creator := newMucTestEnv(t)
-
-	issue := func(code string, userID int64) {
-		sum := sha256Hex(code)
-		payload, _ := json.Marshal(mucCodePayload{UserID: userID, Brand: "muc", Audience: "muc:desktop"})
-		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
-	}
-	issue("nullgrp-code-111111111111111", 42)
-
-	c, w := mucCtxWithBody(t, `{"code":"nullgrp-code-111111111111111","device_name":"admin"}`)
-	h.Exchange(c)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-	if creator.lastReq.GroupID != nil {
-		t.Fatalf("expected nil group for unrestricted user, got %v", *creator.lastReq.GroupID)
+func TestMucExchangeResolvesAuthoritativeGroup(t *testing.T) {
+	for _, name := range []string{"active", "wallet", "visibility_error", "subscription_error", "group_error", "invisible", "no_subscription", "missing_group", "inactive_group"} {
+		t.Run(name, func(t *testing.T) {
+			h, mr, creator := newMucTestEnv(t)
+			h.paygGroupID = 2
+			want := int64(5)
+			switch name {
+			case "wallet":
+				h.subscriptions = stubDesktopSubscriptions{}
+				h.groupLookup = stubGroupLookup{group: &service.Group{ID: 2, Status: service.StatusActive}}
+				want = 2
+			case "visibility_error":
+				creator.visibilityErr = errors.New("unavailable")
+			case "subscription_error":
+				h.subscriptions = stubDesktopSubscriptions{err: errors.New("unavailable")}
+			case "group_error":
+				h.groupLookup = stubGroupLookup{err: errors.New("unavailable")}
+			case "invisible":
+				creator.restrict = true
+				creator.allowedGroups = map[int64]struct{}{2: {}}
+			case "no_subscription":
+				h.subscriptions = stubDesktopSubscriptions{}
+				h.paygGroupID = 0
+			case "missing_group":
+				h.groupLookup = stubGroupLookup{}
+			case "inactive_group":
+				h.groupLookup = stubGroupLookup{group: &service.Group{ID: 5, Status: service.StatusDisabled, SubscriptionType: service.SubscriptionTypeSubscription}}
+			}
+			payload, _ := json.Marshal(mucCodePayload{UserID: 42, Brand: "muc", Audience: "muc:desktop"})
+			require.NoError(t, mr.Set(mucCodeKeyPrefix+sha256Hex("resolver-code"), string(payload)))
+			c, w := mucCtxWithBody(t, `{"code":"resolver-code"}`)
+			h.Exchange(c)
+			if name == "active" || name == "wallet" {
+				require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+				require.NotNil(t, creator.lastReq.GroupID)
+				require.Equal(t, want, *creator.lastReq.GroupID)
+				require.Equal(t, 1, creator.calls)
+				return
+			}
+			require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+			require.Zero(t, creator.calls)
+		})
 	}
 }
 
@@ -572,6 +556,32 @@ func TestCampusExchangeIsolationAndAudience(t *testing.T) {
 			h.Exchange(c)
 			require.Equal(t, 404, w.Code)
 			require.Equal(t, 1, creator.calls)
+		})
+	}
+}
+
+func TestCampusGatewayOrigin(t *testing.T) {
+	for _, tc := range []struct {
+		url, forwarded string
+		ok             bool
+	}{
+		{"https://admin.wuxuexi.top/api/v1/muc/exchange", "", true},
+		{"http://admin.wuxuexi.top/api/v1/muc/exchange", "https", true},
+		{"http://admin.wuxuexi.top/api/v1/muc/exchange", "", false},
+		{"https://wrong.example/api/v1/muc/exchange", "", false},
+	} {
+		t.Run(tc.url+tc.forwarded, func(t *testing.T) {
+			h, _, _ := newMucTestEnv(t)
+			c, _ := mucCtxWithBody(t, `{}`)
+			c.Request = httptest.NewRequest(http.MethodPost, tc.url, nil)
+			c.Request.Header.Set("X-Forwarded-Proto", tc.forwarded)
+			gateway, err := campusGatewayForRequest(c, h.campusBrand())
+			if tc.ok {
+				require.NoError(t, err)
+				require.Equal(t, "https://admin.wuxuexi.top", gateway)
+			} else {
+				require.Error(t, err)
+			}
 		})
 	}
 }
