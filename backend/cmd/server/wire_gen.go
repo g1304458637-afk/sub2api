@@ -349,7 +349,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageCleanupService := service.ProvideBatchImageCleanupService(batchImageRepository, accountRepository, configConfig)
 	batchImageHandler := handler.ProvideBatchImageHandler(batchImagePublicService, batchImageDownloadService, batchImageCleanupService, openAIGatewayHandler)
 	codeStore := muccode.NewCodeStore(redisClient)
-	mucConnectHandler := handler.NewMucConnectHandler(codeStore, apiKeyService, userService, gatewayService)
+	mucConnectHandler := handler.NewMucConnectHandler(codeStore, apiKeyService, userService, groupService, subscriptionService)
 	researchApplicationHandler := handler.NewResearchApplicationHandler(researchApplicationService)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	openAIQuotaAutoResetService := service.ProvideOpenAIQuotaAutoResetService(accountRepository, openAIQuotaService, rateLimitService, idempotencyCoordinator, auditLogService, settingService, leaderLockCache)

@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"sort"
+	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,26 +61,40 @@ type mucKeyManager interface {
 	GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error)
 }
 
-// 未限定分组用户（如管理员测试号）的默认分组来源：取挂有可调度账号的最小分组
 type mucGroupLookup interface {
-	DefaultGroupIDWithAccounts(ctx context.Context) (*int64, error)
+	GetByID(context.Context, int64) (*service.Group, error)
+}
+type mucSubscriptionLookup interface {
+	ListActiveUserSubscriptions(context.Context, int64) ([]service.UserSubscription, error)
 }
 
 type MucConnectHandler struct {
-	brand       campus.Brand
-	codes       mucCodeStore
-	keys        mucKeyManager
-	userLookup  mucUserLookup
-	groupLookup mucGroupLookup
+	brand         campus.Brand
+	codes         mucCodeStore
+	keys          mucKeyManager
+	userLookup    mucUserLookup
+	groupLookup   mucGroupLookup
+	subscriptions mucSubscriptionLookup
+	paygGroupID   int64
 }
 
-func NewMucConnectHandler(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, gatewayService *service.GatewayService) *MucConnectHandler {
+func NewMucConnectHandler(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, groupService *service.GroupService, subscriptionService *service.SubscriptionService) *MucConnectHandler {
+	paygGroupID := int64(0)
+	if configured := strings.TrimSpace(os.Getenv("CAMPUS_PAYG_GROUP_ID")); configured != "" {
+		parsed, err := strconv.ParseInt(configured, 10, 64)
+		if err != nil || parsed <= 0 {
+			panic("invalid CAMPUS_PAYG_GROUP_ID")
+		}
+		paygGroupID = parsed
+	}
 	return &MucConnectHandler{
-		brand:       campus.Current(),
-		codes:       codeStore,
-		keys:        apiKeyService,
-		userLookup:  userService,
-		groupLookup: gatewayService,
+		brand:         campus.Current(),
+		codes:         codeStore,
+		keys:          apiKeyService,
+		userLookup:    userService,
+		groupLookup:   groupService,
+		subscriptions: subscriptionService,
+		paygGroupID:   paygGroupID,
 	}
 }
 
@@ -165,6 +181,11 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		return
 	}
 
+	gateway, err := campusGatewayForRequest(c, brand)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "gateway_origin_mismatch"})
+		return
+	}
 	deviceName := brand.DeviceHint
 	if req.DeviceName != "" {
 		deviceName = brand.KeyPrefix + mucTruncateDeviceName(req.DeviceName)
@@ -176,25 +197,10 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 	// 以绑定用户身份创建 per-device Key（明文只在创建响应中出现一次）。
 	// 先建后删：创建失败时旧 Key 仍然有效，设备不致凭据全失。
 	//
-	// MUC Harness: 自动绑定分组。生产 allow_ungrouped_key_scheduling=false，
-	// 无分组 Key 虽可列出模型但无法被调度对话；mucode 是免配置产品，Key 必须开箱可用：
-	// - 用户被限定分组（RestrictPublicGroups）时绑其允许分组（多个取最小 ID，稳定可预期）；
-	// - 未限定用户（管理员测试号等）绑挂有可调度账号的最小分组；
-	// - 两者都取不到时保持 NULL，沿用站点的未分组调度策略。
-	var keyGroupID *int64
-	if allowed, restrict, err := h.keys.GetUserGroupVisibility(c.Request.Context(), payloadData.UserID); err == nil && restrict {
-		ids := make([]int64, 0, len(allowed))
-		for id := range allowed {
-			ids = append(ids, id)
-		}
-		if len(ids) > 0 {
-			sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-			keyGroupID = &ids[0]
-		}
-	} else if h.groupLookup != nil {
-		if gid, err := h.groupLookup.DefaultGroupIDWithAccounts(c.Request.Context()); err == nil && gid != nil {
-			keyGroupID = gid
-		}
+	keyGroupID, err := h.resolveDesktopGroup(c.Request.Context(), payloadData.UserID)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "desktop_group_unavailable"})
+		return
 	}
 	key, err := h.keys.Create(c.Request.Context(), payloadData.UserID, service.CreateAPIKeyRequest{
 		Name:    deviceName,
@@ -223,10 +229,6 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		}
 	}
 
-	gateway := brand.GatewayURL
-	if gateway == "" {
-		gateway = mucPublicGatewayURL(c)
-	}
 	response.Success(c, gin.H{
 		"brand": brand.ID, "audience": brand.Audience(),
 		"gateway":  gateway,
@@ -286,4 +288,80 @@ func (h *MucConnectHandler) campusBrand() campus.Brand {
 		return campus.Current()
 	}
 	return h.brand
+}
+
+// resolveDesktopGroup never guesses a billing group. The consolidated schema permits
+// one active primary subscription; ambiguous legacy rows are rejected until repaired.
+func (h *MucConnectHandler) resolveDesktopGroup(ctx context.Context, userID int64) (*int64, error) {
+	if h.keys == nil || h.userLookup == nil || h.subscriptions == nil || h.groupLookup == nil {
+		return nil, errors.New("desktop group resolver unavailable")
+	}
+	allowed, restricted, err := h.keys.GetUserGroupVisibility(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	user, err := h.userLookup.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || !user.IsActive() {
+		return nil, errors.New("inactive user")
+	}
+	subscriptions, err := h.subscriptions.ListActiveUserSubscriptions(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	var groupID int64
+	for _, sub := range subscriptions {
+		if sub.UserID != userID || !sub.IsActive() || sub.StartsAt.After(time.Now()) {
+			return nil, errors.New("invalid active subscription")
+		}
+		if groupID != 0 {
+			return nil, errors.New("ambiguous primary subscription")
+		}
+		groupID = sub.GroupID
+	}
+	hasSubscription := len(subscriptions) > 0
+	if !hasSubscription {
+		// Wallet-only access is opt-in through an explicitly configured standard group.
+		if h.paygGroupID <= 0 || user.Balance <= 0 {
+			return nil, errors.New("wallet access unavailable")
+		}
+		groupID = h.paygGroupID
+	}
+	if groupID <= 0 {
+		return nil, errors.New("missing desktop group")
+	}
+	if restricted {
+		if _, ok := allowed[groupID]; !ok {
+			return nil, errors.New("desktop group not visible")
+		}
+	}
+	group, err := h.groupLookup.GetByID(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil || group.ID != groupID || group.Status != service.StatusActive || group.IsSubscriptionType() != hasSubscription {
+		return nil, errors.New("invalid desktop billing group")
+	}
+	if !hasSubscription && !user.CanBindGroup(group.ID, group.IsExclusive) {
+		return nil, errors.New("wallet group not permitted")
+	}
+	return &groupID, nil
+}
+
+func campusGatewayForRequest(c *gin.Context, brand campus.Brand) (string, error) {
+	requested, err := url.Parse(mucPublicGatewayURL(c))
+	if err != nil || requested.Host == "" || requested.User != nil || requested.RawQuery != "" || requested.Fragment != "" {
+		return "", errors.New("invalid request origin")
+	}
+	local := os.Getenv("CAMPUS_LOCAL_BUILD") == "1" && (requested.Hostname() == "localhost" || requested.Hostname() == "127.0.0.1" || requested.Hostname() == "::1")
+	if requested.Scheme != "https" && !(local && requested.Scheme == "http") {
+		return "", errors.New("HTTPS required")
+	}
+	origin := requested.Scheme + "://" + requested.Host
+	if brand.GatewayURL != "" && strings.TrimRight(brand.GatewayURL, "/") != origin {
+		return "", errors.New("gateway origin mismatch")
+	}
+	return origin, nil
 }

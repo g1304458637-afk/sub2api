@@ -346,7 +346,24 @@ func isAsyncImageTaskRead(method, path string) bool {
 }
 
 func isSubscriptionResetRequest(method, path string) bool {
-	return method == http.MethodPost && strings.HasPrefix(path, "/muc/reset-with-card/")
+	if method != http.MethodPost || !strings.HasPrefix(path, "/v1/muc/reset-with-card/") {
+		return false
+	}
+	id := strings.TrimPrefix(path, "/v1/muc/reset-with-card/")
+	if strings.HasSuffix(id, "/reconcile") {
+		id = strings.TrimSuffix(id, "/reconcile")
+	} else if strings.HasSuffix(id, "/prepare") {
+		id = strings.TrimSuffix(id, "/prepare")
+	}
+	if id == "" {
+		return false
+	}
+	for _, digit := range id {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+	return strings.TrimLeft(id, "0") != ""
 }
 
 // GetAPIKeyFromContext 从上下文中获取API key

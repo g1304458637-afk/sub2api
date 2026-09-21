@@ -235,6 +235,8 @@ func RegisterGatewayRoutes(
 		//（MUCODE 只持有 per-device API Key，无网站 JWT）。订阅 ID 来自 /v1/usage 的
 		// subscription_status 合同，服务端仍校验 Key 归属用户的订阅，不可跨用户消费。
 		gateway.POST("/muc/reset-with-card/:id", h.Subscription.ResetWithCard)
+		gateway.POST("/muc/reset-with-card/:id/reconcile", h.Subscription.ReconcileResetCard)
+		gateway.POST("/muc/reset-with-card/:id/prepare", h.Subscription.ReconcileResetCard)
 		gateway.POST("/live", h.OpenAIGateway.Live)
 		gateway.GET("/live/:call_id", h.OpenAIGateway.LiveSideband)
 		// OpenAI Responses API: auto-route based on group platform
