@@ -31,11 +31,15 @@ type UpdateSettingsRequest struct {
 	PasswordResetEnabled                bool                         `json:"password_reset_enabled"`
 	FrontendURL                         string                       `json:"frontend_url"`
 	InvitationCodeEnabled               bool                         `json:"invitation_code_enabled"`
-	TotpEnabled                         bool                         `json:"totp_enabled"`             // TOTP 双因素认证
-	PasskeyEnabled                      *bool                        `json:"passkey_enabled"`          // Passkey 登录（省略=保持现值）
-	SessionBindingEnabled               *bool                        `json:"session_binding_enabled"`  // 会话 IP/UA 绑定（省略=保持现值）
-	StepUpEnabled                       *bool                        `json:"step_up_enabled"`          // 敏感操作 step-up 2FA（省略=保持现值）
-	AuditLogRetentionDays               int                          `json:"audit_log_retention_days"` // 审计日志保留天数
+	TotpEnabled                         bool                         `json:"totp_enabled"`                         // TOTP 双因素认证
+	EducationEmailVerificationEnabled   *bool                        `json:"education_email_verification_enabled"` // 校园邮箱认证（省略=保持现值）
+	StudentVerificationRewardEnabled    *bool                        `json:"student_verification_reward_enabled"`  // 学生认证奖励发放开关（省略=保持现值）
+	StudentVerificationRewardAmount     float64                      `json:"student_verification_reward_amount"`   // 学生认证奖励金额
+	StudentVerificationRewardCampaign   string                       `json:"student_verification_reward_campaign"` // 学生认证奖励活动标识
+	PasskeyEnabled                      *bool                        `json:"passkey_enabled"`                      // Passkey 登录（省略=保持现值）
+	SessionBindingEnabled               *bool                        `json:"session_binding_enabled"`              // 会话 IP/UA 绑定（省略=保持现值）
+	StepUpEnabled                       *bool                        `json:"step_up_enabled"`                      // 敏感操作 step-up 2FA（省略=保持现值）
+	AuditLogRetentionDays               int                          `json:"audit_log_retention_days"`             // 审计日志保留天数
 	LoginAgreementEnabled               bool                         `json:"login_agreement_enabled"`
 	LoginAgreementMode                  string                       `json:"login_agreement_mode"`
 	LoginAgreementUpdatedAt             string                       `json:"login_agreement_updated_at"`
@@ -308,6 +312,7 @@ type UpdateSettingsRequest struct {
 	PaymentEnabledTypes              []string `json:"payment_enabled_types"`
 	PaymentBalanceDisabled           *bool    `json:"payment_balance_disabled"`
 	PaymentBalanceRechargeMultiplier *float64 `json:"payment_balance_recharge_multiplier"`
+	PaymentUSDToCNYDisplayRate       *float64 `json:"payment_usd_to_cny_display_rate"`
 	PaymentSubscriptionUSDToCNYRate  *float64 `json:"payment_subscription_usd_to_cny_rate"`
 	PaymentRechargeFeeRate           *float64 `json:"payment_recharge_fee_rate"`
 	PaymentLoadBalanceStrat          *string  `json:"payment_load_balance_strategy"`
@@ -384,6 +389,12 @@ type UpdateSettingsRequest struct {
 	AuthSourceDingTalkPlatformQuotas map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_dingtalk_platform_quotas"`
 
 	AllowUserViewErrorRequests *bool `json:"allow_user_view_error_requests"`
+
+	// 网页聊天 / 网页绘图设置（值类型字段：JSON name 与 setting key 同名，
+	// 由 buildSettingKeyByJSONName 自动纳入 omitted 语义——未发送=保留现值）
+	WebChatEnabled      bool   `json:"web_chat_enabled"`
+	WebChatModels       string `json:"web_chat_models"`
+	WebChatDefaultModel string `json:"web_chat_default_model"`
 }
 
 // UpdateSettings 更新系统设置
@@ -522,6 +533,19 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.PasskeyEnabled != nil {
 		passkeyEnabled = *req.PasskeyEnabled
 	}
+	educationEmailVerificationEnabled := previousSettings.EducationEmailVerificationEnabled
+	if req.EducationEmailVerificationEnabled != nil {
+		educationEmailVerificationEnabled = *req.EducationEmailVerificationEnabled
+	}
+	studentVerificationRewardEnabled := previousSettings.StudentVerificationRewardEnabled
+	if req.StudentVerificationRewardEnabled != nil {
+		studentVerificationRewardEnabled = *req.StudentVerificationRewardEnabled
+	}
+	studentVerificationRewardAmount := req.StudentVerificationRewardAmount
+	if studentVerificationRewardAmount < 0 {
+		studentVerificationRewardAmount = 0
+	}
+	studentVerificationRewardCampaign := strings.TrimSpace(req.StudentVerificationRewardCampaign)
 	registrationEmailDomainQuotaEnabled := previousSettings.RegistrationEmailDomainQuotaEnabled
 	if req.RegistrationEmailDomainQuotaEnabled != nil {
 		registrationEmailDomainQuotaEnabled = *req.RegistrationEmailDomainQuotaEnabled
@@ -1512,6 +1536,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		FrontendURL:                         req.FrontendURL,
 		InvitationCodeEnabled:               req.InvitationCodeEnabled,
 		TotpEnabled:                         req.TotpEnabled,
+		EducationEmailVerificationEnabled:   educationEmailVerificationEnabled,
 		PasskeyEnabled:                      passkeyEnabled,
 		SessionBindingEnabled:               sessionBindingEnabled,
 		StepUpEnabled:                       stepUpEnabled,
@@ -1634,6 +1659,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                        customEndpointsJSON,
 		DefaultConcurrency:                     req.DefaultConcurrency,
 		DefaultBalance:                         req.DefaultBalance,
+		StudentVerificationRewardEnabled:       studentVerificationRewardEnabled,
+		StudentVerificationRewardAmount:        studentVerificationRewardAmount,
+		StudentVerificationRewardCampaign:      studentVerificationRewardCampaign,
 		AffiliateRebateRate:                    affiliateRebateRate,
 		AffiliateRebateFreezeHours:             affiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            affiliateRebateDurationDays,
@@ -1994,6 +2022,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.CyberSessionBlockTTLSeconds
 		}(),
+		WebChatEnabled:      req.WebChatEnabled,
+		WebChatModels:       req.WebChatModels,
+		WebChatDefaultModel: strings.TrimSpace(req.WebChatDefaultModel),
 	}
 
 	// req.AuthSourceXxxPlatformQuotas 为 nil 表示本次请求未包含该 source 的 quota 配置（保留 previousAuthSourceDefaults 中的值）；
@@ -2086,6 +2117,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			EnabledTypes:                  req.PaymentEnabledTypes,
 			BalanceDisabled:               req.PaymentBalanceDisabled,
 			BalanceRechargeMultiplier:     req.PaymentBalanceRechargeMultiplier,
+			USDToCNYDisplayRate:           req.PaymentUSDToCNYDisplayRate,
 			SubscriptionUSDToCNYRate:      req.PaymentSubscriptionUSDToCNYRate,
 			RechargeFeeRate:               req.PaymentRechargeFeeRate,
 			LoadBalanceStrategy:           req.PaymentLoadBalanceStrat,
@@ -2153,6 +2185,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		FrontendURL:                                            updatedSettings.FrontendURL,
 		InvitationCodeEnabled:                                  updatedSettings.InvitationCodeEnabled,
 		TotpEnabled:                                            updatedSettings.TotpEnabled,
+		EducationEmailVerificationEnabled:                      updatedSettings.EducationEmailVerificationEnabled,
+		StudentVerificationRewardEnabled:                       updatedSettings.StudentVerificationRewardEnabled,
+		StudentVerificationRewardAmount:                        updatedSettings.StudentVerificationRewardAmount,
+		StudentVerificationRewardCampaign:                      updatedSettings.StudentVerificationRewardCampaign,
 		TotpEncryptionKeyConfigured:                            h.settingService.IsTotpEncryptionKeyConfigured(),
 		PasskeyEnabled:                                         updatedSettings.PasskeyEnabled,
 		PasskeyConfigured:                                      passkeyConfigured,
@@ -2362,6 +2398,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentEnabledTypes:                                    updatedPaymentCfg.EnabledTypes,
 		PaymentBalanceDisabled:                                 updatedPaymentCfg.BalanceDisabled,
 		PaymentBalanceRechargeMultiplier:                       updatedPaymentCfg.BalanceRechargeMultiplier,
+		PaymentUSDToCNYDisplayRate:                             updatedPaymentCfg.USDToCNYDisplayRate,
 		PaymentSubscriptionUSDToCNYRate:                        updatedPaymentCfg.SubscriptionUSDToCNYRate,
 		PaymentRechargeFeeRate:                                 updatedPaymentCfg.RechargeFeeRate,
 		PaymentLoadBalanceStrat:                                updatedPaymentCfg.LoadBalanceStrategy,
@@ -2437,7 +2474,7 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 		req.PaymentMaxAmount != nil || req.PaymentDailyLimit != nil ||
 		req.PaymentOrderTimeoutMin != nil || req.PaymentMaxPendingOrders != nil ||
 		req.PaymentEnabledTypes != nil || req.PaymentBalanceDisabled != nil ||
-		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentSubscriptionUSDToCNYRate != nil ||
+		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentUSDToCNYDisplayRate != nil || req.PaymentSubscriptionUSDToCNYRate != nil ||
 		req.PaymentRechargeFeeRate != nil ||
 		req.PaymentLoadBalanceStrat != nil || req.PaymentProductNamePrefix != nil ||
 		req.PaymentProductNameSuffix != nil || req.PaymentHelpImageURL != nil ||

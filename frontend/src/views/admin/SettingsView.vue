@@ -1644,6 +1644,33 @@
                 />
               </div>
 
+              <!-- Campus email verification -->
+              <div
+                class="border-t border-gray-100 pt-4 dark:border-dark-700"
+                data-testid="education-email-verification-settings"
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">
+                      {{ t('admin.settings.security.educationEmailVerification') }}
+                    </label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.security.educationEmailVerificationHint') }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.education_email_verification_enabled" />
+                </div>
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.security.educationEmailVerificationScope') }}
+                </p>
+                <p
+                  v-if="!form.smtp_host.trim()"
+                  class="mt-2 text-sm text-amber-600 dark:text-amber-400"
+                >
+                  {{ t('admin.settings.security.educationEmailVerificationSmtpRequired') }}
+                </p>
+              </div>
+
               <!-- Passkey sign-in -->
               <div
                 class="border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -3890,6 +3917,69 @@
                   <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                     {{ t("admin.settings.defaults.defaultUserRpmLimitHint") }}
                   </p>
+                </div>
+              </div>
+
+              <!-- Student verification reward -->
+              <div
+                class="border-t border-gray-100 pt-4 dark:border-dark-700"
+                data-testid="student-verification-reward-settings"
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.defaults.studentVerificationRewardEnabled") }}
+                    </label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.defaults.studentVerificationRewardEnabledHint") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.student_verification_reward_enabled" />
+                </div>
+                <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.defaults.studentVerificationRewardAmount") }}
+                    </label>
+                    <input
+                      v-model.number="form.student_verification_reward_amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input"
+                      placeholder="0.00"
+                    />
+                    <p class="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300">
+                      {{ t("admin.settings.defaults.studentVerificationRewardAmountUnit") }}
+                    </p>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.defaults.studentVerificationRewardAmountHint") }}
+                    </p>
+                    <p
+                      v-if="studentRewardAmountCnyHint"
+                      class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      {{ studentRewardAmountCnyHint }}
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.defaults.studentVerificationRewardCampaign") }}
+                    </label>
+                    <input
+                      v-model="form.student_verification_reward_campaign"
+                      type="text"
+                      class="input"
+                      placeholder="2026_fall"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.defaults.studentVerificationRewardCampaignHint") }}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -7763,6 +7853,9 @@
           </div>
         </div>
 
+        <!-- MUC: 网页聊天设置 -->
+        <WebChatSettings :form="form" />
+
         </div><!-- /Tab: Features -->
 
         <!-- Tab: Email -->
@@ -7825,7 +7918,7 @@
                       v-model="form.payment_product_name_prefix"
                       type="text"
                       class="input"
-                      placeholder="Sub2API"
+                      placeholder="MUC AI"
                     />
                   </div>
                   <div>
@@ -7847,7 +7940,7 @@
                       class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300"
                     >
                       {{
-                        (form.payment_product_name_prefix || "Sub2API") +
+                        (form.payment_product_name_prefix || "MUC AI") +
                         " 100 " +
                         (form.payment_product_name_suffix || "CNY")
                       }}
@@ -7976,6 +8069,30 @@
                       {{
                         t("admin.settings.payment.subscriptionUsdToCnyRateHint")
                       }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="input-label">{{
+                      t("admin.settings.payment.usdToCnyDisplayRate")
+                    }}</label>
+                    <input
+                      :value="form.payment_usd_to_cny_display_rate || ''"
+                      @input="
+                        form.payment_usd_to_cny_display_rate =
+                          parseFloat(
+                            ($event.target as HTMLInputElement).value,
+                          ) || 0
+                      "
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      class="input"
+                      :placeholder="
+                        t('admin.settings.payment.usdToCnyDisplayRateDisabled')
+                      "
+                    />
+                    <p class="mt-0.5 text-xs text-gray-400">
+                      {{ t("admin.settings.payment.usdToCnyDisplayRateHint") }}
                     </p>
                   </div>
                   <div>
@@ -8873,6 +8990,9 @@ import Toggle from "@/components/common/Toggle.vue";
 import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
+// MUC: 网页聊天设置
+import WebChatSettings from "@/components/admin/settings/WebChatSettings.vue";
+import { buildWebChatSettingsPayload } from "@/api/admin/webChat";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
@@ -9597,6 +9717,10 @@ const form = reactive<SettingsForm>({
   invitation_code_enabled: false,
   password_reset_enabled: false,
   totp_enabled: false,
+  education_email_verification_enabled: false,
+  student_verification_reward_enabled: false,
+  student_verification_reward_amount: 0,
+  student_verification_reward_campaign: "",
   totp_encryption_key_configured: false,
   passkey_enabled: false,
   passkey_configured: false,
@@ -9621,7 +9745,7 @@ const form = reactive<SettingsForm>({
   default_subscriptions: [],
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
-  site_name: "Sub2API",
+  site_name: "MUC AI",
   site_logo: "",
   site_subtitle: "Subscription to API Conversion Platform",
   api_base_url: "",
@@ -9642,6 +9766,7 @@ const form = reactive<SettingsForm>({
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_usd_to_cny_display_rate: 0,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_enabled_types: [],
@@ -9876,7 +10001,19 @@ const form = reactive<SettingsForm>({
   affiliate_enabled: false,
   // Allow user view error requests
   allow_user_view_error_requests: false,
-});
+})
+
+// 学生认证奖励金额（USD，系统内部余额单位）的只读 CNY 折算提示：
+// 汇率来自本页 payment_usd_to_cny_display_rate 配置；未配置或金额非法时不显示。
+const studentRewardAmountCnyHint = computed(() => {
+  const amount = Number(form.student_verification_reward_amount)
+  const rate = Number(form.payment_usd_to_cny_display_rate)
+  if (!Number.isFinite(amount) || amount <= 0) return ''
+  if (!Number.isFinite(rate) || rate <= 0) return ''
+  return t("admin.settings.defaults.studentVerificationRewardApproxCny", {
+    amount: `¥${(amount * rate).toFixed(2)}`,
+  })
+});;
 
 // 人机验证 UI 状态：单卡片「总开关 + 服务商单选」，落库仍是三个独立
 // enabled 键（与上游一致），由下面的映射保证同一时间至多一家启用。
@@ -11253,6 +11390,12 @@ async function saveSettings() {
       invitation_code_enabled: form.invitation_code_enabled,
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
+      education_email_verification_enabled: form.education_email_verification_enabled,
+      student_verification_reward_enabled: form.student_verification_reward_enabled,
+      student_verification_reward_amount: Number.isFinite(form.student_verification_reward_amount)
+        ? form.student_verification_reward_amount
+        : 0,
+      student_verification_reward_campaign: form.student_verification_reward_campaign,
       passkey_enabled: form.passkey_enabled,
       session_binding_enabled: form.session_binding_enabled,
       step_up_enabled: form.step_up_enabled,
@@ -11475,6 +11618,8 @@ async function saveSettings() {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
         Number(form.payment_balance_recharge_multiplier) || 1,
+      payment_usd_to_cny_display_rate:
+        Number(form.payment_usd_to_cny_display_rate) || 0,
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
@@ -11558,6 +11703,8 @@ async function saveSettings() {
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
       allow_user_view_error_requests: form.allow_user_view_error_requests,
+      // MUC: 网页聊天设置（随现有设置链路一并提交）
+      ...buildWebChatSettingsPayload(form),
     };
 
     // 仅当 openai_fast_policy_settings 已成功从后端加载时才回写，

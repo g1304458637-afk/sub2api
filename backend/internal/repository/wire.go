@@ -76,7 +76,10 @@ var ProviderSet = wire.NewSet(
 	NewScheduledTestResultRepository, // 定时测试结果仓储
 	NewProxyRepository,
 	NewRedeemCodeRepository,
+	NewResearchApplicationRepository,      // 科研优惠申请
+	NewResearchAttachmentUploadRepository, // 科研附件上传记录
 	NewPromoCodeRepository,
+	NewRewardGrantRepository,
 	NewAnnouncementRepository,
 	NewAnnouncementReadRepository,
 	NewUsageLogRepository,
@@ -91,6 +94,7 @@ var ProviderSet = wire.NewSet(
 	NewPasskeyRepository,
 	NewPasskeySessionStore,
 	NewUserSubscriptionRepository,
+	NewSubscriptionResetApplicationRepository, // Subscription V1 reset events
 	NewUserAttributeDefinitionRepository,
 	NewUserAttributeValueRepository,
 	NewUserGroupRateRepository,

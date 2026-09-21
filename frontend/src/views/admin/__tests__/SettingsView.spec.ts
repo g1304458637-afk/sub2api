@@ -831,6 +831,23 @@ describe("admin SettingsView payment visible method controls", () => {
     );
   });
 
+  it("persists the campus email verification switch and explains its scope", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    await openSecurityTab(wrapper);
+
+    const setting = wrapper.get('[data-testid="education-email-verification-settings"]');
+    expect(setting.text()).toContain('admin.settings.security.educationEmailVerificationScope');
+    const toggle = setting.find('input[type="checkbox"]');
+    await toggle.setValue(true);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ education_email_verification_enabled: true }),
+    );
+  });
+
   it("人机验证切换到腾讯天御并保存四项配置", async () => {
     const wrapper = mountView();
     await flushPromises();

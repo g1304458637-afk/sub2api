@@ -87,6 +87,12 @@ type Proxy func(*sql.Selector)
 // RedeemCode is the predicate function for redeemcode builders.
 type RedeemCode func(*sql.Selector)
 
+// ResearchApplication is the predicate function for researchapplication builders.
+type ResearchApplication func(*sql.Selector)
+
+// ResearchAttachmentUpload is the predicate function for researchattachmentupload builders.
+type ResearchAttachmentUpload func(*sql.Selector)
+
 // SecuritySecret is the predicate function for securitysecret builders.
 type SecuritySecret func(*sql.Selector)
 
@@ -95,6 +101,15 @@ type Setting func(*sql.Selector)
 
 // SubscriptionPlan is the predicate function for subscriptionplan builders.
 type SubscriptionPlan func(*sql.Selector)
+
+// SubscriptionResetApplication is the predicate function for subscriptionresetapplication builders.
+type SubscriptionResetApplication func(*sql.Selector)
+
+// SubscriptionResetCard is the predicate function for subscriptionresetcard builders.
+type SubscriptionResetCard func(*sql.Selector)
+
+// SubscriptionResetEvent is the predicate function for subscriptionresetevent builders.
+type SubscriptionResetEvent func(*sql.Selector)
 
 // TLSFingerprintProfile is the predicate function for tlsfingerprintprofile builders.
 type TLSFingerprintProfile func(*sql.Selector)

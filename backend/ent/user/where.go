@@ -1699,6 +1699,75 @@ func HasPlatformQuotasWith(preds ...predicate.UserPlatformQuota) predicate.User 
 	})
 }
 
+// HasResetCards applies the HasEdge predicate on the "reset_cards" edge.
+func HasResetCards() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ResetCardsTable, ResetCardsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasResetCardsWith applies the HasEdge predicate on the "reset_cards" edge with a given conditions (other predicates).
+func HasResetCardsWith(preds ...predicate.SubscriptionResetCard) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newResetCardsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCreatedResetEvents applies the HasEdge predicate on the "created_reset_events" edge.
+func HasCreatedResetEvents() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CreatedResetEventsTable, CreatedResetEventsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCreatedResetEventsWith applies the HasEdge predicate on the "created_reset_events" edge with a given conditions (other predicates).
+func HasCreatedResetEventsWith(preds ...predicate.SubscriptionResetEvent) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newCreatedResetEventsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCreatedResetCards applies the HasEdge predicate on the "created_reset_cards" edge.
+func HasCreatedResetCards() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CreatedResetCardsTable, CreatedResetCardsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCreatedResetCardsWith applies the HasEdge predicate on the "created_reset_cards" edge with a given conditions (other predicates).
+func HasCreatedResetCardsWith(preds ...predicate.SubscriptionResetCard) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newCreatedResetCardsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasUserAllowedGroups applies the HasEdge predicate on the "user_allowed_groups" edge.
 func HasUserAllowedGroups() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

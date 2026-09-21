@@ -471,6 +471,18 @@ func (s *userHandlerEmailCacheStub) DeleteVerificationCode(context.Context, stri
 	return nil
 }
 
+func (s *userHandlerEmailCacheStub) ConsumeVerificationCode(context.Context, string) (*service.VerificationCodeData, error) {
+	return s.data, nil
+}
+
+func (s *userHandlerEmailCacheStub) ReserveVerificationCodeCooldown(context.Context, string, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (s *userHandlerEmailCacheStub) ReleaseVerificationCodeCooldown(context.Context, string) error {
+	return nil
+}
+
 func (s *userHandlerEmailCacheStub) GetNotifyVerifyCode(context.Context, string) (*service.VerificationCodeData, error) {
 	return nil, nil
 }

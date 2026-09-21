@@ -6,17 +6,20 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/alicebob/miniredis/v2"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/campus"
 	"github.com/gin-gonic/gin"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/muccode"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
@@ -35,6 +38,10 @@ type stubKeyManager struct {
 	deleted    []int64
 	live       map[int64]service.APIKey // id -> key（模拟库存）
 	nextID     int64
+
+	// GetUserGroupVisibility 桩返回值：restrict=true 时 handler 应绑定 allowedGroups 中最小 ID
+	allowedGroups map[int64]struct{}
+	restrict      bool
 }
 
 func newStubKeyManager() *stubKeyManager {
@@ -43,6 +50,10 @@ func newStubKeyManager() *stubKeyManager {
 		live:   map[int64]service.APIKey{},
 		nextID: 1000,
 	}
+}
+
+func (s *stubKeyManager) GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error) {
+	return s.allowedGroups, s.restrict, nil
 }
 
 func (s *stubKeyManager) Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error) {
@@ -55,7 +66,8 @@ func (s *stubKeyManager) Create(ctx context.Context, userID int64, req service.C
 	s.nextID++
 	k := *s.key
 	k.ID = s.nextID
-	k.Name = req.Name
+	// 与生产 service.CreateAPIKey 对齐：名称经 html.EscapeString 落库
+	k.Name = html.EscapeString(req.Name)
 	s.live[k.ID] = k
 	return &k, nil
 }
@@ -67,13 +79,32 @@ func (s *stubKeyManager) Delete(ctx context.Context, id int64, userID int64) err
 }
 
 func (s *stubKeyManager) SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]service.APIKey, error) {
+	// 与生产 NameContainsFold 对齐：大小写不敏感的子串搜索
+	kw := strings.ToLower(keyword)
 	var out []service.APIKey
 	for _, k := range s.live {
-		if strings.Contains(k.Name, keyword) {
+		if strings.Contains(strings.ToLower(k.Name), kw) {
 			out = append(out, k)
 		}
 	}
 	return out, nil
+}
+
+type stubGroupLookup struct {
+	groups []*int64
+}
+
+func (s stubGroupLookup) DefaultGroupIDWithAccounts(ctx context.Context) (*int64, error) {
+	if len(s.groups) == 0 {
+		return nil, nil
+	}
+	smallest := *s.groups[0]
+	for _, g := range s.groups[1:] {
+		if g != nil && *g < smallest {
+			smallest = *g
+		}
+	}
+	return &smallest, nil
 }
 
 type stubUserLookup struct {
@@ -84,9 +115,11 @@ func (s *stubUserLookup) GetByID(ctx context.Context, id int64) (*service.User, 
 	return s.user, nil
 }
 
-// miniredis 适配 mucCodeStore：单线程测试下 Set/GetDel 语义与真实 GETDEL 等价
+// miniredis 适配 mucCodeStore：单线程测试下 Set/GetDel 语义与真实 GETDEL 等价。
+// infraErr 非 nil 时模拟 Redis 基础设施故障（网络/超时），与"码不存在"区分。
 type stubCodeStore struct {
-	mr *miniredis.Miniredis
+	mr       *miniredis.Miniredis
+	infraErr error
 }
 
 func (s *stubCodeStore) SetCode(ctx context.Context, key string, payload []byte, ttl time.Duration) error {
@@ -94,22 +127,29 @@ func (s *stubCodeStore) SetCode(ctx context.Context, key string, payload []byte,
 }
 
 func (s *stubCodeStore) GetDelCode(ctx context.Context, key string) (string, error) {
+	if s.infraErr != nil {
+		return "", s.infraErr
+	}
 	if !s.mr.Exists(key) {
-		return "", errMucCodeNotFound
+		return "", muccode.ErrCodeNotFound
 	}
 	v, _ := s.mr.Get(key)
 	_ = s.mr.Del(key)
 	return v, nil
 }
 
-var errMucCodeNotFound = errors.New("muc code not found")
+func (s *stubCodeStore) setInfraErr(err error) {
+	s.infraErr = err
+}
+
+var errMucCodeNotFound = muccode.ErrCodeNotFound
 
 // ---- 测试脚手架 ----
 
 func newMucTestEnv(t *testing.T) (*CampusConnectHandler, *miniredis.Miniredis, *stubKeyManager) {
 	t.Helper()
 	mr := miniredis.RunT(t)
-	h := NewCampusConnectHandler(campus.MUC, nil, nil, nil)
+	h := NewCampusConnectHandler(campus.MUC, nil, nil, nil, nil)
 	h.codes = &stubCodeStore{mr: mr}
 	creator := newStubKeyManager()
 	creator.key = &service.APIKey{Key: "sk-muc-test-key", Name: "MUC test"}
@@ -175,6 +215,77 @@ func TestMucConnectCode_IssuesCode(t *testing.T) {
 	}
 	if len(resp.Data.Code) < 16 {
 		t.Fatalf("code too short: %s", resp.Data.Code)
+	}
+}
+
+// 未限定分组用户（管理员测试号）：自动绑定挂有可调度账号的最小分组。
+func TestMucExchange_UnrestrictedUserBindsGroupWithAccounts(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+	g14 := int64(14)
+	g99 := int64(99)
+	h.groupLookup = stubGroupLookup{groups: []*int64{&g99, &g14}} // 返回顺序不应影响结果
+
+	issue := func(code string, userID int64) {
+		sum := sha256Hex(code)
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
+	}
+	issue("unres-code-11111111111111111", 42)
+
+	c, w := mucCtxWithBody(t, `{"code":"unres-code-11111111111111111","device_name":"admin测试"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	got := creator.lastReq.GroupID
+	if got == nil || *got != 14 {
+		t.Fatalf("expected group 14 (smallest with accounts), got %v", got)
+	}
+}
+
+// 限定分组的用户换码：Key 必须绑定其允许分组中 ID 最小的一个，
+// 否则生产 allow_ungrouped_key_scheduling=false 时 Key 无法调用网关。
+func TestMucExchange_BindsSmallestAllowedGroup(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+	creator.allowedGroups = map[int64]struct{}{14: {}, 7: {}, 21: {}}
+	creator.restrict = true
+
+	issue := func(code string, userID int64) {
+		sum := sha256Hex(code)
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
+	}
+	issue("group-code-1111111111111111", 42)
+
+	c, w := mucCtxWithBody(t, `{"code":"group-code-1111111111111111","device_name":"测试设备"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	got := creator.lastReq.GroupID
+	if got == nil || *got != 7 {
+		t.Fatalf("expected group 7 (smallest allowed), got %v", got)
+	}
+}
+
+// 未限定分组的管理员：保持 NULL，沿用站点未分组调度策略。
+func TestMucExchange_UnrestrictedUserKeepsNullGroup(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256Hex(code)
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+sum, string(payload))
+	}
+	issue("nullgrp-code-111111111111111", 42)
+
+	c, w := mucCtxWithBody(t, `{"code":"nullgrp-code-111111111111111","device_name":"admin"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if creator.lastReq.GroupID != nil {
+		t.Fatalf("expected nil group for unrestricted user, got %v", *creator.lastReq.GroupID)
 	}
 }
 
@@ -292,11 +403,7 @@ func TestMucExchange_RotatesDeviceKey(t *testing.T) {
 		t.Fatalf("second connect: expected 200, got %d: %s", w2.Code, w2.Body.String())
 	}
 
-	// 旧 Key 已被轮换删除（异步协程，轮询等待）
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) && len(creator.deleted) == 0 {
-		time.Sleep(10 * time.Millisecond)
-	}
+	// 旧 Key 已被同步轮换删除
 	if len(creator.deleted) == 0 {
 		t.Fatalf("expected old device key to be rotated (deleted), got none")
 	}
@@ -304,11 +411,118 @@ func TestMucExchange_RotatesDeviceKey(t *testing.T) {
 		t.Fatalf("expected exactly 1 live key after rotation, got %d", len(creator.live))
 	}
 	for _, k := range creator.live {
-		if !strings.Contains(k.Name, "MUC MacBookPro") {
+		if k.Name != html.EscapeString("MUC MacBookPro") {
 			t.Fatalf("unexpected surviving key name: %s", k.Name)
 		}
 	}
 }
+
+// 回归：轮换必须按名称精确匹配，子串匹配会误删其他设备/用户手建的同前缀 Key。
+func TestMucExchange_RotationExactMatch_NoCollateralDelete(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256.Sum256([]byte(code))
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
+	}
+
+	// 预置：用户已有若干 Key，只有 "MUC Mac" 是本设备（重连场景）的旧 Key
+	seed := map[int64]string{
+		101: "MUC Mac",          // 应被轮换删除
+		102: "MUC MacBookPro",   // 其他设备，不能误删
+		103: "MUC Mac Studio",   // 其他设备，不能误删
+		104: "muc mac 备份钥匙",  // 用户手建，不能误删
+		105: "手工钥匙",          // 无关 Key
+	}
+	for id, name := range seed {
+		creator.live[id] = service.APIKey{ID: id, Key: "sk-" + name, Name: html.EscapeString(name)}
+	}
+
+	issue("code-exact-aaaaaaaaaaaaaaaa", 42)
+	c, w := mucCtxWithBody(t, `{"code":"code-exact-aaaaaaaaaaaaaaaa","device_name":"Mac"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if len(creator.deleted) != 1 || creator.deleted[0] != 101 {
+		t.Fatalf("expected exactly old key 101 deleted, got %v", creator.deleted)
+	}
+	for _, id := range []int64{102, 103, 104, 105} {
+		if _, ok := creator.live[id]; !ok {
+			t.Fatalf("collateral delete: key %d (%q) must survive", id, seed[id])
+		}
+	}
+}
+
+// 回归：设备名含 HTML 特殊字符时，轮换搜索必须与落库的转义名称对齐。
+func TestMucExchange_RotationEscapedName(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256.Sum256([]byte(code))
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
+	}
+
+	issue("code-esc1-aaaaaaaaaaaaaaaa", 42)
+	c1, w1 := mucCtxWithBody(t, `{"code":"code-esc1-aaaaaaaaaaaaaaaa","device_name":"Tom & Jerry's <PC>"}`)
+	h.Exchange(c1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("first connect: expected 200, got %d: %s", w1.Code, w1.Body.String())
+	}
+
+	issue("code-esc2-bbbbbbbbbbbbbbbb", 42)
+	c2, w2 := mucCtxWithBody(t, `{"code":"code-esc2-bbbbbbbbbbbbbbbb","device_name":"Tom & Jerry's <PC>"}`)
+	h.Exchange(c2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("reconnect: expected 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	if len(creator.live) != 1 {
+		t.Fatalf("expected exactly 1 live key after escaped-name rotation, got %d", len(creator.live))
+	}
+}
+
+// 回归：超长中文设备名按 rune 截断，不得产生非法 UTF-8，兑换仍应成功。
+func TestMucExchange_LongChineseDeviceName(t *testing.T) {
+	h, mr, creator := newMucTestEnv(t)
+
+	issue := func(code string, userID int64) {
+		sum := sha256.Sum256([]byte(code))
+		payload, _ := json.Marshal(mucCodePayload{UserID: userID})
+		_ = mr.Set(mucCodeKeyPrefix+hex.EncodeToString(sum[:]), string(payload))
+	}
+
+	longName := strings.Repeat("民大校园超级计算终端设备", 20) // 200 runes，全中文
+	issue("code-cjk1-aaaaaaaaaaaaaaaa", 42)
+	c, w := mucCtxWithBody(t, `{"code":"code-cjk1-aaaaaaaaaaaaaaaa","device_name":"`+longName+`"}`)
+	h.Exchange(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for long CJK device name, got %d: %s", w.Code, w.Body.String())
+	}
+	name := creator.lastReq.Name
+	if !utf8.ValidString(name) {
+		t.Fatalf("device name must remain valid UTF-8 after truncation, got %q", name)
+	}
+	if got := len([]rune(strings.TrimPrefix(name, "MUC "))); got > mucMaxDeviceRunes {
+		t.Fatalf("truncated device name exceeds rune cap: %d", got)
+	}
+}
+
+// 回归：Redis 基础设施故障必须表现为服务端错误，不得伪装成 code_not_found(404)。
+func TestMucExchange_RedisInfraErrorIsServerError(t *testing.T) {
+	h, _, _ := newMucTestEnv(t)
+	h.codes.(*stubCodeStore).setInfraErr(errors.New("connection refused"))
+
+	c, w := mucCtxWithBody(t, `{"code":"whatever-aaaaaaaaaaaaaaaa"}`)
+	h.Exchange(c)
+	if w.Code == http.StatusNotFound {
+		t.Fatal("redis infra error must not be masked as 404 code_not_found")
+	}
+	if w.Code < 500 {
+		t.Fatalf("expected 5xx for redis infra error, got %d", w.Code)
 
 // sha256HexWithPrefix 用指定品牌前缀算 Redis key（与 handler 内部逻辑一致）
 func sha256HexWithPrefix(prefix, code string) string {
@@ -319,7 +533,7 @@ func sha256HexWithPrefix(prefix, code string) string {
 // HUBU：与 MUC 共用机制，但 Redis 前缀 hubu:code:、Key 名前缀 "HUBU "，且单次使用
 func TestHubuExchange_BrandPrefixAndSingleUse(t *testing.T) {
 	h, mr, creator := newMucTestEnv(t)
-	hubu := NewCampusConnectHandler(campus.HUBU, nil, nil, nil)
+	hubu := NewCampusConnectHandler(campus.HUBU, nil, nil, nil, nil)
 	hubu.codes = h.codes
 	hubu.keys = h.keys
 	hubu.userLookup = h.userLookup
@@ -348,7 +562,7 @@ func TestHubuExchange_BrandPrefixAndSingleUse(t *testing.T) {
 // HUBU 授权码必须写在 hubu:code: 前缀下，与 MUC 互不读取
 func TestHubuCodeIsolatedFromMucPrefix(t *testing.T) {
 	h, mr, _ := newMucTestEnv(t)
-	hubu := NewCampusConnectHandler(campus.HUBU, nil, nil, nil)
+	hubu := NewCampusConnectHandler(campus.HUBU, nil, nil, nil, nil)
 	hubu.codes = h.codes
 	hubu.keys = h.keys
 	hubu.userLookup = h.userLookup

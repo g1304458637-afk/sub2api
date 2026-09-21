@@ -36,9 +36,14 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/researchapplication"
+	"github.com/Wei-Shaw/sub2api/ent/researchattachmentupload"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetevent"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
@@ -835,6 +840,60 @@ func (f TraverseRedeemCode) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.RedeemCodeQuery", q)
 }
 
+// The ResearchApplicationFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ResearchApplicationFunc func(context.Context, *ent.ResearchApplicationQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ResearchApplicationFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ResearchApplicationQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ResearchApplicationQuery", q)
+}
+
+// The TraverseResearchApplication type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseResearchApplication func(context.Context, *ent.ResearchApplicationQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseResearchApplication) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseResearchApplication) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ResearchApplicationQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ResearchApplicationQuery", q)
+}
+
+// The ResearchAttachmentUploadFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ResearchAttachmentUploadFunc func(context.Context, *ent.ResearchAttachmentUploadQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ResearchAttachmentUploadFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ResearchAttachmentUploadQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ResearchAttachmentUploadQuery", q)
+}
+
+// The TraverseResearchAttachmentUpload type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseResearchAttachmentUpload func(context.Context, *ent.ResearchAttachmentUploadQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseResearchAttachmentUpload) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseResearchAttachmentUpload) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ResearchAttachmentUploadQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ResearchAttachmentUploadQuery", q)
+}
+
 // The SecuritySecretFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SecuritySecretFunc func(context.Context, *ent.SecuritySecretQuery) (ent.Value, error)
 
@@ -914,6 +973,87 @@ func (f TraverseSubscriptionPlan) Traverse(ctx context.Context, q ent.Query) err
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionPlanQuery", q)
+}
+
+// The SubscriptionResetApplicationFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SubscriptionResetApplicationFunc func(context.Context, *ent.SubscriptionResetApplicationQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SubscriptionResetApplicationFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SubscriptionResetApplicationQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetApplicationQuery", q)
+}
+
+// The TraverseSubscriptionResetApplication type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSubscriptionResetApplication func(context.Context, *ent.SubscriptionResetApplicationQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSubscriptionResetApplication) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSubscriptionResetApplication) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SubscriptionResetApplicationQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetApplicationQuery", q)
+}
+
+// The SubscriptionResetCardFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SubscriptionResetCardFunc func(context.Context, *ent.SubscriptionResetCardQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SubscriptionResetCardFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SubscriptionResetCardQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetCardQuery", q)
+}
+
+// The TraverseSubscriptionResetCard type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSubscriptionResetCard func(context.Context, *ent.SubscriptionResetCardQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSubscriptionResetCard) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSubscriptionResetCard) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SubscriptionResetCardQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetCardQuery", q)
+}
+
+// The SubscriptionResetEventFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SubscriptionResetEventFunc func(context.Context, *ent.SubscriptionResetEventQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SubscriptionResetEventFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SubscriptionResetEventQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetEventQuery", q)
+}
+
+// The TraverseSubscriptionResetEvent type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSubscriptionResetEvent func(context.Context, *ent.SubscriptionResetEventQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSubscriptionResetEvent) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSubscriptionResetEvent) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SubscriptionResetEventQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionResetEventQuery", q)
 }
 
 // The TLSFingerprintProfileFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1216,12 +1356,22 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ProxyQuery, predicate.Proxy, proxy.OrderOption]{typ: ent.TypeProxy, tq: q}, nil
 	case *ent.RedeemCodeQuery:
 		return &query[*ent.RedeemCodeQuery, predicate.RedeemCode, redeemcode.OrderOption]{typ: ent.TypeRedeemCode, tq: q}, nil
+	case *ent.ResearchApplicationQuery:
+		return &query[*ent.ResearchApplicationQuery, predicate.ResearchApplication, researchapplication.OrderOption]{typ: ent.TypeResearchApplication, tq: q}, nil
+	case *ent.ResearchAttachmentUploadQuery:
+		return &query[*ent.ResearchAttachmentUploadQuery, predicate.ResearchAttachmentUpload, researchattachmentupload.OrderOption]{typ: ent.TypeResearchAttachmentUpload, tq: q}, nil
 	case *ent.SecuritySecretQuery:
 		return &query[*ent.SecuritySecretQuery, predicate.SecuritySecret, securitysecret.OrderOption]{typ: ent.TypeSecuritySecret, tq: q}, nil
 	case *ent.SettingQuery:
 		return &query[*ent.SettingQuery, predicate.Setting, setting.OrderOption]{typ: ent.TypeSetting, tq: q}, nil
 	case *ent.SubscriptionPlanQuery:
 		return &query[*ent.SubscriptionPlanQuery, predicate.SubscriptionPlan, subscriptionplan.OrderOption]{typ: ent.TypeSubscriptionPlan, tq: q}, nil
+	case *ent.SubscriptionResetApplicationQuery:
+		return &query[*ent.SubscriptionResetApplicationQuery, predicate.SubscriptionResetApplication, subscriptionresetapplication.OrderOption]{typ: ent.TypeSubscriptionResetApplication, tq: q}, nil
+	case *ent.SubscriptionResetCardQuery:
+		return &query[*ent.SubscriptionResetCardQuery, predicate.SubscriptionResetCard, subscriptionresetcard.OrderOption]{typ: ent.TypeSubscriptionResetCard, tq: q}, nil
+	case *ent.SubscriptionResetEventQuery:
+		return &query[*ent.SubscriptionResetEventQuery, predicate.SubscriptionResetEvent, subscriptionresetevent.OrderOption]{typ: ent.TypeSubscriptionResetEvent, tq: q}, nil
 	case *ent.TLSFingerprintProfileQuery:
 		return &query[*ent.TLSFingerprintProfileQuery, predicate.TLSFingerprintProfile, tlsfingerprintprofile.OrderOption]{typ: ent.TypeTLSFingerprintProfile, tq: q}, nil
 	case *ent.UsageCleanupTaskQuery:

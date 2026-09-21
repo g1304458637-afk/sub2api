@@ -9,6 +9,17 @@ import (
 
 const defaultBalanceRechargeMultiplier = 1.0
 
+func normalizeUSDToCNYDisplayRate(rate float64) float64 {
+	if math.IsNaN(rate) || math.IsInf(rate, 0) || rate <= 0 {
+		return 0
+	}
+	return rate
+}
+
+func isValidUSDToCNYDisplayRate(rate float64) bool {
+	return !math.IsNaN(rate) && !math.IsInf(rate, 0) && rate >= 0
+}
+
 func normalizeBalanceRechargeMultiplier(multiplier float64) float64 {
 	if math.IsNaN(multiplier) || math.IsInf(multiplier, 0) || multiplier <= 0 {
 		return defaultBalanceRechargeMultiplier

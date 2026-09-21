@@ -55,6 +55,12 @@ func (r *bulkActionSubscriptionRepo) ExtendExpiry(_ context.Context, id int64, e
 	return nil
 }
 
+// ResetWeeklyUsage 供 Phase 2 统一 Reset Core 使用：语义与 ResetUsageWindows
+// 的 weekly 分支一致（清零周用量并把锚点推到 periodicStart）。
+func (r *bulkActionSubscriptionRepo) ResetWeeklyUsage(_ context.Context, id int64, expectedWindowStart *time.Time, newWindowStart time.Time) error {
+	return r.ResetUsageWindows(context.Background(), id, false, true, false, newWindowStart, newWindowStart)
+}
+
 func (r *bulkActionSubscriptionRepo) ResetUsageWindows(_ context.Context, id int64, daily, weekly, monthly bool, dailyStart, periodicStart time.Time) error {
 	sub := r.subscriptions[id]
 	if daily {

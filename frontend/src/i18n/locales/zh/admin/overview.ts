@@ -186,7 +186,7 @@ export default {
         step1: {
           title: '创建 R2 存储桶',
           line1: '登录 Cloudflare Dashboard (dash.cloudflare.com)，左侧菜单选择「R2 对象存储」',
-          line2: '点击「创建存储桶」，输入名称（如 sub2api-backups），选择区域',
+          line2: '点击「创建存储桶」，输入名称（如 muc-ai-backups），选择区域',
           line3: '点击创建完成'
         },
         step2: {
@@ -497,6 +497,19 @@ export default {
       enterUsername: '请输入用户名（选填）',
       enterNotes: '请输入备注（仅管理员可见）',
       notesHint: '此备注仅对管理员可见',
+      educationEmail: {
+        action: '校园邮箱认证',
+        title: '校园邮箱认证信息',
+        featureStatus: '功能状态',
+        verificationStatus: '认证状态',
+        verified: '已认证',
+        notVerified: '未认证',
+        email: '认证邮箱',
+        verifiedAt: '认证时间',
+        noRecord: '该用户尚未完成校园邮箱认证。',
+        scope: '认证仅证明用户控制该邮箱；不更换登录邮箱、不代表学籍或教职工身份，也不能作为登录方式。',
+        loadFailed: '校园邮箱认证信息加载失败'
+      },
       enterNewPassword: '请输入新密码（选填）',
       leaveEmptyToKeep: '留空则保持原密码不变',
       generatePassword: '生成随机密码',
@@ -673,6 +686,7 @@ export default {
       allTypes: '全部类型',
       typeBalance: '余额（兑换码）',
       typeAffiliateBalance: '余额（返利转入）',
+      typeRewardGrant: '余额（系统奖励）',
       typeAdminBalance: '余额（管理员调整）',
       typeConcurrency: '并发（兑换码）',
       typeAdminConcurrency: '并发（管理员调整）',
@@ -1194,9 +1208,9 @@ export default {
       openaiLive: {
         title: 'OpenAI Live',
         allow: '允许访问 Live',
-        hint: '启用后，此 OpenAI 分组的 API Key 可以创建并控制 Live 语音会话。默认关闭。运行 Sub2API 的服务端必须是 Apple Silicon Mac，并安装官方 ChatGPT App；客户端平台不受限制。',
+        hint: '启用后，此 OpenAI 分组的 API Key 可以创建并控制 Live 语音会话。默认关闭。运行 MUC AI 的服务端必须是 Apple Silicon Mac，并安装官方 ChatGPT App；客户端平台不受限制。',
         unsupportedTitle: '当前服务端不支持 Live',
-        unsupportedMessage: '当前 Sub2API 服务端无法生成 Live 所需的设备证明，即使开启也不能使用。是否仍然开启？',
+        unsupportedMessage: '当前 MUC AI 服务端无法生成 Live 所需的设备证明，即使开启也不能使用。是否仍然开启？',
         enableAnyway: '仍然开启'
       },
       openaiFast: {

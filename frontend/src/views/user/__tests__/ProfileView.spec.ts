@@ -69,17 +69,21 @@ describe('ProfileView', () => {
       wechat_oauth_open_enabled: true,
       wechat_oauth_mp_enabled: false,
       oidc_oauth_enabled: true,
-      oidc_oauth_provider_name: 'OIDC'
+      oidc_oauth_provider_name: 'OIDC',
+      education_email_verification_enabled: false
     })
   })
 
-  it('renders the simplified single-column profile shell without separate stat cards', async () => {
+  it('hides campus email verification when the administrator has not enabled it', async () => {
     const wrapper = mount(ProfileView, {
       global: {
         stubs: {
           AppLayout: { template: '<div><slot /></div>' },
           StatCard: { template: '<div class="stat-card" />' },
           ProfileInfoCard: { template: '<div data-testid="profile-info-card" />' },
+          ProfileEducationEmailCard: {
+            template: '<div data-testid="profile-education-email-card" />'
+          },
           ProfileBalanceNotifyCard: { template: '<div data-testid="profile-balance-notify-card" />' },
           ProfilePasswordForm: { template: '<div data-testid="profile-password-form" />' },
           ProfileTotpCard: { template: '<div data-testid="profile-totp-card" />' },
@@ -93,7 +97,35 @@ describe('ProfileView', () => {
     expect(wrapper.findAll('.stat-card')).toHaveLength(0)
     expect(wrapper.get('[data-testid="profile-shell"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-info-card')
+    expect(wrapper.find('[data-testid="profile-education-email-card"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-password-form')
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-totp-card')
+  })
+
+  it('shows campus email verification only when the public feature switch is enabled', async () => {
+    fetchPublicSettingsMock.mockResolvedValue({
+      contact_info: '',
+      balance_low_notify_enabled: false,
+      balance_low_notify_threshold: 0,
+      education_email_verification_enabled: true
+    })
+    const wrapper = mount(ProfileView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          ProfileInfoCard: true,
+          ProfileEducationEmailCard: { template: '<div data-testid="profile-education-email-card" />' },
+          ProfilePasswordForm: true,
+          ProfileBalanceNotifyCard: true,
+          ProfileTotpCard: true,
+          ProfilePasskeyCard: true,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="profile-education-email-card"]').exists()).toBe(true)
   })
 })

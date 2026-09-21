@@ -184,6 +184,18 @@ func (s *emailCacheStub) DeleteVerificationCode(ctx context.Context, email strin
 	return nil
 }
 
+func (s *emailCacheStub) ConsumeVerificationCode(context.Context, string) (*VerificationCodeData, error) {
+	return s.data, nil
+}
+
+func (s *emailCacheStub) ReserveVerificationCodeCooldown(context.Context, string, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (s *emailCacheStub) ReleaseVerificationCodeCooldown(context.Context, string) error {
+	return nil
+}
+
 func (s *emailCacheStub) GetNotifyVerifyCode(ctx context.Context, email string) (*VerificationCodeData, error) {
 	return nil, nil
 }

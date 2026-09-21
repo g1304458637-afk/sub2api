@@ -1,0 +1,36 @@
+export default {
+  draw: {
+    title: 'Web Draw',
+    subtitle: 'Describe your image, pick a model and size, then generate.',
+    saveHint: 'Save your images promptly — generated results are not kept after a page refresh.',
+    loadFailed: 'Failed to load draw configuration. Please refresh and try again later.',
+    generateFailed: 'Image generation failed. Please try again later.',
+    empty: {
+      title: 'Drawing is not available yet',
+      description: 'An administrator needs to configure image models in system settings and make sure the platform is connected to an image generation upstream.',
+    },
+    form: {
+      model: 'Model',
+      modelPlaceholder: 'Select an image model',
+      modelEmpty: 'No image model available',
+      size: 'Size',
+      sizeSquare: 'Square',
+      sizeLandscape: 'Landscape',
+      sizePortrait: 'Portrait',
+      count: 'Images',
+      prompt: 'Prompt',
+      promptPlaceholder: 'Describe the image you want, e.g. a campus lake at dusk, watercolor style…',
+      promptRequired: 'Please enter a prompt first',
+      generate: 'Generate',
+      generating: 'Generating…',
+    },
+    gallery: {
+      title: 'Results',
+      empty: 'Generated images will appear here',
+      preview: 'Preview',
+      download: 'Download',
+      downloadFailed: 'Download failed; opened the original image in a new window instead',
+      close: 'Close',
+    },
+  },
+}

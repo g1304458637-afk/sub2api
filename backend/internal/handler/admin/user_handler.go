@@ -65,8 +65,9 @@ type CreateUserRequest struct {
 	Notes                string   `json:"notes"`
 	Role                 string   `json:"role" binding:"omitempty,oneof=admin user"`
 	Balance              *float64 `json:"balance"`
-	Concurrency          int      `json:"concurrency"`
-	RPMLimit             int      `json:"rpm_limit"`
+	// 省略时使用 default_concurrency 设置；显式 0 = unlimited；负数非法。
+	Concurrency *int `json:"concurrency" binding:"omitempty,gte=0"`
+	RPMLimit    int  `json:"rpm_limit"`
 	AllowedGroups        []int64  `json:"allowed_groups"`
 	RestrictPublicGroups bool     `json:"restrict_public_groups"`
 }
@@ -80,7 +81,7 @@ type UpdateUserRequest struct {
 	Notes                *string  `json:"notes"`
 	Role                 string   `json:"role" binding:"omitempty,oneof=admin user"`
 	Balance              *float64 `json:"balance"`
-	Concurrency          *int     `json:"concurrency"`
+	Concurrency          *int     `json:"concurrency" binding:"omitempty,gte=0"` // 显式 0 = unlimited；负数非法
 	RPMLimit             *int     `json:"rpm_limit"`
 	Status               string   `json:"status" binding:"omitempty,oneof=active disabled"`
 	AllowedGroups        *[]int64 `json:"allowed_groups"`
@@ -228,6 +229,37 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 	}
 
 	response.Success(c, dto.UserFromServiceAdmin(user))
+}
+
+// GetEducationEmailStatus returns the campus-email identity for one user. It
+// remains available to administrators when the feature is disabled so existing
+// verification records can be audited without reopening user-facing enrollment.
+// GET /api/v1/admin/users/:id/education-email
+func (h *UserHandler) GetEducationEmailStatus(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	if h.userService == nil || h.settingService == nil {
+		response.InternalError(c, "Campus email verification status is unavailable")
+		return
+	}
+	user, err := h.adminService.GetUser(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	identities, err := h.userService.GetProfileIdentitySummaries(c.Request.Context(), userID, user)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"user_id":                              userID,
+		"education_email_verification_enabled": h.settingService.IsEducationEmailVerificationEnabled(c.Request.Context()),
+		"education_email":                      identities.EducationEmail,
+	})
 }
 
 // BindAuthIdentity manually binds a canonical auth identity to a user.

@@ -51,6 +51,23 @@
           {{ brand.page.downloadCardDesc }}
         </p>
 
+        <!-- Campus Harness: 最新版本区块（数据来自 /downloads/latest-mucode.json，缺失时隐藏）；
+             与主分支 /muc 页同步引入，主色随品牌。 -->
+        <div
+          v-if="latest"
+          class="mt-3 rounded-xl border p-4 text-sm"
+          :style="{ borderColor: hexAlpha(brand.primary, 0.35), backgroundColor: hexAlpha(brand.primary, 0.06) }"
+        >
+          <p class="font-medium" :style="{ color: brand.primary }">
+            最新版本：{{ latest.version }}
+            <span v-if="latest.releasedAt"> · 发布于 {{ latest.releasedAt.slice(0, 10) }}</span>
+          </p>
+          <p v-if="latest.notes" class="mt-1 text-xs leading-5 opacity-90">{{ latest.notes }}</p>
+          <p class="mt-1 text-xs opacity-75">
+            已装旧版时重新下载覆盖安装即可升级；完整性可用同目录 SHA256SUMS 校验。
+          </p>
+        </div>
+
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
           <a
             v-for="opt in brand.downloads"
@@ -113,6 +130,7 @@
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { createCampusConnectCode } from '@/api/campus'
+import { fetchLatestMucodeManifest, type MucodeManifest } from '@/utils/mucUpdate'
 import type { BrandConfig } from '@/brand'
 
 type PlatformKey = 'mac-arm' | 'mac-intel' | 'win' | 'other'
@@ -123,6 +141,7 @@ const platform = ref<{ key: PlatformKey; label: string }>({ key: 'mac-arm', labe
 const detectedLabel = computed(() => platform.value.label)
 const gatewayHint = `${location.origin}/v1`
 const state = ref<'idle' | 'issuing' | 'opening' | 'fallback'>('idle')
+const latest = ref<MucodeManifest | null>(null)
 
 function downloadUrl(file: string): string {
   // 与网关同源；部署时将 dist/ 下的安装包挂载到 /downloads/ 路径
@@ -179,7 +198,10 @@ async function connect(): Promise<void> {
     window.location.href = `${props.brand.protocolScheme}://connect?code=${encodeURIComponent(code)}`
     window.setTimeout(() => {
       window.removeEventListener('blur', onBlur)
+      // 未失焦 → 未安装提示；已失焦（唤起成功/用户切走）→ 回到 idle，
+      // 否则按钮会永远停在"正在唤起"且禁用，只能刷新页面恢复。
       if (!left) state.value = 'fallback'
+      else state.value = 'idle'
     }, 2500)
   } catch {
     state.value = 'idle'
@@ -190,5 +212,9 @@ onMounted(() => {
   detectPlatform()
   // 已看过下载引导，后续登录直达控制台
   localStorage.setItem(props.brand.seenKey, '1')
+  // 最新版本信息拉取失败时静默（版本区块整体隐藏）
+  void fetchLatestMucodeManifest().then((m) => {
+    if (m) latest.value = m
+  })
 })
 </script>

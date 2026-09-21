@@ -36,6 +36,7 @@ type stubConcurrencyCacheForTest struct {
 	apiKeyConcurrencyErr error
 
 	// 记录调用
+	acquireUserSlotCalls     int
 	releasedAccountIDs       []int64
 	releasedRequestIDs       []string
 	loadBatchCalls           atomic.Int64
@@ -118,6 +119,7 @@ func (c *stubConcurrencyCacheForTest) GetAccountWaitingCount(_ context.Context, 
 	return c.waitCount, c.waitCountErr
 }
 func (c *stubConcurrencyCacheForTest) AcquireUserSlot(_ context.Context, _ int64, _ int, _ string) (bool, error) {
+	c.acquireUserSlotCalls++
 	return c.acquireResult, c.acquireErr
 }
 func (c *stubConcurrencyCacheForTest) ReleaseUserSlot(_ context.Context, _ int64, _ string) error {
@@ -262,11 +264,15 @@ func TestAcquireUserSlot_IndependentFromAccount(t *testing.T) {
 }
 
 func TestAcquireUserSlot_UnlimitedConcurrency(t *testing.T) {
-	svc := NewConcurrencyService(&stubConcurrencyCacheForTest{})
+	cache := &stubConcurrencyCacheForTest{}
+	svc := NewConcurrencyService(cache)
 
 	result, err := svc.AcquireUserSlot(context.Background(), 1, 0)
 	require.NoError(t, err)
 	require.True(t, result.Acquired)
+	require.NotNil(t, result.ReleaseFunc)
+	// 语义锁定：limit=0 = unlimited，必须在 Go 层 bypass，不触 Redis slot acquire
+	require.Zero(t, cache.acquireUserSlotCalls)
 }
 
 func TestTrackAPIKeySlot_ReleaseDecrements(t *testing.T) {

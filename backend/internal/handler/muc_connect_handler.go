@@ -16,7 +16,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"html"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +36,8 @@ import (
 const (
 	campusCodeTTL       = 60 * time.Second
 	campusMaxCodeLength = 128
-	campusMaxDeviceName = 64
+	campusMaxDeviceRunes = 64
+	campusMaxStoredName = 255 // api_keys.name 列宽；轮换/截断都按转义后的落库名称对齐
 )
 
 // 窄接口：handler 层禁止直接依赖 redis 客户端（depguard: handler-no-repository）。
@@ -49,13 +55,31 @@ type mucKeyManager interface {
 	Create(ctx context.Context, userID int64, req service.CreateAPIKeyRequest) (*service.APIKey, error)
 	Delete(ctx context.Context, id int64, userID int64) error
 	SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]service.APIKey, error)
+	GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error)
+}
+
+// 未限定分组用户（如管理员测试号）的默认分组来源：取挂有可调度账号的最小分组
+type mucGroupLookup interface {
+	DefaultGroupIDWithAccounts(ctx context.Context) (*int64, error)
 }
 
 type CampusConnectHandler struct {
-	brand      campus.Brand
-	codes      mucCodeStore
-	keys       mucKeyManager
-	userLookup mucUserLookup
+	brand       campus.Brand
+	codes       mucCodeStore
+	keys        mucKeyManager
+	userLookup  mucUserLookup
+	groupLookup mucGroupLookup
+}
+
+// NewCampusConnectHandler 按品牌构造（MUC/HUBU 各一实例，行为一致仅前缀不同）。
+func NewCampusConnectHandler(brand campus.Brand, codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, gatewayService *service.GatewayService) *CampusConnectHandler {
+	return &CampusConnectHandler{
+		brand:       brand,
+		codes:       codeStore,
+		keys:        apiKeyService,
+		userLookup:  userService,
+		groupLookup: gatewayService,
+	}
 }
 
 // CampusConnectHandlers 两品牌 handler 集合（同一构造函数产出的两个实例，
@@ -65,21 +89,11 @@ type CampusConnectHandlers struct {
 	Hubu *CampusConnectHandler
 }
 
-// NewCampusConnectHandler 按品牌构造（MUC/HUBU 各一实例，行为一致仅前缀不同）。
-func NewCampusConnectHandler(brand campus.Brand, codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService) *CampusConnectHandler {
-	return &CampusConnectHandler{
-		brand:      brand,
-		codes:      codeStore,
-		keys:       apiKeyService,
-		userLookup: userService,
-	}
-}
-
 // ProvideCampusConnectHandlers wire 装配：同类型两实例，统一注入 Handlers。
-func ProvideCampusConnectHandlers(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService) CampusConnectHandlers {
+func ProvideCampusConnectHandlers(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, gatewayService *service.GatewayService) CampusConnectHandlers {
 	return CampusConnectHandlers{
-		Muc:  NewCampusConnectHandler(campus.MUC, codeStore, apiKeyService, userService),
-		Hubu: NewCampusConnectHandler(campus.HUBU, codeStore, apiKeyService, userService),
+		Muc:  NewCampusConnectHandler(campus.MUC, codeStore, apiKeyService, userService, gatewayService),
+		Hubu: NewCampusConnectHandler(campus.HUBU, codeStore, apiKeyService, userService, gatewayService),
 	}
 }
 
@@ -140,8 +154,13 @@ func (h *CampusConnectHandler) Exchange(c *gin.Context) {
 	// GETDEL：原子取出并删除 —— 单次使用（验收 D/E）
 	payload, err := h.codes.GetDelCode(c.Request.Context(), h.brand.RedisPrefix+hex.EncodeToString(sum[:]))
 	if err != nil {
-		// 不存在（未签发/已过期/已使用）统一 404，不泄露具体原因
-		c.JSON(http.StatusNotFound, gin.H{"error": "code_not_found"})
+		// 不存在的 code（未签发/已过期/已使用）统一 404，不泄露具体原因；
+		// 其余错误是 Redis 基础设施故障，必须与 404 区分，否则故障被伪装成"码无效"。
+		if errors.Is(err, muccode.ErrCodeNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "code_not_found"})
+			return
+		}
+		response.ErrorFrom(c, fmt.Errorf("%s exchange: getdel code: %w", h.brand.ID, err))
 		return
 	}
 	var payloadData mucCodePayload
@@ -152,35 +171,59 @@ func (h *CampusConnectHandler) Exchange(c *gin.Context) {
 
 	deviceName := h.brand.DeviceHint
 	if req.DeviceName != "" {
-		if len(req.DeviceName) > campusMaxDeviceName {
-			req.DeviceName = req.DeviceName[:campusMaxDeviceName]
-		}
-		deviceName = h.brand.KeyPrefix + req.DeviceName
+		deviceName = h.brand.KeyPrefix + campusTruncateDeviceName(req.DeviceName)
 	}
+	// service.CreateAPIKey 落库时会做 html.EscapeString；轮换必须按转义后的
+	// 完整名称精确匹配，按子串匹配会误删其他设备/用户手建的同前缀 Key。
+	storedName := html.EscapeString(deviceName)
 
-	// 轮换——先删除该设备此前的旧 Key 再创建。
-	// 同步顺序保证不会误删后续连接创建的新 Key（先建后删在并发重连时会互删），
-	// 搜索失败视为轮换失败但不阻断换取（旧 Key 可另行清理）。
-	olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, deviceName, 50)
-	if err == nil {
-		for _, old := range olds {
-			_ = h.keys.Delete(c.Request.Context(), old.ID, payloadData.UserID)
+	// 以绑定用户身份创建 per-device Key（明文只在创建响应中出现一次）。
+	// 先建后删：创建失败时旧 Key 仍然有效，设备不致凭据全失。
+	//
+	// MUC Harness: 自动绑定分组。生产 allow_ungrouped_key_scheduling=false，
+	// 无分组 Key 虽可列出模型但无法被调度对话；mucode 是免配置产品，Key 必须开箱可用：
+	// - 用户被限定分组（RestrictPublicGroups）时绑其允许分组（多个取最小 ID，稳定可预期）；
+	// - 未限定用户（管理员测试号等）绑挂有可调度账号的最小分组；
+	// - 两者都取不到时保持 NULL，沿用站点的未分组调度策略。
+	var keyGroupID *int64
+	if allowed, restrict, err := h.keys.GetUserGroupVisibility(c.Request.Context(), payloadData.UserID); err == nil && restrict {
+		ids := make([]int64, 0, len(allowed))
+		for id := range allowed {
+			ids = append(ids, id)
+		}
+		if len(ids) > 0 {
+			sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+			keyGroupID = &ids[0]
+		}
+	} else if h.groupLookup != nil {
+		if gid, err := h.groupLookup.DefaultGroupIDWithAccounts(c.Request.Context()); err == nil && gid != nil {
+			keyGroupID = gid
 		}
 	}
-
-	// 以绑定用户身份创建 per-device Key（明文只在创建响应中出现一次）
 	key, err := h.keys.Create(c.Request.Context(), payloadData.UserID, service.CreateAPIKeyRequest{
-		Name: deviceName,
+		Name:    deviceName,
+		GroupID: keyGroupID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
+	// MUC Harness: 轮换——删除该设备此前的旧 Key（转义后名称精确相等，排除刚创建的）。
+	// 搜索失败视为轮换失败但不阻断换取（旧 Key 可另行清理）。
+	if olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, h.brand.KeyPrefix, 50); err == nil {
+		for _, old := range olds {
+			if old.ID == key.ID || old.Name != storedName {
+				continue
+			}
+			_ = h.keys.Delete(c.Request.Context(), old.ID, payloadData.UserID)
+		}
+	}
+
 	userDisplay := ""
 	if h.userLookup != nil {
 		if user, err := h.userLookup.GetByID(c.Request.Context(), payloadData.UserID); err == nil && user != nil {
-			userDisplay = user.Email
+			userDisplay = campusMaskEmail(user.Email)
 		}
 	}
 
@@ -203,4 +246,36 @@ func campusPublicGatewayURL(c *gin.Context) string {
 		}
 	}
 	return scheme + "://" + c.Request.Host
+}
+
+// mucTruncateDeviceName 按 rune 截断设备名（保证 UTF-8 完整，中文不被切碎），
+// 并确保 html.EscapeString 转义后的长度不超过 api_keys.name 列宽。
+func campusTruncateDeviceName(name string) string {
+	runes := []rune(name)
+	if len(runes) > campusMaxDeviceRunes {
+		runes = runes[:mucMaxDeviceRunes]
+	}
+	for len(html.EscapeString(string(runes))) > campusMaxStoredName && len(runes) > 0 {
+		runes = runes[:len(runes)-1]
+	}
+	return string(runes)
+}
+
+// mucMaskEmail 兑换响应会连同授权码一起留在客户端与浏览器历史里，
+// 邮箱只回显足以辨识的脱敏形式。
+func campusMaskEmail(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at <= 0 {
+		return "***"
+	}
+	local, domain := email[:at], email[at+1:]
+	if len(local) > 1 {
+		local = local[:1] + "***"
+	} else {
+		local = "***"
+	}
+	if domain == "" {
+		return local
+	}
+	return local + "@" + domain
 }

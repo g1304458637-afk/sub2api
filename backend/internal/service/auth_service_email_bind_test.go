@@ -832,6 +832,20 @@ func (s *emailBindCacheStub) DeleteVerificationCode(context.Context, string) err
 	return nil
 }
 
+func (s *emailBindCacheStub) ConsumeVerificationCode(context.Context, string) (*service.VerificationCodeData, error) {
+	data := s.data
+	s.data = nil
+	return data, nil
+}
+
+func (s *emailBindCacheStub) ReserveVerificationCodeCooldown(context.Context, string, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (s *emailBindCacheStub) ReleaseVerificationCodeCooldown(context.Context, string) error {
+	return nil
+}
+
 func (s *emailBindCacheStub) GetNotifyVerifyCode(context.Context, string) (*service.VerificationCodeData, error) {
 	return nil, nil
 }

@@ -12,6 +12,7 @@ export interface MucConnectCode {
 }
 
 export async function createMucConnectCode(): Promise<MucConnectCode> {
+  // apiClient.baseURL 已含 /api/v1 —— 这里必须用相对路径，否则拼出 /api/v1/api/v1/... 404
   const res = await apiClient.post('/muc/connect-code')
   return res.data?.data ?? res.data
 }

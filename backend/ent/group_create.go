@@ -288,6 +288,20 @@ func (_c *GroupCreate) SetNillableDefaultValidityDays(v *int) *GroupCreate {
 	return _c
 }
 
+// SetConcurrencyOverride sets the "concurrency_override" field.
+func (_c *GroupCreate) SetConcurrencyOverride(v int) *GroupCreate {
+	_c.mutation.SetConcurrencyOverride(v)
+	return _c
+}
+
+// SetNillableConcurrencyOverride sets the "concurrency_override" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableConcurrencyOverride(v *int) *GroupCreate {
+	if v != nil {
+		_c.SetConcurrencyOverride(*v)
+	}
+	return _c
+}
+
 // SetAllowImageGeneration sets the "allow_image_generation" field.
 func (_c *GroupCreate) SetAllowImageGeneration(v bool) *GroupCreate {
 	_c.mutation.SetAllowImageGeneration(v)
@@ -1290,6 +1304,11 @@ func (_c *GroupCreate) check() error {
 	if _, ok := _c.mutation.DefaultValidityDays(); !ok {
 		return &ValidationError{Name: "default_validity_days", err: errors.New(`ent: missing required field "Group.default_validity_days"`)}
 	}
+	if v, ok := _c.mutation.ConcurrencyOverride(); ok {
+		if err := group.ConcurrencyOverrideValidator(v); err != nil {
+			return &ValidationError{Name: "concurrency_override", err: fmt.Errorf(`ent: validator failed for field "Group.concurrency_override": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.AllowImageGeneration(); !ok {
 		return &ValidationError{Name: "allow_image_generation", err: errors.New(`ent: missing required field "Group.allow_image_generation"`)}
 	}
@@ -1520,6 +1539,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DefaultValidityDays(); ok {
 		_spec.SetField(group.FieldDefaultValidityDays, field.TypeInt, value)
 		_node.DefaultValidityDays = value
+	}
+	if value, ok := _c.mutation.ConcurrencyOverride(); ok {
+		_spec.SetField(group.FieldConcurrencyOverride, field.TypeInt, value)
+		_node.ConcurrencyOverride = &value
 	}
 	if value, ok := _c.mutation.AllowImageGeneration(); ok {
 		_spec.SetField(group.FieldAllowImageGeneration, field.TypeBool, value)
@@ -2132,6 +2155,30 @@ func (u *GroupUpsert) UpdateDefaultValidityDays() *GroupUpsert {
 // AddDefaultValidityDays adds v to the "default_validity_days" field.
 func (u *GroupUpsert) AddDefaultValidityDays(v int) *GroupUpsert {
 	u.Add(group.FieldDefaultValidityDays, v)
+	return u
+}
+
+// SetConcurrencyOverride sets the "concurrency_override" field.
+func (u *GroupUpsert) SetConcurrencyOverride(v int) *GroupUpsert {
+	u.Set(group.FieldConcurrencyOverride, v)
+	return u
+}
+
+// UpdateConcurrencyOverride sets the "concurrency_override" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateConcurrencyOverride() *GroupUpsert {
+	u.SetExcluded(group.FieldConcurrencyOverride)
+	return u
+}
+
+// AddConcurrencyOverride adds v to the "concurrency_override" field.
+func (u *GroupUpsert) AddConcurrencyOverride(v int) *GroupUpsert {
+	u.Add(group.FieldConcurrencyOverride, v)
+	return u
+}
+
+// ClearConcurrencyOverride clears the value of the "concurrency_override" field.
+func (u *GroupUpsert) ClearConcurrencyOverride() *GroupUpsert {
+	u.SetNull(group.FieldConcurrencyOverride)
 	return u
 }
 
@@ -3281,6 +3328,34 @@ func (u *GroupUpsertOne) AddDefaultValidityDays(v int) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateDefaultValidityDays() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateDefaultValidityDays()
+	})
+}
+
+// SetConcurrencyOverride sets the "concurrency_override" field.
+func (u *GroupUpsertOne) SetConcurrencyOverride(v int) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetConcurrencyOverride(v)
+	})
+}
+
+// AddConcurrencyOverride adds v to the "concurrency_override" field.
+func (u *GroupUpsertOne) AddConcurrencyOverride(v int) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddConcurrencyOverride(v)
+	})
+}
+
+// UpdateConcurrencyOverride sets the "concurrency_override" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateConcurrencyOverride() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateConcurrencyOverride()
+	})
+}
+
+// ClearConcurrencyOverride clears the value of the "concurrency_override" field.
+func (u *GroupUpsertOne) ClearConcurrencyOverride() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearConcurrencyOverride()
 	})
 }
 
@@ -4727,6 +4802,34 @@ func (u *GroupUpsertBulk) AddDefaultValidityDays(v int) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateDefaultValidityDays() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateDefaultValidityDays()
+	})
+}
+
+// SetConcurrencyOverride sets the "concurrency_override" field.
+func (u *GroupUpsertBulk) SetConcurrencyOverride(v int) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetConcurrencyOverride(v)
+	})
+}
+
+// AddConcurrencyOverride adds v to the "concurrency_override" field.
+func (u *GroupUpsertBulk) AddConcurrencyOverride(v int) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddConcurrencyOverride(v)
+	})
+}
+
+// UpdateConcurrencyOverride sets the "concurrency_override" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateConcurrencyOverride() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateConcurrencyOverride()
+	})
+}
+
+// ClearConcurrencyOverride clears the value of the "concurrency_override" field.
+func (u *GroupUpsertBulk) ClearConcurrencyOverride() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearConcurrencyOverride()
 	})
 }
 

@@ -24,8 +24,9 @@ func (s *EmailCacheSuite) SetupTest() {
 }
 
 func (s *EmailCacheSuite) TestGetVerificationCode_Missing() {
-	_, err := s.cache.GetVerificationCode(s.ctx, "nonexistent@example.com")
-	require.True(s.T(), errors.Is(err, redis.Nil), "expected redis.Nil for missing verification code")
+	data, err := s.cache.GetVerificationCode(s.ctx, "nonexistent@example.com")
+	require.NoError(s.T(), err)
+	require.Nil(s.T(), data)
 }
 
 func (s *EmailCacheSuite) TestSetAndGetVerificationCode() {
@@ -75,6 +76,22 @@ func (s *EmailCacheSuite) TestDeleteVerificationCode() {
 func (s *EmailCacheSuite) TestDeleteVerificationCode_NonExistent() {
 	// Deleting a non-existent key should not error
 	require.NoError(s.T(), s.cache.DeleteVerificationCode(s.ctx, "nonexistent@example.com"), "DeleteVerificationCode non-existent")
+}
+
+func (s *EmailCacheSuite) TestConsumeVerificationCodeIsOneTime() {
+	address := "education-email-identity:user:123"
+	require.NoError(s.T(), s.cache.SetVerificationCode(s.ctx, address, &service.VerificationCodeData{
+		Code: "123456", Target: "student@muc.edu.cn", CreatedAt: time.Now(), ExpiresAt: time.Now().Add(time.Minute),
+	}, time.Minute))
+
+	consumed, err := s.cache.ConsumeVerificationCode(s.ctx, address)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), "123456", consumed.Code)
+	require.Equal(s.T(), "student@muc.edu.cn", consumed.Target)
+
+	consumed, err = s.cache.ConsumeVerificationCode(s.ctx, address)
+	require.NoError(s.T(), err)
+	require.Nil(s.T(), consumed, "a code must not be replayable")
 }
 
 func (s *EmailCacheSuite) TestGetVerificationCode_JSONCorruption() {

@@ -20,6 +20,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetevent"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -641,6 +643,51 @@ func (_u *UserUpdate) AddPlatformQuotas(v ...*UserPlatformQuota) *UserUpdate {
 	return _u.AddPlatformQuotaIDs(ids...)
 }
 
+// AddResetCardIDs adds the "reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_u *UserUpdate) AddResetCardIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddResetCardIDs(ids...)
+	return _u
+}
+
+// AddResetCards adds the "reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserUpdate) AddResetCards(v ...*SubscriptionResetCard) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResetCardIDs(ids...)
+}
+
+// AddCreatedResetEventIDs adds the "created_reset_events" edge to the SubscriptionResetEvent entity by IDs.
+func (_u *UserUpdate) AddCreatedResetEventIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddCreatedResetEventIDs(ids...)
+	return _u
+}
+
+// AddCreatedResetEvents adds the "created_reset_events" edges to the SubscriptionResetEvent entity.
+func (_u *UserUpdate) AddCreatedResetEvents(v ...*SubscriptionResetEvent) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCreatedResetEventIDs(ids...)
+}
+
+// AddCreatedResetCardIDs adds the "created_reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_u *UserUpdate) AddCreatedResetCardIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddCreatedResetCardIDs(ids...)
+	return _u
+}
+
+// AddCreatedResetCards adds the "created_reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserUpdate) AddCreatedResetCards(v ...*SubscriptionResetCard) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCreatedResetCardIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -917,6 +964,69 @@ func (_u *UserUpdate) RemovePlatformQuotas(v ...*UserPlatformQuota) *UserUpdate 
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePlatformQuotaIDs(ids...)
+}
+
+// ClearResetCards clears all "reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserUpdate) ClearResetCards() *UserUpdate {
+	_u.mutation.ClearResetCards()
+	return _u
+}
+
+// RemoveResetCardIDs removes the "reset_cards" edge to SubscriptionResetCard entities by IDs.
+func (_u *UserUpdate) RemoveResetCardIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveResetCardIDs(ids...)
+	return _u
+}
+
+// RemoveResetCards removes "reset_cards" edges to SubscriptionResetCard entities.
+func (_u *UserUpdate) RemoveResetCards(v ...*SubscriptionResetCard) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResetCardIDs(ids...)
+}
+
+// ClearCreatedResetEvents clears all "created_reset_events" edges to the SubscriptionResetEvent entity.
+func (_u *UserUpdate) ClearCreatedResetEvents() *UserUpdate {
+	_u.mutation.ClearCreatedResetEvents()
+	return _u
+}
+
+// RemoveCreatedResetEventIDs removes the "created_reset_events" edge to SubscriptionResetEvent entities by IDs.
+func (_u *UserUpdate) RemoveCreatedResetEventIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveCreatedResetEventIDs(ids...)
+	return _u
+}
+
+// RemoveCreatedResetEvents removes "created_reset_events" edges to SubscriptionResetEvent entities.
+func (_u *UserUpdate) RemoveCreatedResetEvents(v ...*SubscriptionResetEvent) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCreatedResetEventIDs(ids...)
+}
+
+// ClearCreatedResetCards clears all "created_reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserUpdate) ClearCreatedResetCards() *UserUpdate {
+	_u.mutation.ClearCreatedResetCards()
+	return _u
+}
+
+// RemoveCreatedResetCardIDs removes the "created_reset_cards" edge to SubscriptionResetCard entities by IDs.
+func (_u *UserUpdate) RemoveCreatedResetCardIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveCreatedResetCardIDs(ids...)
+	return _u
+}
+
+// RemoveCreatedResetCards removes "created_reset_cards" edges to SubscriptionResetCard entities.
+func (_u *UserUpdate) RemoveCreatedResetCards(v ...*SubscriptionResetCard) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCreatedResetCardIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1713,6 +1823,141 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ResetCardsTable,
+			Columns: []string{user.ResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResetCardsIDs(); len(nodes) > 0 && !_u.mutation.ResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ResetCardsTable,
+			Columns: []string{user.ResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ResetCardsTable,
+			Columns: []string{user.ResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CreatedResetEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetEventsTable,
+			Columns: []string{user.CreatedResetEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetevent.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCreatedResetEventsIDs(); len(nodes) > 0 && !_u.mutation.CreatedResetEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetEventsTable,
+			Columns: []string{user.CreatedResetEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetevent.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CreatedResetEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetEventsTable,
+			Columns: []string{user.CreatedResetEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetevent.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CreatedResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetCardsTable,
+			Columns: []string{user.CreatedResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCreatedResetCardsIDs(); len(nodes) > 0 && !_u.mutation.CreatedResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetCardsTable,
+			Columns: []string{user.CreatedResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CreatedResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetCardsTable,
+			Columns: []string{user.CreatedResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -2334,6 +2579,51 @@ func (_u *UserUpdateOne) AddPlatformQuotas(v ...*UserPlatformQuota) *UserUpdateO
 	return _u.AddPlatformQuotaIDs(ids...)
 }
 
+// AddResetCardIDs adds the "reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_u *UserUpdateOne) AddResetCardIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddResetCardIDs(ids...)
+	return _u
+}
+
+// AddResetCards adds the "reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserUpdateOne) AddResetCards(v ...*SubscriptionResetCard) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResetCardIDs(ids...)
+}
+
+// AddCreatedResetEventIDs adds the "created_reset_events" edge to the SubscriptionResetEvent entity by IDs.
+func (_u *UserUpdateOne) AddCreatedResetEventIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddCreatedResetEventIDs(ids...)
+	return _u
+}
+
+// AddCreatedResetEvents adds the "created_reset_events" edges to the SubscriptionResetEvent entity.
+func (_u *UserUpdateOne) AddCreatedResetEvents(v ...*SubscriptionResetEvent) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCreatedResetEventIDs(ids...)
+}
+
+// AddCreatedResetCardIDs adds the "created_reset_cards" edge to the SubscriptionResetCard entity by IDs.
+func (_u *UserUpdateOne) AddCreatedResetCardIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddCreatedResetCardIDs(ids...)
+	return _u
+}
+
+// AddCreatedResetCards adds the "created_reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserUpdateOne) AddCreatedResetCards(v ...*SubscriptionResetCard) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCreatedResetCardIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -2610,6 +2900,69 @@ func (_u *UserUpdateOne) RemovePlatformQuotas(v ...*UserPlatformQuota) *UserUpda
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePlatformQuotaIDs(ids...)
+}
+
+// ClearResetCards clears all "reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserUpdateOne) ClearResetCards() *UserUpdateOne {
+	_u.mutation.ClearResetCards()
+	return _u
+}
+
+// RemoveResetCardIDs removes the "reset_cards" edge to SubscriptionResetCard entities by IDs.
+func (_u *UserUpdateOne) RemoveResetCardIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveResetCardIDs(ids...)
+	return _u
+}
+
+// RemoveResetCards removes "reset_cards" edges to SubscriptionResetCard entities.
+func (_u *UserUpdateOne) RemoveResetCards(v ...*SubscriptionResetCard) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResetCardIDs(ids...)
+}
+
+// ClearCreatedResetEvents clears all "created_reset_events" edges to the SubscriptionResetEvent entity.
+func (_u *UserUpdateOne) ClearCreatedResetEvents() *UserUpdateOne {
+	_u.mutation.ClearCreatedResetEvents()
+	return _u
+}
+
+// RemoveCreatedResetEventIDs removes the "created_reset_events" edge to SubscriptionResetEvent entities by IDs.
+func (_u *UserUpdateOne) RemoveCreatedResetEventIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveCreatedResetEventIDs(ids...)
+	return _u
+}
+
+// RemoveCreatedResetEvents removes "created_reset_events" edges to SubscriptionResetEvent entities.
+func (_u *UserUpdateOne) RemoveCreatedResetEvents(v ...*SubscriptionResetEvent) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCreatedResetEventIDs(ids...)
+}
+
+// ClearCreatedResetCards clears all "created_reset_cards" edges to the SubscriptionResetCard entity.
+func (_u *UserUpdateOne) ClearCreatedResetCards() *UserUpdateOne {
+	_u.mutation.ClearCreatedResetCards()
+	return _u
+}
+
+// RemoveCreatedResetCardIDs removes the "created_reset_cards" edge to SubscriptionResetCard entities by IDs.
+func (_u *UserUpdateOne) RemoveCreatedResetCardIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveCreatedResetCardIDs(ids...)
+	return _u
+}
+
+// RemoveCreatedResetCards removes "created_reset_cards" edges to SubscriptionResetCard entities.
+func (_u *UserUpdateOne) RemoveCreatedResetCards(v ...*SubscriptionResetCard) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCreatedResetCardIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -3429,6 +3782,141 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userplatformquota.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ResetCardsTable,
+			Columns: []string{user.ResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResetCardsIDs(); len(nodes) > 0 && !_u.mutation.ResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ResetCardsTable,
+			Columns: []string{user.ResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ResetCardsTable,
+			Columns: []string{user.ResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CreatedResetEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetEventsTable,
+			Columns: []string{user.CreatedResetEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetevent.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCreatedResetEventsIDs(); len(nodes) > 0 && !_u.mutation.CreatedResetEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetEventsTable,
+			Columns: []string{user.CreatedResetEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetevent.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CreatedResetEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetEventsTable,
+			Columns: []string{user.CreatedResetEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetevent.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CreatedResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetCardsTable,
+			Columns: []string{user.CreatedResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCreatedResetCardsIDs(); len(nodes) > 0 && !_u.mutation.CreatedResetCardsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetCardsTable,
+			Columns: []string{user.CreatedResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CreatedResetCardsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CreatedResetCardsTable,
+			Columns: []string{user.CreatedResetCardsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionresetcard.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

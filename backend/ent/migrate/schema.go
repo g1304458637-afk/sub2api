@@ -922,6 +922,7 @@ var (
 		{Name: "weekly_limit_usd", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "monthly_limit_usd", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "default_validity_days", Type: field.TypeInt, Default: 30},
+		{Name: "concurrency_override", Type: field.TypeInt, Nullable: true},
 		{Name: "allow_image_generation", Type: field.TypeBool, Default: false},
 		{Name: "allow_batch_image_generation", Type: field.TypeBool, Default: false},
 		{Name: "image_rate_independent", Type: field.TypeBool, Default: false},
@@ -1004,7 +1005,7 @@ var (
 			{
 				Name:    "group_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[49]},
+				Columns: []*schema.Column{GroupsColumns[50]},
 			},
 			{
 				Name:    "idx_groups_duplicate_operation_id_active",
@@ -1508,6 +1509,69 @@ var (
 			},
 		},
 	}
+	// ResearchApplicationsColumns holds the columns for the "research_applications" table.
+	ResearchApplicationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "description", Type: field.TypeString, Size: 2147483647},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "pending"},
+		{Name: "reviewer_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "review_notes", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "reward_amount", Type: field.TypeFloat64, Nullable: true},
+		{Name: "issued_redeem_code_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "attachments", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+	}
+	// ResearchApplicationsTable holds the schema information for the "research_applications" table.
+	ResearchApplicationsTable = &schema.Table{
+		Name:       "research_applications",
+		Columns:    ResearchApplicationsColumns,
+		PrimaryKey: []*schema.Column{ResearchApplicationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "researchapplication_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchApplicationsColumns[3]},
+			},
+			{
+				Name:    "researchapplication_status",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchApplicationsColumns[5]},
+			},
+		},
+	}
+	// ResearchAttachmentUploadsColumns holds the columns for the "research_attachment_uploads" table.
+	ResearchAttachmentUploadsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Size: 36},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "original_name", Type: field.TypeString},
+		{Name: "mime", Type: field.TypeString, Size: 100},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "storage_path", Type: field.TypeString},
+		{Name: "application_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// ResearchAttachmentUploadsTable holds the schema information for the "research_attachment_uploads" table.
+	ResearchAttachmentUploadsTable = &schema.Table{
+		Name:       "research_attachment_uploads",
+		Columns:    ResearchAttachmentUploadsColumns,
+		PrimaryKey: []*schema.Column{ResearchAttachmentUploadsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "researchattachmentupload_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchAttachmentUploadsColumns[3]},
+			},
+			{
+				Name:    "researchattachmentupload_application_id",
+				Unique:  false,
+				Columns: []*schema.Column{ResearchAttachmentUploadsColumns[8]},
+			},
+		},
+	}
 	// SecuritySecretsColumns holds the columns for the "security_secrets" table.
 	SecuritySecretsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1568,6 +1632,166 @@ var (
 				Name:    "subscriptionplan_for_sale",
 				Unique:  false,
 				Columns: []*schema.Column{SubscriptionPlansColumns[11]},
+			},
+		},
+	}
+	// SubscriptionResetApplicationsColumns holds the columns for the "subscription_reset_applications" table.
+	SubscriptionResetApplicationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "effective_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "previous_weekly_window_start", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "previous_weekly_usage_usd", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "applied_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "applied"},
+		{Name: "metadata", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "reset_event_id", Type: field.TypeInt64},
+		{Name: "user_subscription_id", Type: field.TypeInt64},
+	}
+	// SubscriptionResetApplicationsTable holds the schema information for the "subscription_reset_applications" table.
+	SubscriptionResetApplicationsTable = &schema.Table{
+		Name:       "subscription_reset_applications",
+		Columns:    SubscriptionResetApplicationsColumns,
+		PrimaryKey: []*schema.Column{SubscriptionResetApplicationsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "subscription_reset_applications_subscription_reset_events_applications",
+				Columns:    []*schema.Column{SubscriptionResetApplicationsColumns[7]},
+				RefColumns: []*schema.Column{SubscriptionResetEventsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "subscription_reset_applications_user_subscriptions_reset_applications",
+				Columns:    []*schema.Column{SubscriptionResetApplicationsColumns[8]},
+				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "subscriptionresetapplication_user_subscription_id",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetApplicationsColumns[8]},
+			},
+		},
+	}
+	// SubscriptionResetCardsColumns holds the columns for the "subscription_reset_cards" table.
+	SubscriptionResetCardsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "available"},
+		{Name: "scope", Type: field.TypeString, Size: 20, Default: "weekly"},
+		{Name: "source_type", Type: field.TypeString, Size: 32, Default: "admin_grant"},
+		{Name: "campaign", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "grant_index", Type: field.TypeInt, Default: 0},
+		{Name: "granted_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "used_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "notes", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "metadata", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "grant_event_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "created_by", Type: field.TypeInt64, Nullable: true},
+		{Name: "used_subscription_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// SubscriptionResetCardsTable holds the schema information for the "subscription_reset_cards" table.
+	SubscriptionResetCardsTable = &schema.Table{
+		Name:       "subscription_reset_cards",
+		Columns:    SubscriptionResetCardsColumns,
+		PrimaryKey: []*schema.Column{SubscriptionResetCardsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "subscription_reset_cards_subscription_reset_events_granted_cards",
+				Columns:    []*schema.Column{SubscriptionResetCardsColumns[14]},
+				RefColumns: []*schema.Column{SubscriptionResetEventsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "subscription_reset_cards_users_reset_cards",
+				Columns:    []*schema.Column{SubscriptionResetCardsColumns[15]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "subscription_reset_cards_users_created_reset_cards",
+				Columns:    []*schema.Column{SubscriptionResetCardsColumns[16]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "subscription_reset_cards_user_subscriptions_used_by_reset_cards",
+				Columns:    []*schema.Column{SubscriptionResetCardsColumns[17]},
+				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "subscriptionresetcard_user_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[15], SubscriptionResetCardsColumns[4]},
+			},
+			{
+				Name:    "subscriptionresetcard_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[10]},
+			},
+			{
+				Name:    "subscriptionresetcard_grant_event_id",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[14]},
+			},
+			{
+				Name:    "subscriptionresetcard_grant_event_id_user_id_grant_index",
+				Unique:  true,
+				Columns: []*schema.Column{SubscriptionResetCardsColumns[14], SubscriptionResetCardsColumns[15], SubscriptionResetCardsColumns[8]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "grant_event_id IS NOT NULL AND deleted_at IS NULL",
+				},
+			},
+		},
+	}
+	// SubscriptionResetEventsColumns holds the columns for the "subscription_reset_events" table.
+	SubscriptionResetEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "event_type", Type: field.TypeString, Size: 32},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "pending"},
+		{Name: "effective_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "scope_type", Type: field.TypeString, Size: 32},
+		{Name: "scope", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "reason", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "campaign", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "metadata", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_by", Type: field.TypeInt64, Nullable: true},
+	}
+	// SubscriptionResetEventsTable holds the schema information for the "subscription_reset_events" table.
+	SubscriptionResetEventsTable = &schema.Table{
+		Name:       "subscription_reset_events",
+		Columns:    SubscriptionResetEventsColumns,
+		PrimaryKey: []*schema.Column{SubscriptionResetEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "subscription_reset_events_users_created_reset_events",
+				Columns:    []*schema.Column{SubscriptionResetEventsColumns[13]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "subscriptionresetevent_status",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetEventsColumns[4]},
+			},
+			{
+				Name:    "subscriptionresetevent_effective_at",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionResetEventsColumns[5]},
 			},
 		},
 	}
@@ -2014,6 +2238,7 @@ var (
 		{Name: "monthly_usage_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "assigned_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "notes", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "auto_payg_fallback", Type: field.TypeBool, Default: false},
 		{Name: "group_id", Type: field.TypeInt64},
 		{Name: "user_id", Type: field.TypeInt64},
 		{Name: "assigned_by", Type: field.TypeInt64, Nullable: true},
@@ -2026,19 +2251,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "user_subscriptions_groups_subscriptions",
-				Columns:    []*schema.Column{UserSubscriptionsColumns[15]},
+				Columns:    []*schema.Column{UserSubscriptionsColumns[16]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "user_subscriptions_users_subscriptions",
-				Columns:    []*schema.Column{UserSubscriptionsColumns[16]},
+				Columns:    []*schema.Column{UserSubscriptionsColumns[17]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "user_subscriptions_users_assigned_subscriptions",
-				Columns:    []*schema.Column{UserSubscriptionsColumns[17]},
+				Columns:    []*schema.Column{UserSubscriptionsColumns[18]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -2047,12 +2272,12 @@ var (
 			{
 				Name:    "usersubscription_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[16]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[17]},
 			},
 			{
 				Name:    "usersubscription_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[15]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[16]},
 			},
 			{
 				Name:    "usersubscription_status",
@@ -2067,17 +2292,17 @@ var (
 			{
 				Name:    "usersubscription_user_id_status_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[16], UserSubscriptionsColumns[6], UserSubscriptionsColumns[5]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[17], UserSubscriptionsColumns[6], UserSubscriptionsColumns[5]},
 			},
 			{
 				Name:    "usersubscription_assigned_by",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[17]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[18]},
 			},
 			{
 				Name:    "usersubscription_user_id_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserSubscriptionsColumns[16], UserSubscriptionsColumns[15]},
+				Columns: []*schema.Column{UserSubscriptionsColumns[17], UserSubscriptionsColumns[16]},
 			},
 			{
 				Name:    "usersubscription_deleted_at",
@@ -2115,9 +2340,14 @@ var (
 		PromoCodeUsagesTable,
 		ProxiesTable,
 		RedeemCodesTable,
+		ResearchApplicationsTable,
+		ResearchAttachmentUploadsTable,
 		SecuritySecretsTable,
 		SettingsTable,
 		SubscriptionPlansTable,
+		SubscriptionResetApplicationsTable,
+		SubscriptionResetCardsTable,
+		SubscriptionResetEventsTable,
 		TLSFingerprintProfilesTable,
 		UsageCleanupTasksTable,
 		UsageLogsTable,
@@ -2235,6 +2465,12 @@ func init() {
 	RedeemCodesTable.Annotation = &entsql.Annotation{
 		Table: "redeem_codes",
 	}
+	ResearchApplicationsTable.Annotation = &entsql.Annotation{
+		Table: "research_applications",
+	}
+	ResearchAttachmentUploadsTable.Annotation = &entsql.Annotation{
+		Table: "research_attachment_uploads",
+	}
 	SecuritySecretsTable.Annotation = &entsql.Annotation{
 		Table: "security_secrets",
 	}
@@ -2243,6 +2479,22 @@ func init() {
 	}
 	SubscriptionPlansTable.Annotation = &entsql.Annotation{
 		Table: "subscription_plans",
+	}
+	SubscriptionResetApplicationsTable.ForeignKeys[0].RefTable = SubscriptionResetEventsTable
+	SubscriptionResetApplicationsTable.ForeignKeys[1].RefTable = UserSubscriptionsTable
+	SubscriptionResetApplicationsTable.Annotation = &entsql.Annotation{
+		Table: "subscription_reset_applications",
+	}
+	SubscriptionResetCardsTable.ForeignKeys[0].RefTable = SubscriptionResetEventsTable
+	SubscriptionResetCardsTable.ForeignKeys[1].RefTable = UsersTable
+	SubscriptionResetCardsTable.ForeignKeys[2].RefTable = UsersTable
+	SubscriptionResetCardsTable.ForeignKeys[3].RefTable = UserSubscriptionsTable
+	SubscriptionResetCardsTable.Annotation = &entsql.Annotation{
+		Table: "subscription_reset_cards",
+	}
+	SubscriptionResetEventsTable.ForeignKeys[0].RefTable = UsersTable
+	SubscriptionResetEventsTable.Annotation = &entsql.Annotation{
+		Table: "subscription_reset_events",
 	}
 	TLSFingerprintProfilesTable.Annotation = &entsql.Annotation{
 		Table: "tls_fingerprint_profiles",

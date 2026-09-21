@@ -990,6 +990,35 @@ func TestGetModelPricing_XAIThresholdInclusive(t *testing.T) {
 	require.True(t, pricing.LongContextThresholdInclusive, "xAI 阈值语义为达到即进高档")
 }
 
+func TestDefaultCatalog_Grok46OfficialPricingAndInclusiveThreshold(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("..", "..", "resources", "model-pricing", "model_prices_and_context_window.json"))
+	require.NoError(t, err)
+
+	pricingService := &PricingService{}
+	pricingService.pricingData, err = pricingService.parsePricingData(body)
+	require.NoError(t, err)
+
+	modelPricing, ok := pricingService.pricingData["grok-4.6"]
+	require.True(t, ok, "official Grok 4.6 catalog entry is required")
+	require.Equal(t, "xai", modelPricing.LiteLLMProvider)
+	require.Equal(t, 200000, modelPricing.LongContextInputTokenThreshold)
+	require.InDelta(t, 2.0, modelPricing.LongContextInputCostMultiplier, 1e-12)
+	require.InDelta(t, 2.0, modelPricing.LongContextOutputCostMultiplier, 1e-12)
+
+	billing := NewBillingService(&config.Config{}, pricingService)
+	belowThreshold, err := billing.CalculateCost("grok-4.6", UsageTokens{InputTokens: 199999, OutputTokens: 1}, 1)
+	require.NoError(t, err)
+	require.False(t, belowThreshold.LongContextBillingApplied)
+	require.InDelta(t, 199999*2e-6, belowThreshold.InputCost, 1e-12)
+	require.InDelta(t, 6e-6, belowThreshold.OutputCost, 1e-12)
+
+	atThreshold, err := billing.CalculateCost("grok-4.6", UsageTokens{InputTokens: 200000, OutputTokens: 1}, 1)
+	require.NoError(t, err)
+	require.True(t, atThreshold.LongContextBillingApplied, "xAI long-context rate starts at 200K tokens inclusive")
+	require.InDelta(t, 200000*4e-6, atThreshold.InputCost, 1e-12)
+	require.InDelta(t, 12e-6, atThreshold.OutputCost, 1e-12)
+}
+
 // F3：显式 long_context 字段以"字段存在"为准——显式 0 也能压住 above 折算，关闭阶梯。
 func TestParsePricingData_ExplicitZeroThresholdDisablesLadder(t *testing.T) {
 	svc := &PricingService{}

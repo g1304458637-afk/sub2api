@@ -142,6 +142,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		FrontendURL:                                            settings.FrontendURL,
 		InvitationCodeEnabled:                                  settings.InvitationCodeEnabled,
 		TotpEnabled:                                            settings.TotpEnabled,
+		EducationEmailVerificationEnabled:                      settings.EducationEmailVerificationEnabled,
+		StudentVerificationRewardEnabled:                       settings.StudentVerificationRewardEnabled,
+		StudentVerificationRewardAmount:                        settings.StudentVerificationRewardAmount,
+		StudentVerificationRewardCampaign:                      settings.StudentVerificationRewardCampaign,
 		TotpEncryptionKeyConfigured:                            h.settingService.IsTotpEncryptionKeyConfigured(),
 		PasskeyEnabled:                                         settings.PasskeyEnabled,
 		PasskeyConfigured:                                      passkeyConfigured,
@@ -356,6 +360,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentEnabledTypes:                                    paymentCfg.EnabledTypes,
 		PaymentBalanceDisabled:                                 paymentCfg.BalanceDisabled,
 		PaymentBalanceRechargeMultiplier:                       paymentCfg.BalanceRechargeMultiplier,
+		PaymentUSDToCNYDisplayRate:                             paymentCfg.USDToCNYDisplayRate,
 		PaymentSubscriptionUSDToCNYRate:                        paymentCfg.SubscriptionUSDToCNYRate,
 		PaymentRechargeFeeRate:                                 paymentCfg.RechargeFeeRate,
 		PaymentLoadBalanceStrat:                                paymentCfg.LoadBalanceStrategy,
@@ -394,6 +399,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AccountSchedulingThresholds: settings.AccountSchedulingThresholds,
 		AllowUserViewErrorRequests:  settings.AllowUserViewErrorRequests,
+
+		WebChatEnabled:      settings.WebChatEnabled,
+		WebChatModels:       settings.WebChatModels,
+		WebChatDefaultModel: settings.WebChatDefaultModel,
 	}
 
 	// OpenAI fast policy (stored under a dedicated setting key)

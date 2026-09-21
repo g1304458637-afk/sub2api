@@ -115,6 +115,27 @@ export async function unbindAuthIdentity(provider: BindableOAuthProvider): Promi
   return data
 }
 
+/**
+ * Send a verification code to claim a campus education email identity
+ * (exact @muc.edu.cn address; proves mailbox ownership, does not replace
+ * the primary login email).
+ * @param email - Campus email address to verify
+ */
+export async function sendEducationEmailCode(email: string): Promise<void> {
+  await apiClient.post('/user/education-email/send-code', { email })
+}
+
+/**
+ * Verify a campus education email with the 6-digit code.
+ * @param email - Campus email address being verified
+ * @param code - 6-digit verification code
+ * @returns the refreshed user profile including education email status
+ */
+export async function verifyEducationEmail(email: string, code: string): Promise<User> {
+  const { data } = await apiClient.post<User>('/user/education-email/verify', { email, code })
+  return data
+}
+
 export type BindableOAuthProvider = Exclude<UserAuthProvider, 'email'>
 
 interface BuildOAuthBindingStartURLOptions {

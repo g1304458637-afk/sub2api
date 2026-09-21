@@ -37,6 +37,11 @@ func (r *resetQuotaUserSubRepoStub) GetByID(_ context.Context, id int64) (*UserS
 	return &cp, nil
 }
 
+// GetByIDForUpdate 供 Phase 2 统一 Reset Core 使用（与 GetByID 同语义，无真实锁）。
+func (r *resetQuotaUserSubRepoStub) GetByIDForUpdate(_ context.Context, id int64) (*UserSubscription, error) {
+	return r.GetByID(context.Background(), id)
+}
+
 func (r *resetQuotaUserSubRepoStub) ResetUsageWindows(_ context.Context, _ int64, resetDaily, resetWeekly, resetMonthly bool, dailyStart, periodicStart time.Time) error {
 	r.resetDailyCalled = resetDaily
 	r.resetWeeklyCalled = resetWeekly

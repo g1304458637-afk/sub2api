@@ -1,0 +1,36 @@
+export default {
+  draw: {
+    title: '网页绘图',
+    subtitle: '输入提示词，选择模型与尺寸，一键生成图片。',
+    saveHint: '图片生成后请及时保存，刷新页面后生成结果将不会保留。',
+    loadFailed: '绘图配置加载失败，请稍后刷新重试',
+    generateFailed: '图片生成失败，请稍后重试',
+    empty: {
+      title: '绘图功能暂未开放',
+      description: '管理员需在系统设置中配置生图模型，并确保平台已接入生图上游账号。',
+    },
+    form: {
+      model: '模型',
+      modelPlaceholder: '选择生图模型',
+      modelEmpty: '暂无可用生图模型',
+      size: '尺寸',
+      sizeSquare: '方形',
+      sizeLandscape: '横版',
+      sizePortrait: '竖版',
+      count: '生成张数',
+      prompt: '提示词',
+      promptPlaceholder: '描述你想生成的画面，例如：黄昏时分的校园湖边，水彩风格…',
+      promptRequired: '请先输入提示词',
+      generate: '生成图片',
+      generating: '生成中…',
+    },
+    gallery: {
+      title: '生成结果',
+      empty: '生成的图片会显示在这里',
+      preview: '放大预览',
+      download: '下载',
+      downloadFailed: '下载失败，已尝试在新窗口打开原图',
+      close: '关闭',
+    },
+  },
+}

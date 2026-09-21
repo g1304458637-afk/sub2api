@@ -13,6 +13,7 @@ import (
 
 const (
 	verifyCodeKeyPrefix          = "verify_code:"
+	verifyCodeCooldownKeyPrefix  = "verify_code_cooldown:"
 	notifyVerifyKeyPrefix        = "notify_verify:"
 	passwordResetKeyPrefix       = "password_reset:"
 	passwordResetSentAtKeyPrefix = "password_reset_sent:"
@@ -23,6 +24,10 @@ const (
 // Email is lowercased for case-insensitive consistency.
 func verifyCodeKey(email string) string {
 	return verifyCodeKeyPrefix + strings.ToLower(email)
+}
+
+func verifyCodeCooldownKey(email string) string {
+	return verifyCodeCooldownKeyPrefix + strings.ToLower(email)
 }
 
 // notifyVerifyKey generates the Redis key for notify email verification code.
@@ -53,6 +58,9 @@ func NewEmailCache(rdb *redis.Client) service.EmailCache {
 func (c *emailCache) GetVerificationCode(ctx context.Context, email string) (*service.VerificationCodeData, error) {
 	key := verifyCodeKey(email)
 	val, err := c.rdb.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +83,29 @@ func (c *emailCache) SetVerificationCode(ctx context.Context, email string, data
 func (c *emailCache) DeleteVerificationCode(ctx context.Context, email string) error {
 	key := verifyCodeKey(email)
 	return c.rdb.Del(ctx, key).Err()
+}
+
+func (c *emailCache) ConsumeVerificationCode(ctx context.Context, email string) (*service.VerificationCodeData, error) {
+	val, err := c.rdb.GetDel(ctx, verifyCodeKey(email)).Result()
+	if err == redis.Nil {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var data service.VerificationCodeData
+	if err := json.Unmarshal([]byte(val), &data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
+func (c *emailCache) ReserveVerificationCodeCooldown(ctx context.Context, email string, cooldown time.Duration) (bool, error) {
+	return c.rdb.SetNX(ctx, verifyCodeCooldownKey(email), "1", cooldown).Result()
+}
+
+func (c *emailCache) ReleaseVerificationCodeCooldown(ctx context.Context, email string) error {
+	return c.rdb.Del(ctx, verifyCodeCooldownKey(email)).Err()
 }
 
 // Password reset token methods
@@ -170,6 +201,9 @@ func (c *emailCache) IncrNotifyCodeUserRate(ctx context.Context, userID int64, w
 func (c *emailCache) GetNotifyCodeUserRate(ctx context.Context, userID int64) (int64, error) {
 	key := notifyCodeUserRateKey(userID)
 	count, err := c.rdb.Get(ctx, key).Int64()
+	if err == redis.Nil {
+		return 0, nil
+	}
 	if err != nil {
 		return 0, err
 	}

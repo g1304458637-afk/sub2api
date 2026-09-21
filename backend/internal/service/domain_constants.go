@@ -177,6 +177,7 @@ const (
 	RedeemTypeSubscription     = domain.RedeemTypeSubscription
 	RedeemTypeInvitation       = domain.RedeemTypeInvitation
 	RedeemTypeAffiliateBalance = "affiliate_balance"
+	RedeemTypeRewardGrant      = "reward_grant" // 余额历史展示用：系统奖励发放（reward_grants 表）
 )
 
 // PromoCode status constants
@@ -282,8 +283,14 @@ const (
 	settingKeyForwardedClientIPModeV2   = "forwarded_client_ip_mode_v2_migrated"
 
 	// TOTP 双因素认证设置
-	SettingKeyTotpEnabled    = "totp_enabled"    // 是否启用 TOTP 2FA 功能
-	SettingKeyPasskeyEnabled = "passkey_enabled" // 是否启用 Passkey 登录（仍要求有效的 WebAuthn 部署配置）
+	SettingKeyTotpEnabled                       = "totp_enabled"                         // 是否启用 TOTP 2FA 功能
+	SettingKeyPasskeyEnabled                    = "passkey_enabled"                      // 是否启用 Passkey 登录（仍要求有效的 WebAuthn 部署配置）
+	SettingKeyEducationEmailVerificationEnabled = "education_email_verification_enabled" // 是否开放 @muc.edu.cn 校园邮箱认证
+
+	// 网页聊天 / 网页绘图设置
+	SettingKeyWebChatEnabled      = "web_chat_enabled"       // 是否启用网页聊天功能（解析失败/缺失按 false 处理 = fail-closed）
+	SettingKeyWebChatModels       = "web_chat_models"        // 网页聊天模型列表（JSON 数组字符串，空串 = 回退模式：取用户可见分组可用模型并集）
+	SettingKeyWebChatDefaultModel = "web_chat_default_model" // 网页聊天默认模型（空串 = 前端自行选择）
 
 	// 会话安全设置
 	SettingKeySessionBindingEnabled = "session_binding_enabled" // 会话 IP/UA 绑定（变更即失效），默认关闭
@@ -397,6 +404,11 @@ const (
 	SettingKeyDefaultBalance       = "default_balance"        // 新用户默认余额
 	SettingKeyDefaultSubscriptions = "default_subscriptions"  // 新用户默认订阅列表（JSON）
 	SettingKeyDefaultUserRPMLimit  = "default_user_rpm_limit" // 新用户默认 RPM 限制（0 = 不限制）
+
+	// 学生认证奖励配置（与学生认证功能开关解耦：仅控制"认证通过后是否自动发奖励"）
+	SettingKeyStudentVerificationRewardEnabled  = "student_verification_reward_enabled"  // 是否自动发放学生认证奖励（默认 false）
+	SettingKeyStudentVerificationRewardAmount   = "student_verification_reward_amount"   // 学生认证奖励金额（DECIMAL(20,8) 字符串）
+	SettingKeyStudentVerificationRewardCampaign = "student_verification_reward_campaign" // 学生认证奖励活动标识（发放时的幂等 campaign）
 
 	// 第三方认证来源默认授予配置
 	SettingKeyAuthSourceDefaultEmailBalance             = "auth_source_default_email_balance"

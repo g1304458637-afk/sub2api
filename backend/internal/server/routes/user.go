@@ -35,6 +35,8 @@ func RegisterUserRoutes(
 			user.POST("/aff/transfer", h.User.TransferAffiliateQuota)
 			user.POST("/account-bindings/email/send-code", h.User.SendEmailBindingCode)
 			user.POST("/account-bindings/email", h.User.BindEmailIdentity)
+			user.POST("/education-email/send-code", h.User.SendEducationEmailCode)
+			user.POST("/education-email/verify", h.User.VerifyEducationEmail)
 			user.DELETE("/account-bindings/:provider", h.User.UnbindIdentity)
 			user.POST("/auth-identities/bind/start", h.User.StartIdentityBinding)
 			user.GET("/api-keys/:id/usage/daily", panelRateLimiter.Heavy(), h.Usage.GetMyAPIKeyDailyUsage)
@@ -124,6 +126,15 @@ func RegisterUserRoutes(
 		{
 			redeem.POST("", h.Redeem.Redeem)
 			redeem.GET("/history", h.Redeem.GetHistory)
+		}
+
+		// 科研优惠登记（提交科研身份证明 + 附件，等待管理员审核）
+		research := authenticated.Group("/research-applications")
+		{
+			research.POST("/attachments", h.Research.UploadAttachment)
+			research.POST("", h.Research.Create)
+			research.GET("", h.Research.List)
+			research.GET("/:aid/attachments/:attId", h.Research.DownloadAttachment)
 		}
 
 		// 用户订阅

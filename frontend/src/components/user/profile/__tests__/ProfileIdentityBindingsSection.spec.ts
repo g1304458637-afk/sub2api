@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProfileIdentityBindingsSection from '@/components/user/profile/ProfileIdentityBindingsSection.vue'
 import { useAppStore, useAuthStore } from '@/stores'
 import type { User } from '@/types'
@@ -9,16 +9,11 @@ const routeState = vi.hoisted(() => ({
   fullPath: '/profile',
 }))
 
-const locationState = vi.hoisted(() => ({
-  current: { href: 'http://localhost/profile' } as { href: string },
-}))
-
 let pinia: ReturnType<typeof createPinia>
 
 const userApiMocks = vi.hoisted(() => ({
   sendEmailBindingCode: vi.fn(),
   bindEmailIdentity: vi.fn(),
-  unbindAuthIdentity: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -31,7 +26,6 @@ vi.mock('@/api/user', async (importOriginal) => {
     ...actual,
     sendEmailBindingCode: (...args: any[]) => userApiMocks.sendEmailBindingCode(...args),
     bindEmailIdentity: (...args: any[]) => userApiMocks.bindEmailIdentity(...args),
-    unbindAuthIdentity: (...args: any[]) => userApiMocks.unbindAuthIdentity(...args),
   }
 })
 
@@ -41,22 +35,17 @@ vi.mock('vue-i18n', async (importOriginal) => {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, string>) => {
-        if (key === 'profile.authBindings.title') return 'Connected sign-in methods'
-        if (key === 'profile.authBindings.description') return 'Manage bound providers'
+        if (key === 'profile.authBindings.title') return 'Sign-in email'
+        if (key === 'profile.authBindings.description') return 'View your sign-in email status'
         if (key === 'profile.authBindings.status.bound') return 'Bound'
         if (key === 'profile.authBindings.status.notBound') return 'Not bound'
         if (key === 'profile.authBindings.providers.email') return 'Email'
-        if (key === 'profile.authBindings.providers.linuxdo') return 'LinuxDo'
-        if (key === 'profile.authBindings.providers.wechat') return 'WeChat'
-        if (key === 'profile.authBindings.providers.oidc') return params?.providerName || 'OIDC'
-        if (key === 'profile.authBindings.bindAction') return `Bind ${params?.providerName || ''}`.trim()
         if (key === 'profile.authBindings.emailPlaceholder') return 'Email address'
         if (key === 'profile.authBindings.codePlaceholder') return 'Verification code'
         if (key === 'profile.authBindings.passwordPlaceholder') return 'Set password'
         if (key === 'profile.authBindings.replaceEmailPasswordPlaceholder')
           return 'Current password'
         if (key === 'profile.authBindings.sendCodeAction') return 'Send code'
-        if (key === 'profile.authBindings.unbindAction') return 'Unbind'
         if (key === 'profile.authBindings.manageEmailAction') return 'Manage email'
         if (key === 'profile.authBindings.hideEmailFormAction') return 'Hide email form'
         if (key === 'profile.authBindings.confirmEmailBindAction') return 'Bind email'
@@ -64,12 +53,6 @@ vi.mock('vue-i18n', async (importOriginal) => {
         if (key === 'profile.authBindings.codeSentTo') return `Code sent to ${params?.email || ''}`.trim()
         if (key === 'profile.authBindings.bindSuccess') return 'Bind success'
         if (key === 'profile.authBindings.replaceSuccess') return 'Primary email updated'
-        if (key === 'profile.authBindings.notes.emailManagedFromProfile')
-          return 'Primary email is managed in the profile form'
-        if (key === 'profile.authBindings.notes.canUnbind')
-          return 'You can unbind this sign-in method'
-        if (key === 'profile.authBindings.notes.bindAnotherBeforeUnbind')
-          return 'Bind another sign-in method before unbinding'
         return key
       },
     }),
@@ -99,29 +82,14 @@ describe('ProfileIdentityBindingsSection', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
-    routeState.fullPath = '/profile'
-    locationState.current = { href: 'http://localhost/profile' }
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: locationState.current,
-    })
-    Object.defineProperty(window.navigator, 'userAgent', {
-      configurable: true,
-      value: 'Mozilla/5.0',
-    })
     const appStore = useAppStore()
     appStore.cachedPublicSettings = null
     appStore.publicSettingsLoaded = false
     userApiMocks.sendEmailBindingCode.mockReset()
     userApiMocks.bindEmailIdentity.mockReset()
-    userApiMocks.unbindAuthIdentity.mockReset()
   })
 
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
-  it('renders provider binding states and provider-specific bind actions', () => {
+  it('renders only the email binding entry for a campus account', () => {
     const wrapper = mount(ProfileIdentityBindingsSection, {
       global: {
         plugins: [pinia],
@@ -135,155 +103,14 @@ describe('ProfileIdentityBindingsSection', () => {
             wechat: false,
           },
         }),
-        linuxdoEnabled: true,
-        oidcEnabled: true,
-        oidcProviderName: 'ExampleID',
-        wechatEnabled: true,
-        wechatOpenEnabled: true,
-        wechatMpEnabled: false,
       },
     })
 
     expect(wrapper.get('[data-testid="profile-binding-email-status"]').text()).toBe('Bound')
-    expect(wrapper.get('[data-testid="profile-binding-linuxdo-status"]').text()).toBe('Bound')
-    expect(wrapper.get('[data-testid="profile-binding-oidc-status"]').text()).toBe('Not bound')
-    expect(wrapper.get('[data-testid="profile-binding-oidc-action"]').text()).toBe(
-      'Bind ExampleID'
-    )
-    expect(wrapper.get('[data-testid="profile-binding-wechat-action"]').text()).toBe('Bind WeChat')
-  })
-
-  it('starts the WeChat bind flow for the current profile page', async () => {
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser(),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: true,
-        wechatOpenEnabled: true,
-        wechatMpEnabled: false,
-      },
-    })
-
-    await wrapper.get('[data-testid="profile-binding-wechat-action"]').trigger('click')
-
-    expect(locationState.current.href).toContain('/api/v1/auth/oauth/wechat/bind/start?')
-    expect(locationState.current.href).toContain('mode=open')
-    expect(locationState.current.href).toContain('intent=bind_current_user')
-    expect(locationState.current.href).toContain('redirect=%2Fprofile')
-  })
-
-  it('hides the WeChat bind action outside the WeChat browser when only mp mode is configured', () => {
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser(),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: true,
-        wechatOpenEnabled: false,
-        wechatMpEnabled: true,
-      },
-    })
-
-    expect(wrapper.find('[data-testid="profile-binding-wechat-action"]').exists()).toBe(false)
-  })
-
-  it('keeps the WeChat bind action visible when only the legacy aggregate setting is present', () => {
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser(),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: true,
-      },
-    })
-
-    expect(wrapper.find('[data-testid="profile-binding-wechat-action"]').exists()).toBe(true)
-  })
-
-  it('starts the WeChat bind flow when only the legacy aggregate setting is present', async () => {
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser(),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: true,
-      },
-    })
-
-    await wrapper.get('[data-testid="profile-binding-wechat-action"]').trigger('click')
-
-    expect(locationState.current.href).toContain('/api/v1/auth/oauth/wechat/bind/start?')
-    expect(locationState.current.href).toContain('mode=open')
-    expect(locationState.current.href).toContain('intent=bind_current_user')
-    expect(locationState.current.href).toContain('redirect=%2Fprofile')
-  })
-
-  it('uses explicit cached WeChat capabilities and ignores legacy prop fallbacks', () => {
-    const appStore = useAppStore()
-    appStore.cachedPublicSettings = {
-      registration_enabled: false,
-      email_verify_enabled: false,
-      force_email_on_third_party_signup: false,
-      registration_email_suffix_whitelist: [],
-      promo_code_enabled: true,
-      password_reset_enabled: false,
-      invitation_code_enabled: false,
-      turnstile_enabled: false,
-      turnstile_site_key: '',
-      site_name: 'Sub2API',
-      site_logo: '',
-      site_subtitle: '',
-      api_base_url: '',
-      contact_info: '',
-      doc_url: '',
-      home_content: '',
-      compact_home_enabled: false,
-      hide_ccs_import_button: false,
-      payment_enabled: false,
-      table_default_page_size: 20,
-      table_page_size_options: [10, 20, 50, 100],
-      custom_menu_items: [],
-      custom_endpoints: [],
-      linuxdo_oauth_enabled: false,
-      wechat_oauth_enabled: true,
-      wechat_oauth_open_enabled: true,
-      wechat_oauth_mp_enabled: false,
-      oidc_oauth_enabled: false,
-      oidc_oauth_provider_name: 'OIDC',
-      backend_mode_enabled: false,
-      version: 'test',
-      balance_low_notify_enabled: false,
-      account_quota_notify_enabled: false,
-      balance_low_notify_threshold: 0,
-    }
-    appStore.publicSettingsLoaded = true
-
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser(),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: true,
-      },
-    })
-
-    expect(wrapper.find('[data-testid="profile-binding-wechat-action"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="profile-binding-linuxdo-status"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="profile-binding-oidc-status"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="profile-binding-wechat-status"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="profile-binding-dingtalk-status"]').exists()).toBe(false)
   })
 
   it('sends email verification code and binds email from the profile card', async () => {
@@ -315,9 +142,6 @@ describe('ProfileIdentityBindingsSection', () => {
       },
       props: {
         user: authStore.user,
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: false,
       },
     })
 
@@ -353,9 +177,6 @@ describe('ProfileIdentityBindingsSection', () => {
             email: { bound: false },
           },
         }),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: false,
       },
     })
 
@@ -376,66 +197,11 @@ describe('ProfileIdentityBindingsSection', () => {
             email: { bound: false },
           },
         }),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: false,
       },
     })
 
     expect(wrapper.text()).not.toContain('legacy-user@linuxdo-connect.invalid')
     expect(wrapper.get('[data-testid="profile-binding-email-status"]').text()).toBe('Not bound')
-  })
-
-  it('does not show a synthetic oauth-only email when only fallback auth bindings mark email as unbound', () => {
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser({
-          email: 'legacy-user@wechat-connect.invalid',
-          auth_bindings: {
-            email: { bound: false },
-          },
-        }),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: false,
-      },
-    })
-
-    expect(wrapper.text()).not.toContain('legacy-user@wechat-connect.invalid')
-    expect(wrapper.get('[data-testid="profile-binding-email-status"]').text()).toBe('Not bound')
-  })
-
-  it('shows the bound email only once and localizes the email management note', () => {
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser({
-          email: 'alice@example.com',
-          email_bound: true,
-          auth_bindings: {
-            email: {
-              bound: true,
-              display_name: 'alice@example.com',
-              subject_hint: 'a***e@example.com',
-              note_key: 'profile.authBindings.notes.emailManagedFromProfile',
-              note: 'Primary account email is managed from the profile form.',
-            } as any,
-          },
-        }),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: false,
-      },
-    })
-
-    expect(wrapper.text().match(/alice@example\.com/g)).toHaveLength(1)
-    expect(wrapper.text()).not.toContain('a***e@example.com')
-    expect(wrapper.text()).toContain('Primary email is managed in the profile form')
   })
 
   it('keeps the email form available for replacing a bound primary email', async () => {
@@ -467,9 +233,6 @@ describe('ProfileIdentityBindingsSection', () => {
       },
       props: {
         user: authStore.user,
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: false,
       },
     })
 
@@ -516,9 +279,6 @@ describe('ProfileIdentityBindingsSection', () => {
           },
         }),
         compact: true,
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: false,
       },
     })
 
@@ -528,105 +288,5 @@ describe('ProfileIdentityBindingsSection', () => {
     await wrapper.get('[data-testid="profile-binding-email-toggle"]').trigger('click')
 
     expect(wrapper.get('[data-testid="profile-binding-email-input"]').exists()).toBe(true)
-  })
-
-  it('shows third-party binding details and unbinds a connected provider', async () => {
-    userApiMocks.unbindAuthIdentity.mockResolvedValue(
-      createUser({
-        email_bound: true,
-        linuxdo_bound: false,
-        auth_bindings: {
-          email: { bound: true },
-          linuxdo: { bound: false, can_unbind: false },
-        },
-      })
-    )
-
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser({
-          email_bound: true,
-          linuxdo_bound: true,
-          auth_bindings: {
-            email: { bound: true },
-            linuxdo: {
-              bound: true,
-              display_name: 'linuxdo-handle',
-              subject_hint: 'lin***3456',
-              note: 'Linked from LinuxDo',
-              can_unbind: true,
-            },
-          },
-        }),
-        compact: true,
-        linuxdoEnabled: true,
-        oidcEnabled: false,
-        wechatEnabled: false,
-      },
-    })
-
-    expect(wrapper.text()).toContain('linuxdo-handle')
-    expect(wrapper.text()).toContain('lin***3456')
-    expect(wrapper.text()).toContain('Linked from LinuxDo')
-
-    await wrapper.get('[data-testid="profile-binding-linuxdo-unbind"]').trigger('click')
-
-    expect(userApiMocks.unbindAuthIdentity).toHaveBeenCalledWith('linuxdo')
-    expect(wrapper.get('[data-testid="profile-binding-linuxdo-status"]').text()).toBe('Not bound')
-  })
-
-  it('localizes third-party unbind guidance from note_key', () => {
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser({
-          email_bound: true,
-          linuxdo_bound: true,
-          auth_bindings: {
-            email: { bound: true },
-            linuxdo: {
-              bound: true,
-              display_name: 'linuxdo-handle',
-              note_key: 'profile.authBindings.notes.canUnbind',
-              note: 'You can unbind this sign-in method.',
-              can_unbind: true,
-            } as any,
-          },
-        }),
-        linuxdoEnabled: true,
-        oidcEnabled: false,
-        wechatEnabled: false,
-      },
-    })
-
-    expect(wrapper.text()).toContain('You can unbind this sign-in method')
-    expect(wrapper.text()).not.toContain('You can unbind this sign-in method.')
-  })
-
-  it('hides bind actions when provider details say bindable but the provider is disabled', () => {
-    const wrapper = mount(ProfileIdentityBindingsSection, {
-      global: {
-        plugins: [pinia],
-      },
-      props: {
-        user: createUser({
-          auth_bindings: {
-            linuxdo: { bound: false, can_bind: true },
-            oidc: { bound: false, can_bind: true },
-          },
-        }),
-        linuxdoEnabled: false,
-        oidcEnabled: false,
-        wechatEnabled: false,
-      },
-    })
-
-    expect(wrapper.find('[data-testid="profile-binding-linuxdo-action"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="profile-binding-oidc-action"]').exists()).toBe(false)
   })
 })
