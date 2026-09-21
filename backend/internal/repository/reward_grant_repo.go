@@ -381,22 +381,19 @@ LIMIT $` + itoa(len(args)-1) + ` OFFSET $` + itoa(len(args))
 	return &service.RewardGrantList{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
 }
 
-// scanRewardGrantAdminRow 扫描管理端列表行：前 10 列复用 scanRewardGrantRow，再读回填列。
+// scanRewardGrantAdminRow reads all thirteen SQL columns in one Scan call.
 func scanRewardGrantAdminRow(row interface{ Scan(dest ...any) error }) (*service.RewardGrantAdminItem, error) {
-	grant, err := scanRewardGrantRow(row)
+	var item service.RewardGrantAdminItem
+	grant, err := scanRewardGrantRow(row, &item.Email, &item.Username, &item.GrantedByEmail)
 	if err != nil {
 		return nil, err
 	}
-	var item service.RewardGrantAdminItem
 	item.RewardGrant = *grant
-	if err := row.Scan(&item.Email, &item.Username, &item.GrantedByEmail); err != nil {
-		return nil, err
-	}
 	return &item, nil
 }
 
 // scanRewardGrantRow 扫描单行；source_id / granted_by 可空，metadata 为 JSONB。
-func scanRewardGrantRow(row interface{ Scan(dest ...any) error }) (*service.RewardGrant, error) {
+func scanRewardGrantRow(row interface{ Scan(dest ...any) error }, extra ...any) (*service.RewardGrant, error) {
 	var (
 		grant          service.RewardGrant
 		idempotencyKey string
@@ -405,8 +402,9 @@ func scanRewardGrantRow(row interface{ Scan(dest ...any) error }) (*service.Rewa
 		metadata       []byte
 		createdAt      time.Time
 	)
-	if err := row.Scan(&grant.ID, &grant.UserID, &idempotencyKey, &grant.SourceType, &sourceID,
-		&grant.Campaign, &grant.Amount, &grantedBy, &metadata, &createdAt); err != nil {
+	dest := []any{&grant.ID, &grant.UserID, &idempotencyKey, &grant.SourceType, &sourceID,
+		&grant.Campaign, &grant.Amount, &grantedBy, &metadata, &createdAt}
+	if err := row.Scan(append(dest, extra...)...); err != nil {
 		return nil, err
 	}
 	grant.IdempotencyKey = idempotencyKey
