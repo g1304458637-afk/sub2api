@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-end gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm transition-colors focus-within:border-primary-500/60 dark:border-dark-600 dark:bg-dark-900 dark:focus-within:border-primary-500/60">
+  <div class="flex items-end gap-2 rounded-3xl border border-gray-200/90 bg-white p-2 shadow-lg shadow-gray-200/50 transition-colors focus-within:border-primary-500/60 dark:border-dark-600 dark:bg-dark-900 dark:shadow-black/20 dark:focus-within:border-primary-500/60">
     <textarea
       ref="textareaRef"
       v-model="text"

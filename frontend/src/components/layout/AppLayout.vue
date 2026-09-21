@@ -15,7 +15,8 @@
       <AppHeader />
 
       <!-- Main Content -->
-      <main class="p-4 md:p-6 lg:p-8">
+      <!-- flush：去掉内边距，交给页面自己铺满（聊天页满幅布局用） -->
+      <main :class="flush ? '' : 'p-4 md:p-6 lg:p-8'">
         <slot />
       </main>
     </div>
@@ -36,6 +37,8 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const isAdmin = computed(() => authStore.user?.role === 'admin')
+
+withDefaults(defineProps<{ flush?: boolean }>(), { flush: false })
 
 const { replayTour } = useOnboardingTour({
   storageKey: isAdmin.value ? 'admin_guide' : 'user_guide',

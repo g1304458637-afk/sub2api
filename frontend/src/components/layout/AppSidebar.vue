@@ -128,8 +128,11 @@
 
       <!-- Regular User View -->
       <template v-else-if="!appStore.backendModeEnabled">
-        <div class="sidebar-section">
-          <template v-for="item in userNavItems" :key="item.path">
+        <!-- ChatGPT 式三段布局：上「大模型服务」、中「会话列表」（flex-1 内部滚动）、下「我的」沉底 -->
+        <div class="flex min-h-full flex-col">
+          <template v-for="(item, index) in userNavItems" :key="item.path">
+            <!-- 会话列表插在两组之间；收起为窄栏时隐藏 -->
+            <SidebarChatHistory v-if="index === 1 && showChatHistory && !sidebarCollapsed" />
             <!-- Collapsible group (has children): same rendering contract as the admin section -->
             <template v-if="item.children?.length">
               <button
@@ -137,7 +140,8 @@
                 class="sidebar-link mb-1 w-full"
                 :class="{
                   'sidebar-link-active': isGroupActive(item) && !isGroupExpanded(item),
-                  'sidebar-link-collapsed': sidebarCollapsed
+                  'sidebar-link-collapsed': sidebarCollapsed,
+                  'mt-auto': item.path === 'group-my-account'
                 }"
                 :title="sidebarCollapsed ? item.label : undefined"
                 @click="handleGroupClick(item)"
@@ -244,6 +248,7 @@ import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 // 直接从 store 模块导入（不经过 @/stores 桶文件），保持 sidebar → store → api 的单向依赖
 import { useWebChatStore } from '@/stores/webChat'
+import SidebarChatHistory from './SidebarChatHistory.vue'
 
 interface NavItem {
   path: string
@@ -859,6 +864,9 @@ const flagBatchImageAccess = () => canUseBatchImage.value
 // getter 在 computed（finalizeNav → applyFeatureFlags）内求值，store 状态变化时菜单自动更新。
 const flagWebChatEntrance = (): boolean => webChatStore.config?.enabled !== false
 
+// 会话列表显隐跟随网页聊天开关（配置未返回时默认显示），与 /chat、/draw 两个入口一致
+const showChatHistory = computed(() => webChatStore.config?.enabled !== false)
+
 // buildSelfNavGroups 构造用户自己的导航，按门户分成两个可折叠分组：
 // 「大模型服务」（AI 对话 / 绘图 / 下载 MUC）与「我的」（账户、密钥、用量、订阅等）。
 // 用户端主菜单直接渲染这两个分组；管理员的"我的账户"区是扁平列表（无分组渲染），
@@ -913,11 +921,12 @@ function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
       children: llmItems,
     },
     {
+      // 「我的」沉底展示：不默认展开，跟随当前路由（位于其子项时展开），
+      // 让 /chat 上的会话列表拿到最大空间，同时分组标题固定在左下角。
       path: 'group-my-account',
       label: t('nav.groupMine'),
       icon: UserCircleIcon,
       expandOnly: true,
-      defaultExpanded: true,
       children: mineItems,
     },
   ]
