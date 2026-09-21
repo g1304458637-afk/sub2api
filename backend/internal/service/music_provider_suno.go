@@ -84,7 +84,14 @@ type sunoRecordInfoResponse struct {
 // Generate submits the generation job and polls record-info until the clip is
 // ready, the upstream reports a failure, or ctx expires (the handler bounds the
 // whole window at 10 minutes).
-func (s *SunoAdapter) Generate(ctx context.Context, req MusicGenerationRequest) (*MusicGenerationResult, error) {
+func (s *SunoAdapter) Generate(ctx context.Context, req MusicGenerationRequest) (result *MusicGenerationResult, err error) {
+	// The overall generation deadline also covers in-flight HTTP requests and
+	// body reads, not just the wait between polls.
+	defer func() {
+		if err != nil && ctx.Err() == context.DeadlineExceeded {
+			err = &MusicProviderError{Message: "music generation timed out"}
+		}
+	}()
 	taskID, err := s.createTask(ctx, req)
 	if err != nil {
 		return nil, err
