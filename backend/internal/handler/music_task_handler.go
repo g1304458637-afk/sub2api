@@ -156,7 +156,11 @@ func (h *AsyncMusicHandler) Submit(c *gin.Context) {
 	}
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
-	if h.openAI != nil && h.openAI.billingCacheService != nil {
+	if h.openAI == nil || h.openAI.billingCacheService == nil {
+		musicTaskError(c, service.ErrMusicTaskUnavailable)
+		return
+	}
+	{
 		eligibility, err := h.openAI.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 		if err != nil {
 			status, code, message, retryAfter := billingErrorDetails(err)

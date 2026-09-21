@@ -2199,7 +2199,7 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 	// 校验 billing eligibility（订阅/余额）
 	// 【注意】不计算并发，但需要校验订阅/余额
 
-	eligibility, err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
+	_, err = h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey))
 
 	if err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)
@@ -2211,7 +2211,6 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		h.errorResponse(c, status, code, message)
 		return
 	}
-	subscription = eligibility.SubscriptionForBilling(subscription)
 
 	// 计算粘性会话 hash
 	parsedReq.SessionContext = &service.SessionContext{
@@ -2493,6 +2492,9 @@ func billingErrorDetails(err error) (status int, code, message string, retryAfte
 			msg = "Billing service temporarily unavailable. Please retry later."
 		}
 		return http.StatusServiceUnavailable, "billing_service_error", msg, 0
+	}
+	if service.IsSubscriptionLimitError(err) {
+		return http.StatusTooManyRequests, "rate_limit_exceeded", pkgerrors.Message(err), 0
 	}
 	if errors.Is(err, service.ErrAPIKeyRateLimit5hExceeded) {
 		msg := pkgerrors.Message(err)
