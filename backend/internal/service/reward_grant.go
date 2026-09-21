@@ -41,6 +41,33 @@ type RewardGrant struct {
 	CreatedAt      time.Time
 }
 
+// RewardGrantAdminFilter 管理端发放记录列表筛选（分页 + 精确等值过滤）。
+type RewardGrantAdminFilter struct {
+	Page     int
+	PageSize int
+	UserID   *int64
+	Campaign string
+	// SourceType 精确等值匹配（如 student_verification），空串 = 不过滤。
+	SourceType string
+}
+
+// RewardGrantAdminItem 管理端发放记录列表项：
+// 发放记录本体 + 用户邮箱/用户名与发放人邮箱回填（LEFT JOIN users，未命中为空串）。
+type RewardGrantAdminItem struct {
+	RewardGrant
+	Email          string
+	Username       string
+	GrantedByEmail string
+}
+
+// RewardGrantList 管理端发放记录分页结果。
+type RewardGrantList struct {
+	Items    []RewardGrantAdminItem
+	Total    int
+	Page     int
+	PageSize int
+}
+
 // GrantRewardCommand 通用发放命令。
 // IdempotencyKey 必填：由发放方从业务事实派生的确定性 key（如学生认证 =
 // "student_verification:{userID}:{campaign}"，未来 referral/补偿各派生自己的形状）。

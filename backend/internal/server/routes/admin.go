@@ -134,6 +134,9 @@ func RegisterAdminRoutes(
 		// 科研优惠登记审核
 		registerResearchRoutes(admin, h)
 
+		// 奖励发放记录（只读台账）
+		registerRewardGrantRoutes(admin, h)
+
 		// 网页聊天（管理端只读：可用模型并集）
 		admin.GET("/web-chat/available-models", h.WebChat.AdminAvailableModels)
 	}
@@ -457,6 +460,14 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		announcements.PUT("/:id", h.Admin.Announcement.Update)
 		announcements.DELETE("/:id", h.Admin.Announcement.Delete)
 		announcements.GET("/:id/read-status", h.Admin.Announcement.ListReadStatus)
+	}
+}
+
+// registerRewardGrantRoutes 奖励发放记录路由（只读台账，继承 admin 组中间件）
+func registerRewardGrantRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	rewardGrants := admin.Group("/reward-grants")
+	{
+		rewardGrants.GET("", h.Admin.RewardGrant.List)
 	}
 }
 

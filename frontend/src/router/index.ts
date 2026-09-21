@@ -668,6 +668,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/reward-grants',
+    name: 'AdminRewardGrants',
+    component: () => import('@/views/admin/RewardGrantsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Reward Grants',
+      titleKey: 'admin.rewardGrants.title',
+      descriptionKey: 'admin.rewardGrants.description'
+    }
+  },
+  {
     path: '/admin/promo-codes',
     name: 'AdminPromoCodes',
     component: () => import('@/views/admin/PromoCodesView.vue'),

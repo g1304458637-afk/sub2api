@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -191,6 +192,129 @@ ORDER BY created_at DESC, id DESC`
 		out = append(out, *grant)
 	}
 	return out, rows.Err()
+}
+
+// rewardGrantAdminSelectColumns 管理端列表查询列：前 10 列与 scanRewardGrantRow 对齐，
+// 之后依次追加用户 email/username 与发放人 email（COALESCE 兜底空串）。
+const rewardGrantAdminSelectColumns = `
+  g.id,
+  g.user_id,
+  g.idempotency_key,
+  g.source_type,
+  g.source_id,
+  g.campaign,
+  g.amount::double precision,
+  g.granted_by,
+  g.metadata,
+  g.created_at,
+  COALESCE(u.email, ''),
+  COALESCE(u.username, ''),
+  COALESCE(gu.email, '')`
+
+// AdminList 管理端分页查询发放记录（created_at 倒序）。
+// user_id / campaign / source_type 均为精确等值匹配，无 LIKE 转义问题；
+// COUNT 走单表（过滤条件只引用 g），明细才 JOIN users 回填邮箱/用户名。
+func (r *rewardGrantRepository) AdminList(ctx context.Context, filter *service.RewardGrantAdminFilter) (*service.RewardGrantList, error) {
+	if r == nil || r.client == nil {
+		return nil, fmt.Errorf("nil reward grant repository")
+	}
+	if filter == nil {
+		filter = &service.RewardGrantAdminFilter{}
+	}
+
+	page := filter.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := filter.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	clauses := []string{"1=1"}
+	args := make([]any, 0, 5)
+	if filter.UserID != nil {
+		args = append(args, *filter.UserID)
+		clauses = append(clauses, "g.user_id = $"+itoa(len(args)))
+	}
+	if v := strings.TrimSpace(filter.Campaign); v != "" {
+		args = append(args, v)
+		clauses = append(clauses, "g.campaign = $"+itoa(len(args)))
+	}
+	if v := strings.TrimSpace(filter.SourceType); v != "" {
+		args = append(args, v)
+		clauses = append(clauses, "g.source_type = $"+itoa(len(args)))
+	}
+	where := "WHERE " + strings.Join(clauses, " AND ")
+
+	client := clientFromContext(ctx, r.client)
+
+	var total int64
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	countRows, err := client.QueryContext(ctx,
+		`SELECT COUNT(*) FROM reward_grants g `+where, countArgs...)
+	if err != nil {
+		return nil, err
+	}
+	if !countRows.Next() {
+		err = countRows.Err()
+		_ = countRows.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("count reward grants: empty result")
+	}
+	if err := countRows.Scan(&total); err != nil {
+		_ = countRows.Close()
+		return nil, err
+	}
+	_ = countRows.Close()
+
+	args = append(args, pageSize, (page-1)*pageSize)
+	query := `SELECT ` + rewardGrantAdminSelectColumns + `
+FROM reward_grants g
+LEFT JOIN users u ON u.id = g.user_id
+LEFT JOIN users gu ON gu.id = g.granted_by
+` + where + `
+ORDER BY g.created_at DESC, g.id DESC
+LIMIT $` + itoa(len(args)-1) + ` OFFSET $` + itoa(len(args))
+
+	rows, err := client.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	items := make([]service.RewardGrantAdminItem, 0)
+	for rows.Next() {
+		item, err := scanRewardGrantAdminRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return &service.RewardGrantList{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
+}
+
+// scanRewardGrantAdminRow 扫描管理端列表行：前 10 列复用 scanRewardGrantRow，再读回填列。
+func scanRewardGrantAdminRow(row interface{ Scan(dest ...any) error }) (*service.RewardGrantAdminItem, error) {
+	grant, err := scanRewardGrantRow(row)
+	if err != nil {
+		return nil, err
+	}
+	var item service.RewardGrantAdminItem
+	item.RewardGrant = *grant
+	if err := row.Scan(&item.Email, &item.Username, &item.GrantedByEmail); err != nil {
+		return nil, err
+	}
+	return &item, nil
 }
 
 // scanRewardGrantRow 扫描单行；source_id / granted_by 可空，metadata 为 JSONB。
