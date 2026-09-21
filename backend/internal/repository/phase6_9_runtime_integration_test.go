@@ -77,6 +77,13 @@ func TestPhase6GrantAndConsumeBaseline(t *testing.T) {
 	require.InDelta(t, 0, usage, 1e-9)
 	require.False(t, anchor.IsZero())
 
+	replayed, err := cardSvc.ConsumeForSubscription(ctx, user.ID, sub.ID, "phase6-consume-1")
+	require.NoError(t, err)
+	require.Equal(t, consume.CardID, replayed.CardID)
+	require.Equal(t, consume.SubscriptionID, replayed.SubscriptionID)
+	require.True(t, replayed.Applied)
+	require.True(t, consume.WeeklyPeriodEndsAt.Equal(*replayed.WeeklyPeriodEndsAt))
+
 	// 二次消费：无可用卡
 	_, err = cardSvc.ConsumeForSubscription(ctx, user.ID, sub.ID, "phase6-consume-2")
 	require.ErrorIs(t, err, service.ErrResetCardNoAvailable)
@@ -143,7 +150,9 @@ func TestPhase6ConsumeValidations(t *testing.T) {
 		WeeklyLimitUSD:   &limit,
 	})
 	t.Cleanup(func() { _, _ = integrationDB.Exec("DELETE FROM groups WHERE id = $1", group2.ID) })
-	subB := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: group2.ID})
+	userB := mustCreateUser(t, client, &service.User{Email: "phase6-other-" + phase4RandSuffix() + "@example.com", PasswordHash: "hash"})
+	phase0CleanupStack(t, userB.ID, 0, 0)
+	subB := mustCreateSubscription(t, client, &service.UserSubscription{UserID: userB.ID, GroupID: group2.ID})
 	phase0SetWeeklyWindow(t, subB.ID, time.Now().Add(-24*time.Hour), 5)
 
 	// 一张永久卡（直接插入，绕过 grant selector 的 metered 过滤）
@@ -163,7 +172,7 @@ func TestPhase6ConsumeValidations(t *testing.T) {
 	_, err = integrationDB.ExecContext(ctx,
 		"UPDATE user_subscriptions SET status = 'expired' WHERE id = $1", subB.ID)
 	require.NoError(t, err)
-	_, err = cardSvc.ConsumeForSubscription(ctx, user.ID, subB.ID, "k2")
+	_, err = cardSvc.ConsumeForSubscription(ctx, userB.ID, subB.ID, "k2")
 	require.ErrorIs(t, err, service.ErrSubscriptionExpired)
 
 	// 拒绝路径必须回滚：卡仍 available
@@ -332,6 +341,8 @@ func TestPhase9MaxActiveGroupConcurrencyOverride(t *testing.T) {
 	t.Cleanup(func() { _, _ = integrationDB.Exec("DELETE FROM groups WHERE id = $1", gPro.ID) })
 
 	subBasic := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: gBasic.ID})
+	_, err := integrationDB.Exec("UPDATE user_subscriptions SET status = 'expired' WHERE id = $1", subBasic.ID)
+	require.NoError(t, err)
 	subPro := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: gPro.ID})
 	// fixture 不支持 override 列：直接 SQL 设置（并发权益=10）
 	_, err0 := integrationDB.Exec(
@@ -461,31 +472,18 @@ func TestPhase7WorkerCrashRecoveryFromApplying(t *testing.T) {
 
 	// 模拟崩溃：直接把 application 置为 applying（认领后进程死掉的状态）
 	_, err = integrationDB.ExecContext(ctx,
-		"UPDATE subscription_reset_applications SET status = 'applying' WHERE reset_event_id = $1", summary.ID)
+		"UPDATE subscription_reset_applications SET status = 'applying', applied_at = NOW() - INTERVAL '6 minutes' WHERE reset_event_id = $1", summary.ID)
 	require.NoError(t, err)
 
 	// GetDueEventIDs 只取 pending/running 事件；事件仍在 pending → 重跑可收尾
 	n, err := eventSvc.ProcessDueEvents(ctx)
 	require.NoError(t, err)
-	// applying 行不被 ClaimApplicationBatch 再认领（只认领 pending），
-	// 但 applyOne 的幂等分支处理：此处证明重跑不产生重复副作用且不 panic
-	require.GreaterOrEqual(t, n, 0)
-
-	// 数据一致：无部分状态（applying 行保持 applying，等待 stale 兜底或人工 retry）
-	var statuses []string
-	rows, err := integrationDB.QueryContext(ctx,
-		"SELECT status FROM subscription_reset_applications WHERE reset_event_id = $1", summary.ID)
+	require.Equal(t, 1, n)
+	final, err := eventSvc.GetResetEvent(ctx, summary.ID)
 	require.NoError(t, err)
-	for rows.Next() {
-		var st string
-		_ = rows.Scan(&st)
-		statuses = append(statuses, st)
-	}
-	rows.Close()
-	require.NotEmpty(t, statuses)
-	for _, st := range statuses {
-		require.Contains(t, []string{"applied", "skipped", "failed", "pending", "applying"}, st)
-	}
+	require.Equal(t, "completed", final.Status)
+	require.Equal(t, int64(1), final.AppliedCount)
+
 }
 
 // 过期订阅进 snapshot → worker 记 skipped 不复活。
@@ -569,4 +567,68 @@ func TestPhase7SnapshotExcludesLaterPurchase(t *testing.T) {
 	// sub2 不在 snapshot：usage 保持 9
 	usage2, _ := phase0WeeklyState(t, sub2.ID)
 	require.InDelta(t, 9, usage2, 1e-9, "subscription created after event snapshot must be untouched")
+}
+
+// Parent completion must be reopened atomically when failed applications are retried.
+func TestConsolidationResetReplayAndParentRetry(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	limit := 10.0
+	user, group, sub := phase4MustStack(t, client, &limit, 8, -24*time.Hour)
+	phase0CleanupStack(t, user.ID, group.ID, 0)
+	_, svc, _ := phase6NewServices(t, client)
+	input := &service.CreateResetEventInput{Selector: service.DirectResetSelector{TargetMode: "users", UserIDs: []int64{user.ID}}, IdempotencyKey: "parent-retry"}
+	first, err := svc.CreateResetEvent(ctx, input)
+	require.NoError(t, err)
+	replay, err := svc.CreateResetEvent(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, replay)
+	require.Equal(t, first.ID, replay.ID)
+	require.Equal(t, first.TotalTargeted, replay.TotalTargeted)
+	_, err = integrationDB.Exec("UPDATE subscription_reset_applications SET status = 'failed' WHERE reset_event_id = $1", first.ID)
+	require.NoError(t, err)
+	store := NewSubscriptionResetEventStore(client)
+	final, err := store.CompleteIfDrained(ctx, first.ID)
+	require.NoError(t, err)
+	require.Equal(t, "failed", final)
+	n, err := svc.RetryFailedApplications(ctx, first.ID)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+	event, err := store.GetEvent(ctx, first.ID)
+	require.NoError(t, err)
+	require.Equal(t, "pending", event.Status)
+	require.Nil(t, event.CompletedAt)
+	processed, err := svc.ProcessDueEvents(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, processed)
+	usage, _ := phase0WeeklyState(t, sub.ID)
+	require.Zero(t, usage)
+}
+
+func TestConsolidationGrantAllActiveAndExpiryReplay(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	limit := 10.0
+	user, group, _ := phase4MustStack(t, client, &limit, 8, -24*time.Hour)
+	phase0CleanupStack(t, user.ID, group.ID, 0)
+	svc, _, _ := phase6NewServices(t, client)
+	now := time.Now()
+	svc.SetNow(func() time.Time { return now })
+	expiry := now.Add(time.Hour)
+	selector := service.ResetCardGrantSelector{Mode: "all_active_users"}
+	summary, err := svc.PreviewGrantTargets(ctx, selector, 2)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), summary.UniqueUserCount)
+	input := &service.GrantResetCardsInput{Selector: selector, QuantityPerUser: 2, ExpiresAt: &expiry, IdempotencyKey: "all-active-expiry"}
+	first, err := svc.GrantResetCards(ctx, input)
+	require.NoError(t, err)
+	now = expiry
+	count, err := svc.CountAvailableResetCards(ctx, user.ID)
+	require.NoError(t, err)
+	require.Zero(t, count, "expires_at == now is unavailable")
+	replay, err := svc.GrantResetCards(ctx, input)
+	require.NoError(t, err)
+	require.Equal(t, first.EventID, replay.EventID)
+	require.Equal(t, 2, replay.TotalCards)
+	require.True(t, replay.Replayed)
 }

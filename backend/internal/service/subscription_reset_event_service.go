@@ -221,8 +221,7 @@ func (s *ResetEventService) CreateResetEvent(ctx context.Context, in *CreateRese
 	if err != nil {
 		return nil, err
 	}
-	result, _ := execRes.Data.(*ResetEventSummary)
-	return result, nil
+	return decodeSubscriptionOperationResult[ResetEventSummary](execRes.Data)
 }
 
 func (s *ResetEventService) createOnce(ctx context.Context, in *CreateResetEventInput) (*ResetEventSummary, error) {
@@ -375,7 +374,7 @@ func (s *ResetEventService) ProcessDueEvents(ctx context.Context) (int, error) {
 			}
 			for _, claim := range claims {
 				if err := s.applyOne(ctx, eventID, ev.EffectiveAt, claim); err != nil {
-					s.store.MarkApplicationFailed(ctx, claim.ApplicationID, err.Error())
+					_ = s.store.MarkApplicationFailed(ctx, claim.ApplicationID, err.Error())
 					continue
 				}
 				processed++

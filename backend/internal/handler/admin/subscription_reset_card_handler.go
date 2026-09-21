@@ -8,6 +8,7 @@ package admin
 
 import (
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -34,7 +35,7 @@ type GrantResetCardsRequest struct {
 	Reason          string  `json:"reason"`
 	Campaign        string  `json:"campaign"`
 	SourceType      string  `json:"source_type"`
-	IdempotencyKey  string  `json:"idempotency_key" binding:"required"`
+	IdempotencyKey  string  `json:"idempotency_key"`
 }
 
 func (h *AdminSubscriptionResetHandler) GrantResetCards(c *gin.Context) {
@@ -43,6 +44,18 @@ func (h *AdminSubscriptionResetHandler) GrantResetCards(c *gin.Context) {
 		response.BadRequest(c, "Invalid request body: "+err.Error())
 		return
 	}
+	var expiresAt *time.Time
+	if req.ExpiresAt != nil && strings.TrimSpace(*req.ExpiresAt) != "" {
+		parsed, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+		if err != nil {
+			response.BadRequest(c, "expires_at must be RFC3339")
+			return
+		}
+		expiresAt = &parsed
+	}
+	if strings.TrimSpace(req.IdempotencyKey) == "" {
+		req.IdempotencyKey = c.GetHeader("Idempotency-Key")
+	}
 	result, err := h.resetCards.GrantResetCards(c.Request.Context(), &service.GrantResetCardsInput{
 		Selector: service.ResetCardGrantSelector{
 			Mode:     req.TargetMode,
@@ -50,6 +63,7 @@ func (h *AdminSubscriptionResetHandler) GrantResetCards(c *gin.Context) {
 			GroupIDs: req.GroupIDs,
 		},
 		QuantityPerUser: req.QuantityPerUser,
+		ExpiresAt:       expiresAt,
 		Reason:          strings.TrimSpace(req.Reason),
 		Campaign:        strings.TrimSpace(req.Campaign),
 		SourceType:      strings.TrimSpace(req.SourceType),
@@ -79,7 +93,7 @@ func (h *AdminSubscriptionResetHandler) PreviewGrantResetCards(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, summary)
+	response.Success(c, gin.H{"unique_users": summary.UniqueUserCount, "total_cards": summary.UniqueUserCount * int64(req.QuantityPerUser), "target_mode": summary.TargetMode, "subscription_count": summary.SubscriptionCount, "group_breakdown": summary.GroupBreakdown})
 }
 
 // ListResetCards GET /admin/subscription-reset-cards?user_id=&status=&page=&page_size=
@@ -87,8 +101,8 @@ func (h *AdminSubscriptionResetHandler) ListResetCards(c *gin.Context) {
 	var q struct {
 		UserID   int64  `form:"user_id"`
 		Status   string `form:"status"`
-		Page     int    `form:"page,default=1"`
-		PageSize int    `form:"page_size,default=50"`
+		Page     int    `form:"page,default=1" binding:"gte=1"`
+		PageSize int    `form:"page_size,default=50" binding:"gte=1,lte=100"`
 	}
 	if err := c.ShouldBindQuery(&q); err != nil {
 		response.BadRequest(c, "Invalid query: "+err.Error())
@@ -109,6 +123,7 @@ func (h *AdminSubscriptionResetHandler) ListResetCards(c *gin.Context) {
 	}
 	response.Success(c, gin.H{
 		"cards": cards,
+		"items": cards,
 		"total": total,
 	})
 }

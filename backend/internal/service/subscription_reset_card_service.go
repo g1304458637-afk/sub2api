@@ -43,22 +43,22 @@ var (
 
 // ResetCard service 层视图。
 type ResetCard struct {
-	ID                 int64
-	UserID             int64
-	Status             string
-	Scope              string
-	SourceType         string
-	Campaign           *string
-	GrantEventID       *int64
-	GrantIndex         int
-	GrantedAt          time.Time
-	ExpiresAt          *time.Time
-	UsedAt             *time.Time
-	UsedSubscriptionID *int64
-	CreatedBy          *int64
-	Notes              string
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID                 int64      `json:"id"`
+	UserID             int64      `json:"user_id"`
+	Status             string     `json:"status"`
+	Scope              string     `json:"scope"`
+	SourceType         string     `json:"source_type"`
+	Campaign           *string    `json:"campaign"`
+	GrantEventID       *int64     `json:"grant_event_id"`
+	GrantIndex         int        `json:"grant_index"`
+	GrantedAt          time.Time  `json:"granted_at"`
+	ExpiresAt          *time.Time `json:"expires_at"`
+	UsedAt             *time.Time `json:"used_at"`
+	UsedSubscriptionID *int64     `json:"used_subscription_id"`
+	CreatedBy          *int64     `json:"created_by"`
+	Notes              string     `json:"notes"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 // ResetCardGrantSelector 定向发卡目标（按 User 去重）。
@@ -191,9 +191,6 @@ func (s *ResetCardService) GrantResetCards(ctx context.Context, in *GrantResetCa
 	if in.IdempotencyKey == "" {
 		return nil, ErrIdempotencyKeyRequired
 	}
-	if in.ExpiresAt != nil && !in.ExpiresAt.After(time.Now()) {
-		return nil, ErrResetCardInvalidExpiry
-	}
 	sourceType := in.SourceType
 	if sourceType == "" {
 		sourceType = domain.ResetCardSourceAdminGrant
@@ -211,23 +208,23 @@ func (s *ResetCardService) GrantResetCards(ctx context.Context, in *GrantResetCa
 		IdempotencyKey: in.IdempotencyKey,
 		Payload: map[string]any{
 			"selector": in.Selector, "quantity_per_user": in.QuantityPerUser,
-			"expires_at": in.ExpiresAt, "campaign": in.Campaign,
+			"expires_at": in.ExpiresAt, "campaign": in.Campaign, "reason": in.Reason, "source_type": sourceType,
 		},
 		RequireKey: true,
 	}, func(ctx context.Context) (any, error) {
+		if in.ExpiresAt != nil && !in.ExpiresAt.After(s.now()) {
+			return nil, ErrResetCardInvalidExpiry
+		}
 		return s.grantOnce(ctx, in, sourceType)
 	})
 	if err != nil {
 		return nil, err
 	}
-	if execRes.Replayed {
-		// 重放：从存储的 JSON 响应还原结果（强类型断言在新执行路径才成立）
-		return replayGrantResult(execRes.Data), nil
+	result, err := decodeSubscriptionOperationResult[GrantResetCardsResult](execRes.Data)
+	if err != nil {
+		return nil, err
 	}
-	result, _ := execRes.Data.(*GrantResetCardsResult)
-	if result != nil {
-		result.Replayed = execRes.Replayed
-	}
+	result.Replayed = execRes.Replayed
 	return result, nil
 }
 
@@ -289,7 +286,7 @@ func (s *ResetCardService) grantOnce(ctx context.Context, in *GrantResetCardsInp
 
 // PreviewGrantTargets 发卡预览（无任何写入）。
 func (s *ResetCardService) PreviewGrantTargets(ctx context.Context, selector ResetCardGrantSelector, quantityPerUser int) (*ResetTargetSummary, error) {
-	if quantityPerUser < 1 {
+	if quantityPerUser < 1 || quantityPerUser > 1000 {
 		return nil, ErrResetCardInvalidQty
 	}
 	summary, err := s.targets.DescribeTargets(ctx, selector.Mode, selector.UserIDs, selector.GroupIDs)
@@ -315,7 +312,7 @@ func (s *ResetCardService) ListResetCards(ctx context.Context, userID int64, sta
 
 // RevokeResetCard 撤销可用卡（used 禁止撤销；不物理删除，保留审计）。
 func (s *ResetCardService) RevokeResetCard(ctx context.Context, cardID int64) error {
-	return s.store.Revoke(ctx, cardID, time.Now())
+	return s.store.Revoke(ctx, cardID, s.now())
 }
 
 // ConsumeForSubscription 用户消费一张可用卡重置指定订阅的周周期（单事务：卡 CAS + Reset Core）。
@@ -341,12 +338,7 @@ func (s *ResetCardService) ConsumeForSubscription(ctx context.Context, userID, s
 	if err != nil {
 		return nil, err
 	}
-	if execRes.Replayed {
-		// 重放：消费结果持久化过，直接返回幂等成功（不重复消费）
-		return &ConsumeResetCardResult{Applied: true}, nil
-	}
-	result, _ := execRes.Data.(*ConsumeResetCardResult)
-	return result, nil
+	return decodeSubscriptionOperationResult[ConsumeResetCardResult](execRes.Data)
 }
 
 func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscriptionID int64) (*ConsumeResetCardResult, error) {
@@ -370,14 +362,14 @@ func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscription
 	if sub.UserID != userID {
 		return nil, ErrSubscriptionNotFound // 不向越权者泄露存在性
 	}
-	if sub.Status != SubscriptionStatusActive {
+	if sub.Status != SubscriptionStatusActive || !sub.ExpiresAt.After(now) {
 		return nil, ErrSubscriptionExpired
 	}
 	group, err := s.groupRepo.GetByID(txCtx, sub.GroupID)
 	if err != nil {
 		return nil, err
 	}
-	if !group.HasWeeklyLimit() {
+	if group == nil || !group.HasWeeklyLimit() {
 		return nil, ErrResetCardUnmetered
 	}
 
@@ -445,26 +437,6 @@ func resetScopeJSON(mode string, userIDs, groupIDs []int64) map[string]any {
 	default:
 		return map[string]any{}
 	}
-}
-
-// replayGrantResult 从 idempotency 存储的 JSON 响应还原发卡结果。
-func replayGrantResult(data any) *GrantResetCardsResult {
-	out := &GrantResetCardsResult{}
-	if typed, ok := data.(*GrantResetCardsResult); ok {
-		out = typed
-	} else if m, ok := data.(map[string]any); ok {
-		if v, ok := m["EventID"].(float64); ok {
-			out.EventID = int64(v)
-		}
-		if v, ok := m["UniqueUsers"].(float64); ok {
-			out.UniqueUsers = int(v)
-		}
-		if v, ok := m["TotalCards"].(float64); ok {
-			out.TotalCards = int(v)
-		}
-	}
-	out.Replayed = true
-	return out
 }
 
 func strPtrIfSet(s string) *string {

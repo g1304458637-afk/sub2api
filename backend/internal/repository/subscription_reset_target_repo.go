@@ -41,6 +41,7 @@ func targetWhere(mode string, userIDs, groupIDs []int64) (string, error) {
 		"us.expires_at > NOW()",
 		"g.deleted_at IS NULL",
 		"g.weekly_limit_usd IS NOT NULL",
+		"g.weekly_limit_usd > 0",
 	}
 	switch mode {
 	case domain.ResetTargetModeSubscriptionIDs:
@@ -61,7 +62,7 @@ func targetWhere(mode string, userIDs, groupIDs []int64) (string, error) {
 			return "", fmt.Errorf("group_ids is required")
 		}
 		where = append(where, "us.group_id = ANY("+pqInt64Array(groupIDs)+")")
-	case domain.ResetTargetModeAllActive:
+	case domain.ResetTargetModeAllActive, "all_active_users":
 	default:
 		return "", fmt.Errorf("unsupported target_mode %q", mode)
 	}

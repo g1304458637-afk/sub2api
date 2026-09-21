@@ -143,11 +143,6 @@ func (r *subscriptionResetEventRepo) ApplicationStats(ctx context.Context, event
 	return stats, rows.Err()
 }
 
-type resetApplicationClaimRow struct {
-	id  int64
-	sub int64
-}
-
 // ClaimApplicationBatch SKIP LOCKED 原子认领一批 pending application。
 func (r *subscriptionResetEventRepo) ClaimApplicationBatch(ctx context.Context, eventID int64, limit int) ([]service.ResetApplicationClaim, error) {
 	claimed := make([]service.ResetApplicationClaim, 0, limit)
@@ -157,7 +152,7 @@ func (r *subscriptionResetEventRepo) ClaimApplicationBatch(ctx context.Context, 
 			SET status = 'applying', applied_at = NOW()
 			WHERE id = (
 				SELECT id FROM subscription_reset_applications
-				WHERE reset_event_id = $1 AND status = 'pending'
+				WHERE reset_event_id = $1 AND (status = 'pending' OR (status = 'applying' AND applied_at < NOW() - INTERVAL '5 minutes'))
 				ORDER BY id
 				FOR UPDATE SKIP LOCKED
 				LIMIT 1
@@ -240,23 +235,35 @@ func (r *subscriptionResetEventRepo) MarkApplicationFailed(ctx context.Context, 
 		              || jsonb_build_object('attempts',
 		                  COALESCE((metadata->>'attempts')::int, 0) + 1,
 		                  'last_error', $2)
-		WHERE id = $1
+		WHERE id = $1 AND status = 'applying'
 	`, appID, reason)
 	return err
 }
 
 // RequeueFailed failed → pending（retry）。
 func (r *subscriptionResetEventRepo) RequeueFailed(ctx context.Context, eventID int64) (int64, error) {
-	res, err := txExecContext(ctx, r.client, `
-		UPDATE subscription_reset_applications
-		SET status = 'pending'
-		WHERE reset_event_id = $1 AND status = 'failed'
-	`, eventID)
+	rows, err := txClientFromContext(ctx, r.client).QueryContext(ctx, `
+ WITH parent AS (
+   SELECT id FROM subscription_reset_events WHERE id = $1 FOR UPDATE
+ ), requeued AS (
+   UPDATE subscription_reset_applications a SET status = 'pending'
+   FROM parent WHERE a.reset_event_id = parent.id AND a.status = 'failed'
+   RETURNING a.id
+ ), reopened AS (
+   UPDATE subscription_reset_events SET status = 'pending', completed_at = NULL
+   WHERE id = $1 AND EXISTS (SELECT 1 FROM requeued) RETURNING id
+ ) SELECT COUNT(*) FROM requeued`, eventID)
 	if err != nil {
 		return 0, err
 	}
-	affected, _ := res.RowsAffected()
-	return affected, nil
+	defer rows.Close()
+	var count int64
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+	}
+	return count, rows.Err()
 }
 
 // CompleteIfDrained 全部 application 到终态时收口事件状态。

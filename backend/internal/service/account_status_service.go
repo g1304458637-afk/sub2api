@@ -252,7 +252,7 @@ func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int6
 				if perr == nil && target != nil {
 					name := target.Name
 					if s.groupRepo != nil {
-						if g, gerr := s.groupRepo.GetByID(ctx, target.GroupID); gerr == nil {
+						if g, gerr := s.groupRepo.GetByID(ctx, target.GroupID); gerr == nil && g != nil {
 							name = g.Name // 展示身份 = 组名（Phase 4.1 合同）
 						}
 					}
@@ -273,7 +273,7 @@ func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int6
 				if row.Group != nil {
 					display = row.Group.Name
 				} else if s.groupRepo != nil {
-					if g, gerr := s.groupRepo.GetByID(ctx, row.GroupID); gerr == nil {
+					if g, gerr := s.groupRepo.GetByID(ctx, row.GroupID); gerr == nil && g != nil {
 						display = g.Name
 					}
 				}
@@ -328,12 +328,18 @@ func (s *AccountStatusService) GetWallet(ctx context.Context, userID int64) (Acc
 // buildStatus 构建单条订阅的净化状态。先做窗口维护（自然重置）保证读数是
 // 当前周期的权威值，再基于分组限额计算百分比与状态。
 func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscription) (*AccountSubscriptionStatus, error) {
+	if sub == nil {
+		return nil, ErrSubscriptionInvalid
+	}
 	if !s.monitorOnly && s.maintainer != nil {
 		refreshed, err := s.maintainer.EnsureWindowMaintenance(ctx, sub)
 		if err != nil {
 			return nil, err
 		}
 		sub = refreshed
+		if sub == nil {
+			return nil, ErrSubscriptionInvalid
+		}
 	}
 	group := sub.Group
 	if group == nil && s.groupRepo != nil {
@@ -343,10 +349,14 @@ func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscri
 		}
 	}
 
+	if group == nil {
+		return nil, ErrSubscriptionInvalid
+	}
+
 	st := &AccountSubscriptionStatus{
 		ID:           sub.ID,
 		GroupID:      sub.GroupID,
-		DisplayName:  sub.Group.Name,
+		DisplayName:  "",
 		ExpiresAt:    sub.ExpiresAt,
 		PaygFallback: sub.AutoPaygFallback,
 	}

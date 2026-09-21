@@ -96,8 +96,8 @@ func (h *AdminResetEventHandler) PreviewResetTargets(c *gin.Context) {
 // ListResetEvents GET /admin/subscription-resets?page=&page_size=
 func (h *AdminResetEventHandler) ListResetEvents(c *gin.Context) {
 	var q struct {
-		Page     int `form:"page,default=1"`
-		PageSize int `form:"page_size,default=50"`
+		Page     int `form:"page,default=1" binding:"gte=1"`
+		PageSize int `form:"page_size,default=50" binding:"gte=1,lte=100"`
 	}
 	if err := c.ShouldBindQuery(&q); err != nil {
 		response.BadRequest(c, "Invalid query: "+err.Error())
@@ -108,7 +108,7 @@ func (h *AdminResetEventHandler) ListResetEvents(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"events": events})
+	response.Success(c, gin.H{"events": events, "items": events})
 }
 
 // GetResetEvent GET /admin/subscription-resets/:id（含进度统计）
@@ -131,12 +131,17 @@ func (h *AdminResetEventHandler) RetryResetEvent(c *gin.Context) {
 	if !ok {
 		return
 	}
-	requeued, err := h.resetEvents.RetryFailedApplications(c.Request.Context(), eventID)
+	_, err := h.resetEvents.RetryFailedApplications(c.Request.Context(), eventID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"requeued": requeued})
+	summary, err := h.resetEvents.GetResetEvent(c.Request.Context(), eventID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, summary)
 }
 
 // PreviewGrantCards POST /admin/subscription-reset-cards/grants/preview 复用（发卡预览）
