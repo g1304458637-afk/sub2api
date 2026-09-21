@@ -291,6 +291,11 @@ const (
 	SettingKeyWebChatEnabled      = "web_chat_enabled"       // 是否启用网页聊天功能（解析失败/缺失按 false 处理 = fail-closed）
 	SettingKeyWebChatModels       = "web_chat_models"        // 网页聊天模型列表（JSON 数组字符串，空串 = 回退模式：取用户可见分组可用模型并集）
 	SettingKeyWebChatDefaultModel = "web_chat_default_model" // 网页聊天默认模型（空串 = 前端自行选择）
+	// 大模型服务分组各入口显示开关（缺 key = 显示；显式 "false" 隐藏；纯入口可见性，接口仍受模型白名单保护）
+	SettingKeyWebChatEntranceChat  = "web_chat_entrance_chat"
+	SettingKeyWebChatEntranceDraw  = "web_chat_entrance_draw"
+	SettingKeyWebChatEntranceTTS   = "web_chat_entrance_tts"
+	SettingKeyWebChatEntranceMusic = "web_chat_entrance_music"
 
 	// 会话安全设置
 	SettingKeySessionBindingEnabled = "session_binding_enabled" // 会话 IP/UA 绑定（变更即失效），默认关闭

@@ -1056,6 +1056,10 @@ func TestAPIContracts(t *testing.T) {
 					"web_chat_enabled": true,
 					"web_chat_models": "",
 					"web_chat_default_model": "",
+					"web_chat_entrance_chat": true,
+					"web_chat_entrance_draw": true,
+					"web_chat_entrance_tts": true,
+					"web_chat_entrance_music": true,
 					"student_verification_reward_enabled": false,
 					"student_verification_reward_campaign": "",
 					"student_verification_reward_amount": 0
@@ -1415,6 +1419,10 @@ func TestAPIContracts(t *testing.T) {
 					"web_chat_enabled": true,
 					"web_chat_models": "",
 					"web_chat_default_model": "",
+					"web_chat_entrance_chat": true,
+					"web_chat_entrance_draw": true,
+					"web_chat_entrance_tts": true,
+					"web_chat_entrance_music": true,
 					"student_verification_reward_enabled": false,
 					"student_verification_reward_campaign": "",
 					"student_verification_reward_amount": 0

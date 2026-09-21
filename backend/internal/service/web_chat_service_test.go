@@ -134,6 +134,46 @@ func TestWebChatInitializeDefaultSettings(t *testing.T) {
 	require.Equal(t, "true", repo.values[SettingKeyWebChatEnabled])
 	require.Equal(t, "", repo.values[SettingKeyWebChatModels])
 	require.Equal(t, "", repo.values[SettingKeyWebChatDefaultModel])
+	require.Equal(t, "true", repo.values[SettingKeyWebChatEntranceChat])
+	require.Equal(t, "true", repo.values[SettingKeyWebChatEntranceDraw])
+	require.Equal(t, "true", repo.values[SettingKeyWebChatEntranceTTS])
+	require.Equal(t, "true", repo.values[SettingKeyWebChatEntranceMusic])
+}
+
+func TestWebChatEntranceFlagsParseAndConfig(t *testing.T) {
+	repo := &webChatSettingRepoStub{values: map[string]string{
+		SettingKeyWebChatEnabled: "true",
+		// 不写入 entrance 键 = 模拟存量站点：缺 key 视为显示
+	}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetAllSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.WebChatEntranceChat)
+	require.True(t, settings.WebChatEntranceDraw)
+	require.True(t, settings.WebChatEntranceTTS)
+	require.True(t, settings.WebChatEntranceMusic)
+
+	// 显式 "false" 隐藏；脏值按显示处理
+	repo.values[SettingKeyWebChatEntranceDraw] = "false"
+	repo.values[SettingKeyWebChatEntranceTTS] = "1"
+	require.False(t, settingsOf(t, svc, repo).WebChatEntranceDraw)
+	require.True(t, settingsOf(t, svc, repo).WebChatEntranceTTS)
+
+	// round-trip：写回 false 后仍是 false
+	settings.WebChatEntranceMusic = false
+	require.NoError(t, svc.UpdateSettings(context.Background(), settings))
+	require.Equal(t, "false", repo.values[SettingKeyWebChatEntranceMusic])
+	again, err := svc.GetAllSettings(context.Background())
+	require.NoError(t, err)
+	require.False(t, again.WebChatEntranceMusic)
+}
+
+func settingsOf(t *testing.T, svc *SettingService, repo *webChatSettingRepoStub) *SystemSettings {
+	t.Helper()
+	settings, err := svc.GetAllSettings(context.Background())
+	require.NoError(t, err)
+	return settings
 }
 
 func TestWebChatSettingsParseAndRoundTrip(t *testing.T) {

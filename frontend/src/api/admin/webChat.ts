@@ -86,6 +86,10 @@ export function buildWebChatSettingsPayload(form: unknown): {
   web_chat_enabled: boolean;
   web_chat_models: string;
   web_chat_default_model: string;
+  web_chat_entrance_chat: boolean;
+  web_chat_entrance_draw: boolean;
+  web_chat_entrance_tts: boolean;
+  web_chat_entrance_music: boolean;
 } {
   const f = (form ?? {}) as Record<string, unknown>;
   return {
@@ -95,5 +99,9 @@ export function buildWebChatSettingsPayload(form: unknown): {
     ),
     web_chat_default_model:
       typeof f.web_chat_default_model === "string" ? f.web_chat_default_model.trim() : "",
+    web_chat_entrance_chat: f.web_chat_entrance_chat !== false,
+    web_chat_entrance_draw: f.web_chat_entrance_draw !== false,
+    web_chat_entrance_tts: f.web_chat_entrance_tts !== false,
+    web_chat_entrance_music: f.web_chat_entrance_music !== false,
   };
 }
