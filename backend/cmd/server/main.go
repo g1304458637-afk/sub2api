@@ -32,10 +32,12 @@ var embeddedVersion string
 
 // Build-time variables (can be set by ldflags)
 var (
-	Version   = ""
-	Commit    = "unknown"
-	Date      = "unknown"
-	BuildType = "source" // "source" for manual builds, "release" for CI builds (set by ldflags)
+	Version           = ""
+	Commit            = "unknown"
+	Date              = "unknown"
+	Brand             = "unknown"
+	MigrationBaseline = "unknown"
+	BuildType         = "source" // "source" for manual builds, "release" for CI builds (set by ldflags)
 )
 
 func init() {
@@ -60,6 +62,9 @@ func main() {
 	// 回填构建信息供 /healthz 等运维端点读取。
 	buildinfo.Version = Version
 	buildinfo.Commit = Commit
+	buildinfo.Date = Date
+	buildinfo.Brand = Brand
+	buildinfo.MigrationBaseline = MigrationBaseline
 
 	// Parse command line flags
 	setupMode := flag.Bool("setup", false, "Run setup wizard in CLI mode")
