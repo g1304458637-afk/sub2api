@@ -189,6 +189,7 @@ export default {
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     adminResearch: 'Research Review',
+    rewardGrants: 'Reward Grants',
     ops: 'Ops',
     promoCodes: 'Promo Codes',
     settings: 'Settings',

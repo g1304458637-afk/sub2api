@@ -23,6 +23,9 @@ type fakeRewardGrantRepo struct {
 	existing *RewardGrant
 	// failInsert 非空时 InsertIdempotent 返回该错误
 	failInsert error
+	// AdminList 透传记录：AdminListFilter 记录入参，AdminListResult 非空时作为返回值
+	adminListFilter *RewardGrantAdminFilter
+	adminListResult *RewardGrantList
 }
 
 func (f *fakeRewardGrantRepo) InsertIdempotent(ctx context.Context, grant *RewardGrant) (bool, error) {
@@ -56,6 +59,14 @@ func (f *fakeRewardGrantRepo) CountByUser(ctx context.Context, userID int64) (in
 
 func (f *fakeRewardGrantRepo) GetBySource(ctx context.Context, sourceType string, sourceID int64) ([]RewardGrant, error) {
 	return nil, nil
+}
+
+func (f *fakeRewardGrantRepo) AdminList(ctx context.Context, filter *RewardGrantAdminFilter) (*RewardGrantList, error) {
+	f.adminListFilter = filter
+	if f.adminListResult != nil {
+		return f.adminListResult, nil
+	}
+	return &RewardGrantList{Items: []RewardGrantAdminItem{}}, nil
 }
 
 // 嵌入接口（nil）：只覆写被测方法，其余不应被调用。
@@ -287,4 +298,48 @@ func TestGrantReward_AdjustBalanceFailurePropagates(t *testing.T) {
 	// 事务语义（真库 rollback）由集成测试验证；这里断言余额接口确实被调用过
 	require.Equal(t, 1, userRepo.adjustCalls)
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------- AdminListRewardGrants ----------
+
+func TestAdminListRewardGrants_PassesFilterThrough(t *testing.T) {
+	t.Parallel()
+	repo := &fakeRewardGrantRepo{
+		adminListResult: &RewardGrantList{
+			Items: []RewardGrantAdminItem{{Email: "a@example.com"}, {Email: "b@example.com"}},
+			Total: 2, Page: 3, PageSize: 20,
+		},
+	}
+	svc := newRewardGrantTestService(repo, &fakeBalanceUserRepo{}, fakeSettingReader{})
+	userID := int64(42)
+	result, err := svc.AdminListRewardGrants(context.Background(), &RewardGrantAdminFilter{
+		Page: 3, PageSize: 20, UserID: &userID, Campaign: "2026_fall", SourceType: RewardSourceStudentVerification,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Items, 2)
+	require.Equal(t, 2, result.Total)
+	// filter 原样透传 repo（分页防御在 repo 侧）
+	require.NotNil(t, repo.adminListFilter)
+	require.Equal(t, 3, repo.adminListFilter.Page)
+	require.Equal(t, int64(42), *repo.adminListFilter.UserID)
+	require.Equal(t, "2026_fall", repo.adminListFilter.Campaign)
+	require.Equal(t, RewardSourceStudentVerification, repo.adminListFilter.SourceType)
+}
+
+func TestAdminListRewardGrants_NilDefenses(t *testing.T) {
+	t.Parallel()
+	// repo 不可用：返回空列表而非报错
+	svc := newRewardGrantTestService(&fakeRewardGrantRepo{}, &fakeBalanceUserRepo{}, fakeSettingReader{})
+	svc.rewardRepo = nil
+	result, err := svc.AdminListRewardGrants(context.Background(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Empty(t, result.Items)
+
+	// nil service：同样防御
+	var nilSvc *RewardGrantService
+	result, err = nilSvc.AdminListRewardGrants(context.Background(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Empty(t, result.Items)
 }

@@ -23,4 +23,7 @@ type RewardGrantRepository interface {
 
 	// GetBySource 按来源（source_type + source_id）查询发放记录。
 	GetBySource(ctx context.Context, sourceType string, sourceID int64) ([]RewardGrant, error)
+
+	// AdminList 管理端分页查询发放记录（created_at 倒序，回填用户与发放人邮箱/用户名）。
+	AdminList(ctx context.Context, filter *RewardGrantAdminFilter) (*RewardGrantList, error)
 }
