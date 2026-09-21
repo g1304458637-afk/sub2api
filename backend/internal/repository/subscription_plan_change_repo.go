@@ -243,6 +243,44 @@ func (r *subscriptionPlanChangeRepo) ListBySubscription(ctx context.Context, sub
 	return out, nil
 }
 
+// ListAll 管理端审计：按 id 倒序 + 总数；过滤条件均可选。
+func (r *subscriptionPlanChangeRepo) ListAll(ctx context.Context, userID, subscriptionID *int64, status *string, limit, offset int) ([]service.PlanChangeRecord, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	q := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Query()
+	countQ := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Query()
+	if userID != nil {
+		q = q.Where(subscriptionplanchange.UserIDEQ(*userID))
+		countQ = countQ.Where(subscriptionplanchange.UserIDEQ(*userID))
+	}
+	if subscriptionID != nil {
+		q = q.Where(subscriptionplanchange.SubscriptionIDEQ(*subscriptionID))
+		countQ = countQ.Where(subscriptionplanchange.SubscriptionIDEQ(*subscriptionID))
+	}
+	if status != nil && *status != "" {
+		q = q.Where(subscriptionplanchange.StatusEQ(*status))
+		countQ = countQ.Where(subscriptionplanchange.StatusEQ(*status))
+	}
+	total, err := countQ.Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	ms, err := q.
+		Order(dbent.Desc(subscriptionplanchange.FieldID)).
+		Limit(limit).
+		Offset(offset).
+		All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]service.PlanChangeRecord, 0, len(ms))
+	for _, m := range ms {
+		out = append(out, *planChangeEntityToService(m))
+	}
+	return out, int64(total), nil
+}
+
 // ------------------------------------------------------------------
 // PlanService（SKU 快照读取）
 // ------------------------------------------------------------------

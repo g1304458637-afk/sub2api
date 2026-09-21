@@ -135,6 +135,9 @@ func RegisterUserRoutes(
 			subscriptions.GET("/active", h.Subscription.GetActive)
 			subscriptions.GET("/progress", h.Subscription.GetProgress)
 			subscriptions.GET("/status", h.Subscription.GetStatus)
+			// Final Frontend CLOSURE：统一钱包流水（充值/兑换/奖励 + 按量日聚合，只读）
+			walletLedger := authenticated.Group("/wallet")
+			walletLedger.GET("/ledger", h.WalletLedger.UserLedger)
 			subscriptions.POST("/:id/reset-with-card", h.Subscription.ResetWithCard)
 			subscriptions.PATCH("/:id/payg-fallback", h.Subscription.UpdatePaygFallback)
 			subscriptions.POST("/:id/change/preview", h.PlanChange.PreviewUpgrade)

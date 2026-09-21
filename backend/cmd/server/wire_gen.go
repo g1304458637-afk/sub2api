@@ -257,6 +257,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	planChangeService := service.NewPlanChangeService(subscriptionPlanChangeStore, subscriptionTermStore, planSnapshotService, userSubscriptionRepository, groupRepository, apiKeyGroupMigrator, accountStatusService, client)
 	paymentService.SetPlanChangeService(planChangeService, subscriptionPlanChangeStore, subscriptionTermStore)
 	planChangeHandler := handler.NewPlanChangeHandler(planChangeService, paymentService)
+	walletLedgerService := service.NewWalletLedgerService(client, repository.NewRewardGrantRepository(client))
+	walletLedgerHandler := handler.NewWalletLedgerHandler(walletLedgerService, planChangeService)
 	settingHandler := handler.ProvideAdminSettingHandler(settingService, emailService, turnstileService, aliyunCaptchaService, opsService, paymentConfigService, paymentService, userAttributeService, notificationEmailService, totpService, userService)
 	opsHandler := admin.NewOpsHandler(opsService)
 	updateCache := repository.NewUpdateCache(redisClient)
@@ -347,7 +349,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	openAIQuotaAutoResetService := service.ProvideOpenAIQuotaAutoResetService(accountRepository, openAIQuotaService, rateLimitService, idempotencyCoordinator, auditLogService, settingService, leaderLockCache)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, channelMonitorV2Handler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelPlazaHandler, webChatHandler, asyncImageHandler, batchImageHandler, mucConnectHandler, idempotencyCoordinator, idempotencyCleanupService, openAIQuotaAutoResetService,
-		planChangeHandler)
+		planChangeHandler, walletLedgerHandler)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	optionalJWTAuthMiddleware := middleware.NewOptionalJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService, auditLogService)

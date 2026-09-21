@@ -696,6 +696,11 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			resets.POST("/:id/retry", h.Admin.ResetEvent.RetryResetEvent)
 		}
 
+		// ── Final Frontend CLOSURE：Reward 审计 + 套餐变更审计 ──
+		admin.GET("/rewards", h.WalletLedger.AdminRewardList)
+		admin.GET("/rewards/stats", h.WalletLedger.AdminRewardStats)
+		admin.GET("/plan-changes", h.WalletLedger.AdminPlanChangeList)
+
 		// ── Reset Card 管理端（grant / list / revoke / preview / count）──
 		resetCards := admin.Group("/subscription-reset-cards")
 		{

@@ -73,6 +73,7 @@ type Handlers struct {
 	BatchImage       *BatchImageHandler
 	MucConnect       *MucConnectHandler
 	PlanChange       *PlanChangeHandler
+	WalletLedger     *WalletLedgerHandler
 }
 
 // BuildInfo contains build-time information

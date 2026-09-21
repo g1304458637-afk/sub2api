@@ -117,6 +117,9 @@ type PlanChangeStore interface {
 	ActiveScheduledChange(ctx context.Context, subscriptionID int64) (*PlanChangeRecord, error)
 	// ListBySubscription 审计历史。
 	ListBySubscription(ctx context.Context, subscriptionID int64, limit int) ([]PlanChangeRecord, error)
+
+	// ListAll 管理端审计：按 id 倒序 + 总数；过滤条件均可选。
+	ListAll(ctx context.Context, userID, subscriptionID *int64, status *string, limit, offset int) ([]PlanChangeRecord, int64, error)
 }
 
 // TermStore 已付 term 快照端口。
@@ -679,6 +682,20 @@ func (s *PlanChangeService) GetChange(ctx context.Context, userID, changeID int6
 }
 
 // ListChangesBySubscription 审计历史（用户仅限本人订阅）。
+// PlanChangeAdminFilter 管理端审计过滤（均可选）。
+type PlanChangeAdminFilter struct {
+	UserID         *int64
+	SubscriptionID *int64
+	Status         *string
+	Limit          int
+	Offset         int
+}
+
+// AdminListChanges 管理端套餐变更审计（全部用户，支持过滤）。
+func (s *PlanChangeService) AdminListChanges(ctx context.Context, f PlanChangeAdminFilter) ([]PlanChangeRecord, int64, error) {
+	return s.store.ListAll(ctx, f.UserID, f.SubscriptionID, f.Status, f.Limit, f.Offset)
+}
+
 func (s *PlanChangeService) ListChangesBySubscription(ctx context.Context, userID, subscriptionID int64, limit int) ([]PlanChangeRecord, error) {
 	sub, err := s.subRepo.GetByID(ctx, subscriptionID)
 	if err != nil {
