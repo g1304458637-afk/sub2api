@@ -5,6 +5,7 @@ export default {
     title: '我的订阅',
     viewDetails: '查看订阅详情',
     activeCount: '{count} 个有效订阅',
+    pendingLine: '已预约：{date} 起切换至 {plan}',
     daily: '每日',
     weekly: '每周',
     monthly: '每月',
@@ -721,6 +722,10 @@ export default {
       resetCards: '重置卡 ×{count}',
       noSubs: '暂无生效中的订阅',
       loading: '正在加载账户状态…',
+      currentPlan: '当前套餐：{plan}',
+      pendingSince: '已预约：{date} 起切换至 {plan}',
+      cancelChange: '取消变更',
+      multiActiveWarning: '检测到 {count} 个生效订阅（异常状态，请联系管理员）',
     },
     usageStatus: {
       unmetered: '不限量',
@@ -812,6 +817,7 @@ export default {
     loadError: '订阅状态加载失败',
     retry: '重试',
     emptyBody: '暂无有效订阅。你仍可使用钱包按量调用。',
+      multiActiveWarning: '检测到 {count} 个生效订阅（异常状态，请联系管理员）',
     viewPricing: '查看套餐',
   },
   wallet: {

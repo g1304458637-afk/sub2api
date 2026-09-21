@@ -39,6 +39,9 @@ type SubscriptionExpiryService struct {
 	db         *sql.DB
 	instanceID string
 
+	// planChangeApplier 预约降级到点执行引擎（PlanChangeService 实现；nil = 不执行）。
+	planChangeApplier ScheduledDowngradeApplier
+
 	smtpWarningMu   sync.Mutex
 	lastSMTPWarning time.Time
 }
@@ -69,6 +72,11 @@ func (s *SubscriptionExpiryService) SetSettingRepository(settingRepo SettingRepo
 
 func (s *SubscriptionExpiryService) SetNotificationEmailService(notificationEmailService *NotificationEmailService) {
 	s.notificationEmailService = notificationEmailService
+}
+
+// SetPlanChangeApplier 注入预约降级到点执行引擎（PlanChangeService 实现）。
+func (s *SubscriptionExpiryService) SetPlanChangeApplier(applier ScheduledDowngradeApplier) {
+	s.planChangeApplier = applier
 }
 
 func (s *SubscriptionExpiryService) Start() {
@@ -114,6 +122,15 @@ func (s *SubscriptionExpiryService) runOnce() {
 	}
 	if updated > 0 {
 		log.Printf("[SubscriptionExpiry] Updated %d expired subscriptions", updated)
+	}
+	// 预约降级到点执行（term 末生效）：惰性到期翻状态之后跑，引擎内部逐条事务并自兜底
+	if s.planChangeApplier != nil {
+		applied, err := s.planChangeApplier.ApplyDueScheduledDowngrades(ctx, time.Now(), 100)
+		if err != nil {
+			log.Printf("[SubscriptionExpiry] Apply scheduled downgrades failed: %v", err)
+		} else if applied > 0 {
+			log.Printf("[SubscriptionExpiry] Applied %d scheduled downgrades", applied)
+		}
 	}
 	s.sendExpiryReminders(ctx)
 }

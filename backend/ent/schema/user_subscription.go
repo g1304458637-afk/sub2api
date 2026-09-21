@@ -133,6 +133,10 @@ func (UserSubscription) Indexes() []ent.Index {
 		// 唯一约束通过部分索引实现（WHERE deleted_at IS NULL），支持软删除后重新订阅
 		// 见迁移文件 016_soft_delete_partial_unique_indexes.sql
 		index.Fields("user_id", "group_id"),
+		// 单主套餐不变量（产品 RULE 1）：每用户至多一条 ACTIVE 订阅。
+		// 唯一性由部分索引实现（WHERE deleted_at IS NULL AND status='active'），
+		// 见迁移文件 242_user_subscriptions_single_active.sql；schema 仅作可读性对齐。
+		index.Fields("user_id"),
 		index.Fields("deleted_at"),
 	}
 }

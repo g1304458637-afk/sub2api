@@ -80,11 +80,25 @@ type AccountResetCardsStatus struct {
 	Available int `json:"available"`
 }
 
+// AccountPendingPlanChange 已预约、未生效的套餐变更（additive 合同，Phase 11 定稿）。
+// 当前 MUC 套餐族内只会出现 scheduled_downgrade；升级不预约（支付成功即履约）。
+type AccountPendingPlanChange struct {
+	ChangeType  string    `json:"change_type"`           // scheduled_downgrade
+	ToPlanID    int64     `json:"to_plan_id"`            // 目标 SKU
+	ToPlanName  string    `json:"to_plan_name"`          // 目标组名（与 display_name 同语义）
+	EffectiveAt time.Time `json:"effective_at"`          // = 当前订阅 expires_at（term 末）
+	CurrentEnds time.Time `json:"current_period_ends_at"`
+}
+
 // AccountStatus 用户账户统一状态。
 type AccountStatus struct {
-	Wallet        AccountWalletStatus         `json:"wallet"`
-	ResetCards    AccountResetCardsStatus     `json:"reset_cards"`
+	Wallet     AccountWalletStatus         `json:"wallet"`
+	ResetCards AccountResetCardsStatus     `json:"reset_cards"`
+	// Subscriptions：单主套餐不变量（迁移 242）生效后至多一个元素；
+	// 保留数组形态兼容 MUC 消费端 legacy parser。
 	Subscriptions []AccountSubscriptionStatus `json:"subscriptions"`
+	// PendingChange 已预约变更（无预约时省略）；前端渲染"于 X 日切换至 Y [取消变更]"。
+	PendingChange *AccountPendingPlanChange `json:"pending_change,omitempty"`
 }
 
 // UserDisplayPercent 普通用户展示百分比（整数合同，Phase 4.1 定稿）：
@@ -139,6 +153,11 @@ type AccountStatusService struct {
 	resetCards  SubscriptionResetCardReader
 	monitorOnly bool // true = 只读监控视图（不执行窗口维护写入）
 	now         func() time.Time
+
+	// pendingChangeLookup 已预约变更查询（PlanChangeStore 提供；nil = 不返回 pending）。
+	pendingChangeLookup interface {
+		ActiveScheduledChange(ctx context.Context, subscriptionID int64) (*PlanChangeRecord, error)
+	}
 }
 
 func NewAccountStatusService(
@@ -162,6 +181,13 @@ func NewAccountStatusService(
 
 // SetNow 供测试注入时钟。
 func (s *AccountStatusService) SetNow(now func() time.Time) { s.now = now }
+
+// SetPendingChangeLookup wire 注入预约变更查询（PlanChangeStore）。
+func (s *AccountStatusService) SetPendingChangeLookup(lookup interface {
+	ActiveScheduledChange(ctx context.Context, subscriptionID int64) (*PlanChangeRecord, error)
+}) {
+	s.pendingChangeLookup = lookup
+}
 
 // CountAvailableResetCards 账户级可用 Reset Card 数（只读；发卡 Runtime 未实现，恒 0 直到入口存在）。
 func (s *AccountStatusService) CountAvailableResetCards(ctx context.Context, userID int64) int {
@@ -194,6 +220,36 @@ func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int6
 		}
 		statuses = append(statuses, *st)
 	}
+
+	// 已预约变更（单主套餐不变量下至多一条 ACTIVE → 至多一个 pending）
+	var pending *AccountPendingPlanChange
+	if s.pendingChangeLookup != nil {
+		for i := range subs {
+			rec, err := s.pendingChangeLookup.ActiveScheduledChange(ctx, subs[i].ID)
+			if err != nil || rec == nil {
+				continue
+			}
+			name := ""
+			if s.groupRepo != nil {
+				if g, err := s.groupRepo.GetByID(ctx, rec.ToGroupID); err == nil {
+					name = g.Name
+				}
+			}
+			effective := s.now()
+			if rec.EffectiveAt != nil {
+				effective = *rec.EffectiveAt
+			}
+			pending = &AccountPendingPlanChange{
+				ChangeType:  rec.ChangeType,
+				ToPlanID:    rec.ToPlanID,
+				ToPlanName:  name,
+				EffectiveAt: effective,
+				CurrentEnds: subs[i].ExpiresAt,
+			}
+			break
+		}
+	}
+
 	return &AccountStatus{
 		Wallet: AccountWalletStatus{
 			Balance:           FormatWalletBalance(user.Balance),
@@ -201,6 +257,7 @@ func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int6
 		},
 		ResetCards:    AccountResetCardsStatus{Available: s.CountAvailableResetCards(ctx, userID)},
 		Subscriptions: statuses,
+		PendingChange: pending,
 	}, nil
 }
 

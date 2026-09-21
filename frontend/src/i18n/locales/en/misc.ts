@@ -5,6 +5,7 @@ export default {
     title: 'My Subscriptions',
     viewDetails: 'View subscription details',
     activeCount: '{count} active subscription(s)',
+    pendingLine: 'Scheduled: switch to {plan} on {date}',
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',
@@ -697,6 +698,10 @@ export default {
       resetCards: 'Reset cards ×{count}',
       noSubs: 'No active subscription',
       loading: 'Loading account status…',
+      currentPlan: 'Current plan: {plan}',
+      pendingSince: 'Scheduled: switch to {plan} on {date}',
+      cancelChange: 'Cancel change',
+      multiActiveWarning: '{count} active subscriptions detected (unexpected, contact admin)',
     },
     usageStatus: {
       unmetered: 'Unmetered',
@@ -788,6 +793,7 @@ export default {
     loadError: 'Failed to load subscription status',
     retry: 'Retry',
     emptyBody: 'No active subscription. You can still use the wallet pay-as-you-go.',
+      multiActiveWarning: '{count} active subscriptions detected (unexpected, contact admin)',
     viewPricing: 'View plans',
   },
   wallet: {

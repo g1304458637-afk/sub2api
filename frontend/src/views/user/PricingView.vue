@@ -31,38 +31,66 @@
         <div v-else-if="!activeSubscriptions.length" class="muc-status__muted">
           {{ t('pricing.statusStrip.noSubs') }}
         </div>
-        <div v-else class="muc-status__subs">
-          <div v-for="sub in activeSubscriptions" :key="sub.id" class="muc-status__sub">
+        <!-- 单主套餐不变量：当前套餐至多一个；pending 变更单独成行 -->
+        <div v-else-if="primarySub" class="muc-status__subs">
+          <div class="muc-status__sub">
             <div class="muc-status__sub-head">
-              <span class="muc-status__sub-name">{{ sub.display_name }}</span>
-              <span class="muc-status__chip" :class="statusChipClass(sub.usage_status)">
-                {{ statusLabel(sub.usage_status) }}
+              <span class="muc-status__sub-name">
+                {{ t('pricing.statusStrip.currentPlan', { plan: primarySub.display_name }) }}
+              </span>
+              <span class="muc-status__chip" :class="statusChipClass(primarySub.usage_status)">
+                {{ statusLabel(primarySub.usage_status) }}
               </span>
             </div>
             <div class="muc-status__sub-bar-row">
               <div class="muc-status__sub-bar">
                 <div
                   class="muc-status__sub-bar-fill"
-                  :class="statusBarClass(sub.usage_status)"
-                  :style="{ width: `${Math.min(Math.max(sub.weekly_usage_percent ?? 0, 0), 100)}%` }"
+                  :class="statusBarClass(primarySub.usage_status)"
+                  :style="{ width: `${Math.min(Math.max(primarySub.weekly_usage_percent ?? 0, 0), 100)}%` }"
                 ></div>
               </div>
               <span class="muc-status__sub-percent">
                 {{
-                  sub.weekly_usage_percent === null
+                  primarySub.weekly_usage_percent === null
                     ? t('pricing.usageStatus.unmetered')
-                    : `${sub.weekly_usage_percent}%`
+                    : `${primarySub.weekly_usage_percent}%`
                 }}
               </span>
             </div>
             <div class="muc-status__sub-meta">
-              <span v-if="sub.expires_at">
-                {{ t('pricing.statusStrip.expires') }} {{ formatDate(sub.expires_at) }}
+              <span v-if="primarySub.expires_at">
+                {{ t('pricing.statusStrip.expires') }} {{ formatDate(primarySub.expires_at) }}
               </span>
               <span v-if="resetCards > 0">
                 {{ t('pricing.statusStrip.resetCards', { count: resetCards }) }}
               </span>
             </div>
+            <div
+              v-if="statusPendingChange"
+              class="muc-status__sub-meta muc-status__pending"
+              data-testid="pricing-pending-change"
+            >
+              <span>
+                {{
+                  t('pricing.statusStrip.pendingSince', {
+                    plan: statusPendingChange.to_plan_name,
+                    date: formatDate(statusPendingChange.effective_at)
+                  })
+                }}
+              </span>
+              <button
+                type="button"
+                class="muc-status__pending-cancel"
+                :disabled="busyKey === 'cancel-scheduled'"
+                @click="onCancelScheduled"
+              >
+                {{ t('pricing.statusStrip.cancelChange') }}
+              </button>
+            </div>
+          </div>
+          <div v-if="activeSubscriptions.length > 1" class="muc-status__muted" data-testid="pricing-multi-active-warning">
+            {{ t('pricing.statusStrip.multiActiveWarning', { count: activeSubscriptions.length }) }}
           </div>
         </div>
       </section>
@@ -258,6 +286,8 @@ const sortedPlans = computed(() => plans.value)
 const activeSubscriptions = computed(() => account.value?.subscriptions ?? [])
 const wallet = computed(() => account.value?.wallet ?? null)
 const resetCards = computed(() => account.value?.reset_cards.available ?? 0)
+/** 服务端合同里的已预约变更（单主套餐不变量下至多一条） */
+const statusPendingChange = computed(() => account.value?.pending_change ?? null)
 
 const walletDisplay = computed(() => {
   const w = wallet.value
@@ -579,6 +609,12 @@ async function onConfirmCancelScheduled() {
     await cancelScheduledDowngrade(sub.id)
     cancelTarget.value = false
     scheduledRecord.value = null
+    // 状态条 pending 区来自 /subscriptions/status 合同，取消后需同步刷新
+    try {
+      account.value = await getAccountStatus()
+    } catch {
+      /* 状态刷新失败不阻断取消成功提示 */
+    }
     appStore.showSuccess(t('pricing.downgrade.cancelledToast'))
   } catch (err) {
     appStore.showError(extractErrorMessage(err, t('pricing.errors.cancelFailed')))
@@ -909,6 +945,32 @@ function statusBarClass(status: UsageStatus): string {
   gap: 12px;
   font-size: 11.5px;
   color: var(--muc-text-muted);
+}
+
+.muc-status__pending {
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 5px 8px;
+  border: 1px dashed color-mix(in srgb, var(--muc-primary, #b91c1c) 40%, transparent);
+  border-radius: 8px;
+  color: var(--muc-text-secondary);
+}
+
+.muc-status__pending-cancel {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 11.5px;
+  color: var(--muc-primary, #b91c1c);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.muc-status__pending-cancel:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 /* ── 套餐卡区：移动端 snap 横滑 ── */

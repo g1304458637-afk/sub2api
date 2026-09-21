@@ -133,6 +133,44 @@ func (r *userSubscriptionRepository) GetActiveByUserIDAndGroupID(ctx context.Con
 	return userSubscriptionEntityToService(m), nil
 }
 
+// FindActiveByUserIDExcludingGroup 单主套餐守卫（RULE 1）：返回用户在目标组之外的
+// 任一 ACTIVE 订阅（无则 nil）。与运行时口径一致：status=active 且未过 expires_at
+// （惰性到期行不算，履约前置 ExpireLapsedByUser 会先收敛）。created_at 升序保证结果确定。
+func (r *userSubscriptionRepository) FindActiveByUserIDExcludingGroup(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+	client := clientFromContext(ctx, r.client)
+	m, err := client.UserSubscription.Query().
+		Where(
+			usersubscription.UserIDEQ(userID),
+			usersubscription.GroupIDNEQ(groupID),
+			usersubscription.StatusEQ(service.SubscriptionStatusActive),
+			usersubscription.ExpiresAtGT(time.Now()),
+		).
+		Order(dbent.Asc(usersubscription.FieldCreatedAt)).
+		First(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return userSubscriptionEntityToService(m), nil
+}
+
+// ExpireLapsedByUser 履约前置清理：把用户 status=active 但已过 expires_at 的订阅
+// 翻为 expired（惰性到期的提前收敛），避免 partial unique index 把合法新购买挡下。
+func (r *userSubscriptionRepository) ExpireLapsedByUser(ctx context.Context, userID int64, now time.Time) (int64, error) {
+	client := clientFromContext(ctx, r.client)
+	n, err := client.UserSubscription.Update().
+		Where(
+			usersubscription.UserIDEQ(userID),
+			usersubscription.StatusEQ(service.SubscriptionStatusActive),
+			usersubscription.ExpiresAtLTE(now),
+		).
+		SetStatus(service.SubscriptionStatusExpired).
+		Save(ctx)
+	return int64(n), err
+}
+
 func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.UserSubscription) error {
 	if sub == nil {
 		return service.ErrSubscriptionNilInput

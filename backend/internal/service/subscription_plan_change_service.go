@@ -21,6 +21,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -118,6 +119,8 @@ type PlanChangeStore interface {
 	// ListBySubscription 审计历史。
 	ListBySubscription(ctx context.Context, subscriptionID int64, limit int) ([]PlanChangeRecord, error)
 
+	// ListDueScheduled 到点引擎扫描：effective_at <= now 的 scheduled 变更（id 升序，限批）。
+	ListDueScheduled(ctx context.Context, now time.Time, limit int) ([]PlanChangeRecord, error)
 	// ListAll 管理端审计：按 id 倒序 + 总数；过滤条件均可选。
 	ListAll(ctx context.Context, userID, subscriptionID *int64, status *string, limit, offset int) ([]PlanChangeRecord, int64, error)
 }
@@ -180,6 +183,9 @@ type PlanChangeService struct {
 	entClient *dbent.Client
 	now       func() time.Time
 	quoteTTL  time.Duration
+
+	// cacheInvalidator 提交后缓存失效回调（SubscriptionService 提供；nil = no-op）。
+	cacheInvalidator func(userID, groupID int64)
 }
 
 func NewPlanChangeService(
@@ -201,6 +207,17 @@ func NewPlanChangeService(
 
 // SetNow 供测试注入。
 func (s *PlanChangeService) SetNow(now func() time.Time) { s.now = now }
+
+// SetCacheInvalidator wire 注入提交后缓存失效回调（替代旧 no-op 占位）。
+func (s *PlanChangeService) SetCacheInvalidator(invalidator func(userID, groupID int64)) {
+	s.cacheInvalidator = invalidator
+}
+
+func (s *PlanChangeService) invalidateCaches(ctx context.Context, userID, groupID int64) {
+	if s.cacheInvalidator != nil {
+		s.cacheInvalidator(userID, groupID)
+	}
+}
 
 // ------------------------------------------------------------------
 // Quote（服务端权威；Preview 与 Create 共用同一计算）
@@ -560,16 +577,9 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 	committed = true
 
 	// 缓存失效（提交后）：订阅（旧+新组）+ API Key 认证缓存由 Key 迁移方失效
-	invalidateSubscriptionCachesSafe(ctx, sub.UserID, sub.GroupID)
-	invalidateSubscriptionCachesSafe(ctx, sub.UserID, change.ToGroupID)
+	s.invalidateCaches(ctx, sub.UserID, sub.GroupID)
+	s.invalidateCaches(ctx, sub.UserID, change.ToGroupID)
 	return nil
-}
-
-func invalidateSubscriptionCachesSafe(ctx context.Context, userID, groupID int64) string {
-	_ = userID
-	_ = groupID
-	// 占位：实际失效由 SubscriptionService 注入执行（见 wiring）
-	return ""
 }
 
 // ------------------------------------------------------------------
@@ -711,6 +721,117 @@ func (s *PlanChangeService) ListChangesBySubscription(ctx context.Context, userI
 }
 
 // ---- repo-facing helpers（订阅字段切换；由具体 repo 提供事务实现）----
+
+// SupersedeScheduledChangeForRenewal 续期取代 pending 预约降级（superseded_by_renewal）。
+// 由 SubscriptionService 续费事务内调用（txCtx 传递保证同事务）；无 pending 时空操作。
+func (s *PlanChangeService) SupersedeScheduledChangeForRenewal(ctx context.Context, subscriptionID int64) error {
+	pending, err := s.store.ActiveScheduledChange(ctx, subscriptionID)
+	if err != nil {
+		return err
+	}
+	if pending == nil {
+		return nil
+	}
+	if err := s.store.Cancel(ctx, pending.ID, "superseded_by_renewal"); err != nil {
+		return err
+	}
+	return clearNextPlan(ctx, s.subRepo, subscriptionID)
+}
+
+// ------------------------------------------------------------------
+// Scheduled Downgrade 到点执行引擎（term 末生效；无自动扣款 → 不免费送新周期）
+// ------------------------------------------------------------------
+
+// ApplyDueScheduledDowngrades 扫描并执行已到点的预约降级。
+// 每条变更独立事务：订阅行锁 + 源组校验（防 supersede/升级竞态）+ SwitchPlan 到目标组
+// （保留周期字段不动）+ 已过期的行翻 expired（用户续费后新周期才以目标档生效，不免费送）
+// + 清 next_plan_id + MarkFulfilled(CAS 幂等)。返回成功履约条数。
+func (s *PlanChangeService) ApplyDueScheduledDowngrades(ctx context.Context, now time.Time, limit int) (int, error) {
+	due, err := s.store.ListDueScheduled(ctx, now, limit)
+	if err != nil {
+		return 0, err
+	}
+	if len(due) == 0 {
+		return 0, nil
+	}
+	applied := 0
+	for i := range due {
+		change := &due[i]
+		if err := s.applyOneScheduledDowngrade(ctx, change, now); err != nil {
+			// 单条失败不阻塞其余（下轮扫描重试）；记录后继续
+			log.Printf("[PlanChange] apply scheduled downgrade #%d (sub=%d) failed: %v",
+				change.ID, change.SubscriptionID, err)
+			continue
+		}
+		applied++
+	}
+	return applied, nil
+}
+
+func (s *PlanChangeService) applyOneScheduledDowngrade(ctx context.Context, change *PlanChangeRecord, now time.Time) error {
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	txCtx := dbent.NewTxContext(ctx, tx)
+
+	sub, err := s.subRepo.GetByIDForUpdate(txCtx, change.SubscriptionID)
+	if err != nil {
+		return err
+	}
+	if sub.UserID != change.UserID {
+		return ErrSubscriptionNotFound
+	}
+	// 行已不在源组：期间发生过升级/迁移，本变更应已被 supersede；补取消防重放
+	if change.FromGroupID != nil && sub.GroupID != *change.FromGroupID {
+		if err := s.store.Cancel(txCtx, change.ID, "stale_source_group"); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	// 双保险：指针已被清（理论上有 pending 行残留）→ 直接作废，不执行
+	if sub.NextPlanID == nil || *sub.NextPlanID != change.ToPlanID {
+		if err := s.store.Cancel(txCtx, change.ID, "pointer_cleared"); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+
+	// 切到目标组/档：周期字段（starts_at/expires_at/窗口锚点/usage）全部不动
+	if err := switchSubscriptionPlan(txCtx, s.subRepo, sub.ID, change.ToGroupID, change.ToPlanID); err != nil {
+		return err
+	}
+	// 预付制：term 已结束且用户未续费 → 行保持/翻为 expired，不免费送目标档周期；
+	// 用户随后按目标档购买时 assignOrExtend 复用本行 → 新周期以 Basic 生效（Case E）。
+	lapsed := !sub.ExpiresAt.After(now)
+	if lapsed && sub.Status == SubscriptionStatusActive {
+		if err := s.subRepo.UpdateStatus(txCtx, sub.ID, SubscriptionStatusExpired); err != nil {
+			return err
+		}
+	}
+
+	if err := s.store.MarkFulfilled(txCtx, change.ID, now); err != nil {
+		return err
+	}
+	// 清空预约指针：变更已履约，避免后续续费/升级读到悬空目标
+	if err := clearNextPlan(txCtx, s.subRepo, sub.ID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+
+	s.invalidateCaches(ctx, sub.UserID, sub.GroupID)
+	s.invalidateCaches(ctx, sub.UserID, change.ToGroupID)
+	return nil
+}
 
 func switchSubscriptionPlan(ctx context.Context, subRepo UserSubscriptionRepository, subscriptionID, groupID, planID int64) error {
 	if sw, ok := subRepo.(SubscriptionPlanSwitcher); ok {

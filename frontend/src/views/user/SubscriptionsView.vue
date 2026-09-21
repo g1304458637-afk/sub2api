@@ -45,7 +45,7 @@
           </MucState>
         </MucGlassCard>
 
-        <!-- 订阅主卡 -->
+        <!-- 订阅主卡（单主套餐不变量下至多一张；v-for 仅为兼容过渡） -->
         <MucGlassCard
           v-for="sub in activeSubscriptions"
           :key="sub.id"
@@ -146,6 +146,15 @@
               {{ t('mySub.useResetCard') }}
             </MucButton>
           </div>
+        </MucGlassCard>
+
+        <!-- 单主套餐不变量防御：正常业务永远至多一张主卡 -->
+        <MucGlassCard
+          v-if="!loading && activeSubscriptions.length > 1"
+          class="muc-subs__card"
+          data-testid="subs-multi-active-warning"
+        >
+          <MucState :message="t('mySub.multiActiveWarning', { count: activeSubscriptions.length })" />
         </MucGlassCard>
       </div>
 

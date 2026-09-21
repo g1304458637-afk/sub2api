@@ -193,9 +193,11 @@ func (r *subscriptionPlanChangeRepo) MarkPaid(ctx context.Context, id int64) err
 }
 
 func (r *subscriptionPlanChangeRepo) MarkFulfilled(ctx context.Context, id int64, effectiveAt time.Time) error {
+	// status 含 'scheduled'：到点引擎对预约降级的 fulfilled 也走本 CAS；
+	// 升级履约路径保持 paid/pending_payment 语义不变。
 	_, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Update().
 		Where(subscriptionplanchange.IDEQ(id),
-			subscriptionplanchange.StatusIn("paid", "pending_payment")).
+			subscriptionplanchange.StatusIn("paid", "pending_payment", "scheduled")).
 		SetStatus("fulfilled").
 		SetFulfilledAt(time.Now()).
 		SetEffectiveAt(effectiveAt).
@@ -211,6 +213,31 @@ func (r *subscriptionPlanChangeRepo) Cancel(ctx context.Context, id int64, reaso
 		SetCancelledAt(time.Now()).
 		Save(ctx)
 	return err
+}
+
+// ListDueScheduled 到点引擎扫描：effective_at <= now 的 scheduled 变更（id 升序，限批）。
+// List 查询天然多行安全（脏数据双 scheduled 不会像 Only 一样报错）。
+func (r *subscriptionPlanChangeRepo) ListDueScheduled(ctx context.Context, now time.Time, limit int) ([]service.PlanChangeRecord, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := txClientFromContext(ctx, r.client).SubscriptionPlanChange.Query().
+		Where(
+			subscriptionplanchange.ChangeTypeEQ("scheduled_downgrade"),
+			subscriptionplanchange.StatusEQ("scheduled"),
+			subscriptionplanchange.EffectiveAtLTE(now),
+		).
+		Order(dbent.Asc(subscriptionplanchange.FieldID)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]service.PlanChangeRecord, 0, len(rows))
+	for _, m := range rows {
+		out = append(out, *planChangeEntityToService(m))
+	}
+	return out, nil
 }
 
 func (r *subscriptionPlanChangeRepo) ActiveScheduledChange(ctx context.Context, subscriptionID int64) (*service.PlanChangeRecord, error) {

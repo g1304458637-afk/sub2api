@@ -184,6 +184,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	adminResetEventHandler := admin.NewAdminResetEventHandler(resetEventService, resetCardService)
 	adminResetCardHandler := admin.NewAdminSubscriptionResetHandler(resetCardService)
 	accountStatusService := service.NewAccountStatusService(userRepository, userSubscriptionRepository, groupRepository, subscriptionService, subscriptionResetCardRepository, false)
+	// 单主套餐不变量配套装配：status 合同 pending 视图（store 在 planChangeService 前已构造）
+	subscriptionPlanChangeStore := repository.NewSubscriptionPlanChangeStore(client)
+	accountStatusService.SetPendingChangeLookup(subscriptionPlanChangeStore)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, accountStatusService, resetCardService)
 	announcementRepository := repository.NewAnnouncementRepository(client)
 	announcementReadRepository := repository.NewAnnouncementReadRepository(client)
@@ -251,10 +254,12 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	defaultLoadBalancer := payment.ProvideDefaultLoadBalancer(client, encryptionKey)
 	paymentService := service.ProvidePaymentService(client, registry, defaultLoadBalancer, redeemService, subscriptionService, paymentConfigService, userRepository, groupRepository, affiliateService, notificationEmailService)
 	subscriptionTermStore := repository.NewSubscriptionTermStore(client)
-	subscriptionPlanChangeStore := repository.NewSubscriptionPlanChangeStore(client)
 	planSnapshotService := repository.NewPlanSnapshotService(client)
 	apiKeyGroupMigrator := repository.NewAPIKeyGroupMigrator(client)
 	planChangeService := service.NewPlanChangeService(subscriptionPlanChangeStore, subscriptionTermStore, planSnapshotService, userSubscriptionRepository, groupRepository, apiKeyGroupMigrator, accountStatusService, client)
+	// 单主套餐不变量配套装配（续期取代 + 提交后缓存失效）
+	subscriptionService.SetScheduledChangeSuperseder(planChangeService)
+	planChangeService.SetCacheInvalidator(subscriptionService.InvalidateSubCacheSync)
 	paymentService.SetPlanChangeService(planChangeService, subscriptionPlanChangeStore, subscriptionTermStore)
 	planChangeHandler := handler.NewPlanChangeHandler(planChangeService, paymentService)
 	walletLedgerService := service.NewWalletLedgerService(client, repository.NewRewardGrantRepository(client))
@@ -369,6 +374,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openAICodexVersionSyncService := service.ProvideOpenAICodexVersionSyncService(settingRepository, settingService, gitHubReleaseClient)
 	proxyExpiryService := service.ProvideProxyExpiryService(proxyRepository)
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository, settingRepository, notificationEmailService, leaderLockCache, db)
+	// 预约降级到点执行引擎挂在到期扫描 tick 之后
+	subscriptionExpiryService.SetPlanChangeApplier(planChangeService)
 	batchImageWorkerRuntime := service.ProvideBatchImageWorkerRuntime(batchImageRepository, accountRepository, batchImageQueue, usageBillingRepository, usageLogRepository, batchImageModelPricingResolver, apiKeyAuthCacheInvalidator, configConfig)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService, leaderLockCache, db)

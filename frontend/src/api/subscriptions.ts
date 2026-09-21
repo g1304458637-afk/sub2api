@@ -98,10 +98,21 @@ export type AccountSubscriptionStatus = {
   reset_cards_available: number
 }
 
+/** 已预约、未生效的套餐变更（additive 合同；升级不预约，只会是 scheduled_downgrade） */
+export type AccountPendingPlanChange = {
+  change_type: string
+  to_plan_id: number
+  to_plan_name: string
+  effective_at: string
+  current_period_ends_at: string
+}
+
 export type AccountStatus = {
   wallet: AccountWalletStatus
   reset_cards: AccountResetCardsStatus
+  /** 单主套餐不变量生效后至多一个元素；保留数组形态兼容 legacy 消费端 */
   subscriptions: AccountSubscriptionStatus[]
+  pending_change?: AccountPendingPlanChange
 }
 
 /**

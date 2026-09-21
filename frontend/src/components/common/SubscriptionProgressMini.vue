@@ -33,8 +33,16 @@
           <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
             {{ t('subscriptionProgress.title') }}
           </h3>
+          <!-- 单主套餐：至多一条 ACTIVE；pending 变更独立成行 -->
           <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
             {{ t('subscriptionProgress.activeCount', { count: subscriptions.length }) }}
+          </p>
+          <p
+            v-if="pendingChange"
+            class="mt-1 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+            data-testid="header-pending-change"
+          >
+            {{ t('subscriptionProgress.pendingLine', { plan: pendingChange.to_plan_name, date: formatDate(pendingChange.effective_at) }) }}
           </p>
         </div>
 
@@ -113,13 +121,14 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
-import { getAccountStatus, type AccountSubscriptionStatus } from '@/api/subscriptions'
+import { getAccountStatus, type AccountPendingPlanChange, type AccountSubscriptionStatus } from '@/api/subscriptions'
 
 const { t } = useI18n()
 
 const containerRef = ref<HTMLElement | null>(null)
 const tooltipOpen = ref(false)
 const subscriptions = ref<AccountSubscriptionStatus[]>([])
+const pendingChange = ref<AccountPendingPlanChange | null>(null)
 
 const hasActiveSubscriptions = computed(() => subscriptions.value.length > 0)
 // 订阅功能关闭后，即使用户仍持有后台分配的订阅，顶栏也不再露出订阅进度与「查看全部订阅」入口。
@@ -138,8 +147,17 @@ async function loadStatus() {
   try {
     const status = await getAccountStatus()
     subscriptions.value = status.subscriptions
+    pendingChange.value = status.pending_change ?? null
   } catch (error) {
     console.error('Failed to load account status in SubscriptionProgressMini:', error)
+  }
+}
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return iso
   }
 }
 

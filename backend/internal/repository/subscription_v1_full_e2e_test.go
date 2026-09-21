@@ -42,6 +42,8 @@ func TestSubscriptionV1FullBackendE2E(t *testing.T) {
 	changeStore := NewSubscriptionPlanChangeStore(client)
 	planSvc := service.NewPlanChangeService(changeStore, termStore, NewPlanSnapshotService(client), subRepo, groupRepo, NewAPIKeyGroupMigrator(client),
 		service.NewAccountStatusService(userRepo, subRepo, groupRepo, nil, nil, true), client)
+	// 单主套餐不变量配套：续期取代 pending 降级（与 wire_gen 生产装配一致）
+	subSvc.SetScheduledChangeSuperseder(planSvc)
 	billingRepo := NewUsageBillingRepository(client, integrationDB)
 	statusSvc := service.NewAccountStatusService(userRepo, subRepo, groupRepo, nil, nil, true)
 
@@ -230,24 +232,49 @@ func TestSubscriptionV1FullBackendE2E(t *testing.T) {
 	require.NoError(t, integrationDB.QueryRow("SELECT group_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&gid))
 	require.Equal(t, proG.ID, gid, "current term stays Pro")
 
-	// ── 15. Renewal 按 Basic 报价 → 新 term Basic → Key Pro→Basic ──
-	require.NoError(t, planSvc.CancelScheduledDowngrade(ctx, user.ID, basicSub.ID)) // 清场
-	// 直接走 schedule → renewal：scheduled Basic 后 renewal 建 Basic 组订阅
+	// ── 15a. 续期当前档（pending 降级存在时）→ 取代预约（superseded_by_renewal）──
 	_, err = planSvc.ScheduleDowngrade(ctx, user.ID, basicSub.ID, basicPlan.ID, "e2e-sched-2")
 	require.NoError(t, err)
 	_, _, err = subSvc.AssignOrExtendSubscription(ctx, &service.AssignSubscriptionInput{
-		UserID: user.ID, GroupID: basicG.ID, ValidityDays: 30,
-		Notes: "e2e renewal (scheduled basic)", PlanID: &basicPlan.ID,
+		UserID: user.ID, GroupID: proG.ID, ValidityDays: 30,
+		Notes: "e2e renewal (supersedes scheduled basic)", PlanID: &proPlan.ID,
 	})
 	require.NoError(t, err)
+	var nextPlanID *int64
+	require.NoError(t, integrationDB.QueryRow(
+		"SELECT next_plan_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&nextPlanID))
+	require.Nil(t, nextPlanID, "renewal of current tier supersedes the scheduled downgrade")
+	require.NoError(t, integrationDB.QueryRow("SELECT group_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&gid))
+	require.Equal(t, proG.ID, gid, "renewal keeps current plan active")
+
+	// ── 15b. 到期切换：term 末到点引擎把行切到 Basic（lapsed → expired，不免费送），
+	// 用户按 Basic 续费后同一行以 Basic 复活 → 全程只有一条 ACTIVE ──
+	_, err = planSvc.ScheduleDowngrade(ctx, user.ID, basicSub.ID, basicPlan.ID, "e2e-sched-3")
+	require.NoError(t, err)
+	_, err = integrationDB.Exec(
+		"UPDATE user_subscriptions SET expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1", basicSub.ID)
+	require.NoError(t, err)
+	_, err = integrationDB.Exec(
+		"UPDATE subscription_plan_changes SET effective_at = NOW() - INTERVAL '30 minutes' WHERE subscription_id = $1 AND status = 'scheduled'", basicSub.ID)
+	require.NoError(t, err)
+	applied, err := planSvc.ApplyDueScheduledDowngrades(ctx, time.Now(), 100)
+	require.NoError(t, err)
+	require.Equal(t, 1, applied, "term-end engine applies the scheduled downgrade")
+	require.NoError(t, integrationDB.QueryRow("SELECT group_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&gid))
+	require.Equal(t, basicG.ID, gid, "row switched to the Basic group at term end")
+	require.NoError(t, integrationDB.QueryRow("SELECT next_plan_id FROM user_subscriptions WHERE id = $1", basicSub.ID).Scan(&nextPlanID))
+	require.Nil(t, nextPlanID, "pointer cleared after fulfillment")
+	// 用户按 Basic 价续费（不免费送）→ 同一行以 Basic 复活
+	_, _, err = subSvc.AssignOrExtendSubscription(ctx, &service.AssignSubscriptionInput{
+		UserID: user.ID, GroupID: basicG.ID, ValidityDays: 30,
+		Notes: "e2e renewal into scheduled basic", PlanID: &basicPlan.ID,
+	})
+	require.NoError(t, err)
+
 	subs, err := subRepo.ListActiveByUserID(ctx, user.ID)
 	require.NoError(t, err)
-	groups := map[int64]bool{}
-	for _, s := range subs {
-		groups[s.GroupID] = true
-	}
-	require.True(t, groups[basicG.ID], "renewal created the scheduled Basic entitlement")
-	require.True(t, groups[proG.ID], "Pro runs to its own expiry")
+	require.Len(t, subs, 1, "single active subscription invariant holds across downgrade+renewal")
+	require.Equal(t, basicG.ID, subs[0].GroupID, "the renewed term is on Basic")
 
 	// ── 16. Key 迁移 Pro→Basic（降级续费后的 Key 重绑由后续前端/用户操作，此处锁定迁移原语）──
 	migrated, err := NewAPIKeyGroupMigrator(client).MigrateGroupForUser(ctx, user.ID, proG.ID, basicG.ID)
@@ -262,5 +289,7 @@ func TestSubscriptionV1FullBackendE2E(t *testing.T) {
 	bal, err := strconv.ParseFloat(full.Wallet.Balance, 64)
 	require.NoError(t, err)
 	require.InDelta(t, balanceBefore-0.5, bal, 1e-6, "wallet canonical USD, actual spend reflected")
-	require.Len(t, full.Subscriptions, 2, "Basic + Pro coexist at term boundary")
+	require.Len(t, full.Subscriptions, 1, "single active plan after scheduled downgrade + renewal")
+	require.Equal(t, basicG.ID, full.Subscriptions[0].GroupID)
+	require.Nil(t, full.PendingChange, "no pending change remains after fulfillment")
 }

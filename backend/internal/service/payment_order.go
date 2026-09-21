@@ -178,6 +178,13 @@ func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRe
 	if !group.IsSubscriptionType() {
 		return nil, infraerrors.BadRequest("GROUP_TYPE_MISMATCH", "group is not a subscription type")
 	}
+	// 单主套餐不变量（RULE 1）下单前置校验：其他组已有 ACTIVE 主订阅 → 拒绝普通购买，
+	// 提示走升级（立即+折抵）/降级（term 末生效）；同组 = 续期，放行。
+	if s.subscriptionSvc != nil {
+		if err := s.subscriptionSvc.CheckPrimarySubscriptionAllowed(ctx, req.UserID, plan.GroupID); err != nil {
+			return nil, err
+		}
+	}
 	return plan, nil
 }
 

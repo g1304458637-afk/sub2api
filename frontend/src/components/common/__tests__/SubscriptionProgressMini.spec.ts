@@ -137,4 +137,30 @@ describe('SubscriptionProgressMini (Phase 4.1 status contract)', () => {
     expect(html).not.toContain('weekly_limit_usd')
     expect(html).not.toContain('weekly_usage_usd')
   })
+
+  // ── Phase 11：单主套餐不变量 + 已预约变更（pending_change 合同） ──
+
+  it('renders the scheduled pending change line when the status contract carries one', async () => {
+    const status = makeStatus([makeSubscription({ display_name: 'Pro', weekly_usage_percent: 64 })])
+    status.pending_change = {
+      change_type: 'scheduled_downgrade',
+      to_plan_id: 7,
+      to_plan_name: 'Basic',
+      effective_at: '2026-10-21T00:00:00Z',
+      current_period_ends_at: '2026-10-21T00:00:00Z',
+    }
+    getAccountStatusMock.mockResolvedValue(status)
+    const wrapper = await mountMini()
+    const pending = wrapper.find('[data-testid="header-pending-change"]')
+    expect(pending.exists()).toBe(true)
+    // t() mock 回显 key（忽略插值参数）：断言区块使用了 pendingLine 合同路径；
+    // 插值参数（plan/date）由真实 i18n 文案与 formatDate 渲染，locale 完整性测试已覆盖 key。
+    expect(pending.text()).toContain('subscriptionProgress.pendingLine')
+  })
+
+  it('omits the pending change line when no change is scheduled', async () => {
+    getAccountStatusMock.mockResolvedValue(makeStatus([makeSubscription({ display_name: 'Pro' })]))
+    const wrapper = await mountMini()
+    expect(wrapper.find('[data-testid="header-pending-change"]').exists()).toBe(false)
+  })
 })

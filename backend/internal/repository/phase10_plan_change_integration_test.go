@@ -187,9 +187,25 @@ func TestPhase10QuotePrepaidExtension(t *testing.T) {
 	}
 }
 
+// withoutSingleActiveIndex 临时撤掉单主套餐唯一索引（t.Cleanup 重建）。
+// 仅用于 P10 遗留用例：其场景语义建立在旧"双持"模型上（同用户 Basic+Pro 并存），
+// 与迁移 242 的不变量冲突；这些用例回归的下游逻辑（tier 闸门 / 降级矩阵 /
+// 续费按目标档）本身仍然有效。新模型下的不变量由 phase11 测试单独守护。
+func withoutSingleActiveIndex(t *testing.T) {
+	t.Helper()
+	_, err := integrationDB.Exec("DROP INDEX IF EXISTS uq_user_subscriptions_single_active")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = integrationDB.Exec(
+			"CREATE UNIQUE INDEX IF NOT EXISTS uq_user_subscriptions_single_active " +
+				"ON user_subscriptions(user_id) WHERE deleted_at IS NULL AND status = 'active'")
+	})
+}
+
 // ---- 闸门 ----
 
 func TestPhase10QuoteGates(t *testing.T) {
+	withoutSingleActiveIndex(t)
 	client := testEntClient(t)
 	ctx := context.Background()
 
@@ -335,6 +351,7 @@ func TestPhase10FulfillmentInvariants(t *testing.T) {
 // ---- Scheduled Downgrade ----
 
 func TestPhase10ScheduledDowngradeMatrix(t *testing.T) {
+	withoutSingleActiveIndex(t)
 	client := testEntClient(t)
 	ctx := context.Background()
 
@@ -406,6 +423,7 @@ func TestPhase10ScheduledDowngradeMatrix(t *testing.T) {
 // ---- Renewal 识别 scheduled plan（手动续费按目标档执行 + Key 迁移） ----
 
 func TestPhase10RenewalHonorsScheduledDowngrade(t *testing.T) {
+	withoutSingleActiveIndex(t)
 	client := testEntClient(t)
 	ctx := context.Background()
 

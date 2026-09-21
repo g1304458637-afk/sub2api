@@ -50,6 +50,28 @@ type SubscriptionPaygFallbackStore interface {
 	UpdatePaygFallback(ctx context.Context, id int64, enabled bool) error
 }
 
+// SubscriptionSingleActiveGuard 是单主套餐不变量（产品 RULE 1）的可选仓储能力：
+// 生产 ent 仓储实现；测试 stub 未实现时守卫跳过，由数据库 partial unique index
+// （迁移 242）兜底。接口化是为了不破坏既有 UserSubscriptionRepository 全量 stub。
+type SubscriptionSingleActiveGuard interface {
+	// FindActiveByUserIDExcludingGroup 返回用户在目标组之外的任一 ACTIVE 订阅（无则 nil）。
+	FindActiveByUserIDExcludingGroup(ctx context.Context, userID, groupID int64) (*UserSubscription, error)
+	// ExpireLapsedByUser 把用户 status=active 但已过 expires_at 的订阅翻为 expired。
+	ExpireLapsedByUser(ctx context.Context, userID int64, now time.Time) (int64, error)
+}
+
+// ScheduledChangeSuperseder 续期取代 pending 预约降级的可选回调（PlanChangeService 实现，
+// wire 注入）。必须在续费事务内调用（ent tx context 传递）。
+type ScheduledChangeSuperseder interface {
+	SupersedeScheduledChangeForRenewal(ctx context.Context, subscriptionID int64) error
+}
+
+// ScheduledDowngradeApplier 预约降级到点执行引擎（PlanChangeService 实现，
+// 由到期扫描服务在每轮 tick 调用）。
+type ScheduledDowngradeApplier interface {
+	ApplyDueScheduledDowngrades(ctx context.Context, now time.Time, limit int) (int, error)
+}
+
 // SubscriptionConcurrencyOverrideReader 是 UserSubscriptionRepository 的可选能力：
 // 用户全部 active+metered 订阅分组的 concurrency_override 最大值（Phase 9 并发权益）。
 type SubscriptionConcurrencyOverrideReader interface {

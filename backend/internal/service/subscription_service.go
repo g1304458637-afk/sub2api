@@ -36,6 +36,9 @@ var (
 	ErrSubscriptionNotRevoked      = infraerrors.Conflict("SUBSCRIPTION_NOT_REVOKED", "subscription is not revoked")
 	ErrSubscriptionRestoreConflict = infraerrors.Conflict("SUBSCRIPTION_RESTORE_CONFLICT", "subscription already exists for this user and group")
 	ErrGroupNotSubscriptionType    = infraerrors.BadRequest("GROUP_NOT_SUBSCRIPTION_TYPE", "group is not a subscription type")
+	// ErrPrimarySubscriptionExists 单主套餐不变量（产品 RULE 1）：用户在其他组已有
+	// ACTIVE 主订阅时，禁止再以购买/兑换/赠送路径创建第二份；应走升级/降级。
+	ErrPrimarySubscriptionExists = infraerrors.Conflict("PRIMARY_SUBSCRIPTION_EXISTS", "user already has an active primary subscription in another plan; use upgrade or downgrade instead")
 	ErrInvalidInput                = infraerrors.BadRequest("INVALID_INPUT", "at least one of resetDaily, resetWeekly, or resetMonthly must be true")
 	ErrDailyLimitExceeded          = infraerrors.TooManyRequests("DAILY_LIMIT_EXCEEDED", "daily usage limit exceeded")
 	ErrWeeklyLimitExceeded         = infraerrors.TooManyRequests("WEEKLY_LIMIT_EXCEEDED", "weekly usage limit exceeded")
@@ -58,6 +61,10 @@ type SubscriptionService struct {
 	// L1 缓存：加速中间件热路径的订阅查询
 	subCacheL1     *ristretto.Cache
 	subCacheGroup  singleflight.Group
+
+	// scheduledChangeSuperseder 续期取代 pending 预约降级的回调（PlanChangeService 实现，
+	// wire 经 SetScheduledChangeSuperseder 注入；nil 时为 no-op）。
+	scheduledChangeSuperseder ScheduledChangeSuperseder
 	subCacheTTL    time.Duration
 	subCacheJitter int // 抖动百分比
 
@@ -243,6 +250,26 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 		existingSub = nil
 	}
 
+	if existingSub == nil {
+		// 单主套餐不变量（RULE 1）：目标组无既有行且用户在其他组已有 ACTIVE 主订阅
+		// 时拒绝创建第二份。同组续期不受影响。仓储未实现守卫能力（部分测试 stub）
+		// 时跳过，由数据库 partial unique index（迁移 242）兜底。
+		if guard, ok := s.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+			conflict, err := guard.FindActiveByUserIDExcludingGroup(ctx, input.UserID, input.GroupID)
+			if err != nil {
+				return nil, false, fmt.Errorf("check single-active invariant: %w", err)
+			}
+			if conflict != nil {
+				return nil, false, ErrPrimarySubscriptionExists
+			}
+			// 收敛本组外的惰性到期行（status=active 但 expires_at 已过），
+			// 否则随后的 create 会被 partial unique index 拒绝。
+			if _, err := guard.ExpireLapsedByUser(ctx, input.UserID, time.Now()); err != nil {
+				return nil, false, fmt.Errorf("expire lapsed subscriptions: %w", err)
+			}
+		}
+	}
+
 	validityDays := input.ValidityDays
 	if validityDays <= 0 {
 		validityDays = 30
@@ -295,6 +322,36 @@ func (s *SubscriptionService) maybeInvalidateAssignmentCaches(userID, groupID in
 	}
 }
 
+// supersedeScheduledChange 续费事务内取消 pending 预约降级（superseded_by_renewal）。
+// hook 未注入（单测）时为 no-op，仅留下 next_plan_id 由到点引擎/取消流程兜底清理。
+func (s *SubscriptionService) supersedeScheduledChange(ctx context.Context, subscriptionID int64) error {
+	if s.scheduledChangeSuperseder == nil {
+		return nil
+	}
+	return s.scheduledChangeSuperseder.SupersedeScheduledChangeForRenewal(ctx, subscriptionID)
+}
+
+// SetScheduledChangeSuperseder wire 注入续期取代回调（PlanChangeService 实现）。
+func (s *SubscriptionService) SetScheduledChangeSuperseder(superseder ScheduledChangeSuperseder) {
+	s.scheduledChangeSuperseder = superseder
+}
+
+// CheckPrimarySubscriptionAllowed 下单前置校验（RULE 1）：目标组已有 active 行 = 续期放行；
+// 其他组已有 active 主订阅 = 拒绝（ErrPrimarySubscriptionExists，提示走升级/降级）。
+// 仓储未实现守卫能力时放行（数据库 partial unique index 兜底）。
+func (s *SubscriptionService) CheckPrimarySubscriptionAllowed(ctx context.Context, userID, groupID int64) error {
+	if guard, ok := s.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+		conflict, err := guard.FindActiveByUserIDExcludingGroup(ctx, userID, groupID)
+		if err != nil {
+			return fmt.Errorf("check single-active invariant: %w", err)
+		}
+		if conflict != nil {
+			return ErrPrimarySubscriptionExists
+		}
+	}
+	return nil
+}
+
 func (s *SubscriptionService) updateExistingSubscriptionTerm(
 	ctx context.Context,
 	subscriptionID int64,
@@ -336,12 +393,26 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 			if err := s.userSubRepo.Update(txCtx, renewed); err != nil {
 				return fmt.Errorf("renew expired subscription: %w", err)
 			}
+			// 续期取代 pending 预约降级（superseded_by_renewal）：用户付费续的是当前档，
+			// 原预约到期的目标档作废；在续费事务内执行避免到点引擎竞态。
+			if existingSub.NextPlanID != nil {
+				if err := s.supersedeScheduledChange(txCtx, existingSub.ID); err != nil {
+					return fmt.Errorf("supersede scheduled change on renewal: %w", err)
+				}
+			}
 			return nil
 		}
 
 		// 更新过期时间
 		if err := s.userSubRepo.ExtendExpiry(txCtx, existingSub.ID, newExpiresAt); err != nil {
 			return fmt.Errorf("extend subscription: %w", err)
+		}
+
+		// 续期取代 pending 预约降级（同上；extend 分支）
+		if existingSub.NextPlanID != nil {
+			if err := s.supersedeScheduledChange(txCtx, existingSub.ID); err != nil {
+				return fmt.Errorf("supersede scheduled change on renewal: %w", err)
+			}
 		}
 
 		// 如果订阅被暂停，恢复为 active 状态

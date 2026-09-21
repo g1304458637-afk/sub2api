@@ -569,6 +569,14 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 
 	txCtx := dbent.NewTxContext(ctx, tx)
 	txClient := tx.Client()
+	// 单主套餐不变量（RULE 1）履约前置：先把该用户惰性到期的行（status=active 但已过
+	// expires_at）翻为 expired，避免迁移 242 的 partial unique index 拒绝合法新购买。
+	// 索引本身是最后防线：并发双购买时后到者在此处约束冲突 → 订单 failed（幂等重放安全）。
+	if guard, ok := s.subscriptionSvc.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+		if _, err := guard.ExpireLapsedByUser(txCtx, o.UserID, time.Now()); err != nil {
+			return fmt.Errorf("expire lapsed subscriptions before assignment: %w", err)
+		}
+	}
 	alreadyAssigned, err := hasPaymentSubscriptionAssignmentAudit(txCtx, txClient, o.ID)
 	if err != nil {
 		return fmt.Errorf("check subscription assignment audit: %w", err)
