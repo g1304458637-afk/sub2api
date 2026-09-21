@@ -197,6 +197,7 @@ export default {
     logout: 'Logout',
     github: 'GitHub',
     mySubscriptions: 'My Subscriptions',
+    wallet: 'Wallet',
     pricing: 'Pricing',
     buySubscription: 'Recharge / Subscription',
     recharge: 'Recharge',

@@ -1,16 +1,21 @@
 <template>
   <div class="pricing-bg" aria-hidden="true">
     <!-- 背景视频：assets/muc/ 下放入任意 .mp4/.webm 即自动启用（boomerang 往返播放，不循环跳变）。
-         无视频资产时呈现同语言的 CSS 极光 + 红色辉光动态背景，保持原始深色视觉（不铺红色 overlay）。 -->
+         加载失败或无资产时回退同语言 CSS 极光背景，Pricing 功能不受影响；不铺红色 overlay。 -->
     <video
-      v-if="videoSrc"
+      v-if="videoActive"
       ref="videoRef"
       class="pricing-bg__video"
-      :src="videoSrc"
+      :src="videoUrl"
       muted
       playsinline
       autoplay
       preload="auto"
+      @timeupdate="onTimeUpdate"
+      @ended="onEnded"
+      @seeked="onSeeked"
+      @error="onError"
+      @loadedmetadata="onReady"
     ></video>
     <template v-else>
       <div class="pricing-bg__aurora pricing-bg__aurora--a"></div>
@@ -25,91 +30,108 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
+// 背景视频资产：同名替换 src/assets/muc/pricing-bg.mp4 即可。
+import pricingBgVideoUrl from '../../assets/muc/pricing-bg.mp4?url'
 
-// Drop-in 视频发现：构建期无对应文件时返回空 map，不报错；命中则异步解析资源 URL。
-const videoModules = import.meta.glob('../../assets/muc/*.{mp4,webm,mov}', {
-  query: '?url',
-  import: 'default'
-}) as Record<string, () => Promise<string>>
-
-const videoSrc = ref('')
+const videoUrl = ref(pricingBgVideoUrl)
+const videoFailed = ref(false)
+const videoActive = computed(() => !!videoUrl.value && !videoFailed.value)
 const videoRef = ref<HTMLVideoElement | null>(null)
-let reverseRaf = 0
-let reachedEnd = false
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
 
-// boomerang：正向 play() 到结尾附近后暂停，用 rAF 逐帧倒放 currentTime，回到起点再正向播放。
-function startReverseSeek(video: HTMLVideoElement) {
-  if (reverseRaf) return
-  video.pause()
-  const step = () => {
-    if (!videoRef.value) {
-      reverseRaf = 0
-      return
-    }
-    const next = video.currentTime - 1 / 30
-    if (next <= 0) {
-      reverseRaf = 0
-      video.currentTime = 0
-      reachedEnd = false
-      void video.play().catch(() => {})
-      return
-    }
-    video.currentTime = next
-    reverseRaf = requestAnimationFrame(step)
+// ── Boomerang throttled seek ──
+// 正向 play() 播到结尾附近后暂停，按步倒放 currentTime，回到起点再正向播放。
+// seekPending 防止上一帧 seek 未落地时叠加新 seek（避免 seek 堆积）。
+// 用 setInterval 而非 rAF 驱动：后台/遮挡标签页 rAF 会停发导致倒放冻结；
+// interval 在后台被节流到 ≥1s 仍能渐进，可见时 33ms 平滑，且无常驻高 CPU。
+let direction = 1 // 1=正向播放中，-1=倒放 seek 中
+let rafId = 0 // 倒放循环句柄（interval id，沿用原名供卸载清理）
+let seekPending = false
+let reachedEnd = false
+let lastTs = 0
+const SEEK_STEP_SECONDS = 1 / 30
+const SEEK_INTERVAL_MS = 33
+
+function cancelSeekLoop() {
+  if (rafId) {
+    clearInterval(rafId)
+    rafId = 0
   }
-  reverseRaf = requestAnimationFrame(step)
+  seekPending = false
+}
+
+function stepReverse() {
+  const video = videoRef.value
+  if (!video || direction !== -1) {
+    cancelSeekLoop()
+    return
+  }
+  if (seekPending) return
+  const now = performance.now()
+  if (!lastTs) lastTs = now
+  if (now - lastTs < SEEK_INTERVAL_MS) return
+  lastTs = now
+  const next = video.currentTime - SEEK_STEP_SECONDS
+  if (next <= 0) {
+    video.currentTime = 0
+    direction = 1
+    reachedEnd = false
+    cancelSeekLoop()
+    void video.play().catch(() => {})
+    return
+  }
+  seekPending = true
+  video.currentTime = next
+}
+
+function startReverseSeek() {
+  const video = videoRef.value
+  if (!video || direction === -1) return
+  video.pause()
+  direction = -1
+  lastTs = 0
+  seekPending = false
+  rafId = window.setInterval(stepReverse, SEEK_INTERVAL_MS)
+}
+
+function onSeeked() {
+  seekPending = false
 }
 
 function onTimeUpdate() {
   const video = videoRef.value
-  if (!video || !video.duration) return
-  if (!reachedEnd && video.currentTime >= video.duration - 0.06) {
+  if (!video || !video.duration || direction !== 1 || reachedEnd) return
+  if (video.currentTime >= video.duration - 0.06) {
     reachedEnd = true
-    startReverseSeek(video)
+    startReverseSeek()
   }
 }
 
 function onEnded() {
+  if (direction === 1) startReverseSeek()
+}
+
+function onError() {
+  videoFailed.value = true
+  videoUrl.value = ''
+}
+
+// 事件经模板绑定；元数据就绪后按 reduce-motion 决定播放或静帧
+function onReady() {
   const video = videoRef.value
-  if (video) startReverseSeek(video)
-}
-
-function bindVideo(video: HTMLVideoElement) {
+  if (!video) return
+  direction = 1
+  reachedEnd = false
   if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+    // reduce-motion：停在当前帧，不做往返
     video.pause()
-    return
   }
-  video.addEventListener('timeupdate', onTimeUpdate)
-  video.addEventListener('ended', onEnded)
-  void video.play().catch(() => {})
 }
-
-watch(videoSrc, async (src) => {
-  if (!src) return
-  await nextTick()
-  if (videoRef.value) bindVideo(videoRef.value)
-})
-
-onMounted(async () => {
-  const loader = Object.values(videoModules)[0]
-  if (!loader) return
-  try {
-    videoSrc.value = await loader()
-  } catch {
-    videoSrc.value = ''
-  }
-})
 
 onBeforeUnmount(() => {
-  const video = videoRef.value
-  if (video) {
-    video.removeEventListener('timeupdate', onTimeUpdate)
-    video.removeEventListener('ended', onEnded)
-  }
-  if (reverseRaf) cancelAnimationFrame(reverseRaf)
+  cancelSeekLoop()
 })
 </script>
 
@@ -214,6 +236,13 @@ onBeforeUnmount(() => {
   inset: 0;
   opacity: 0.05;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Mobile：关闭高成本噪点纹理 */
+@media (max-width: 768px) {
+  .pricing-bg__grain {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -83,6 +83,10 @@
                 <Icon name="chart" size="sm" class="muc-modal__fact-icon" />
                 <span>{{ t('pricing.upgradeModal.usageAfter', { after: quote.weekly_usage_percent_after }) }}</span>
               </li>
+              <li>
+                <Icon name="key" size="sm" class="muc-modal__fact-icon" />
+                <span>{{ t('pricing.upgradeModal.inheritKeys') }}</span>
+              </li>
               <li v-if="quote.keys_to_migrate_count > 0">
                 <Icon name="key" size="sm" class="muc-modal__fact-icon" />
                 <span>{{ t('pricing.upgradeModal.keysMigrate', { count: quote.keys_to_migrate_count }) }}</span>

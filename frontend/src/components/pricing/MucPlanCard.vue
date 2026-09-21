@@ -78,9 +78,15 @@
         <Icon name="check" size="sm" />
         {{ ctaLabel }}
       </span>
-      <span v-else-if="ctaKind === 'current'" class="plan-card__cta plan-card__cta--current">
+      <button
+        v-else-if="ctaKind === 'current'"
+        type="button"
+        class="plan-card__cta plan-card__cta--current"
+        disabled
+        aria-disabled="true"
+      >
         {{ ctaLabel }}
-      </span>
+      </button>
       <span v-else class="plan-card__cta plan-card__cta--disabled">{{ ctaLabel }}</span>
     </div>
   </article>

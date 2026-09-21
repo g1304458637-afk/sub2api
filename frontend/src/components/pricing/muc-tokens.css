@@ -17,9 +17,12 @@
 
   --muc-bg-primary: #070708;
   --muc-bg-secondary: #101012;
+  --muc-bg-tertiary: #17171a;
   --muc-glass: rgba(15, 15, 17, 0.58);
+  --muc-glass-strong: rgba(10, 10, 12, 0.76);
   --muc-glass-border: rgba(255, 255, 255, 0.09);
   --muc-glass-border-strong: rgba(255, 255, 255, 0.16);
+  --muc-border: rgba(255, 255, 255, 0.12);
 
   --muc-text-primary: #ffffff;
   --muc-text-secondary: rgba(255, 255, 255, 0.68);

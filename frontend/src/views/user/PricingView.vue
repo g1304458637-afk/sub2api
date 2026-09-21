@@ -1,6 +1,7 @@
 <template>
-  <div class="muc-scope muc-pricing">
-    <PricingBackground />
+  <AppLayout>
+    <div class="muc-scope muc-pricing">
+      <PricingBackground />
 
     <div class="muc-pricing__content">
       <!-- 品牌水印：大字民大红渐变 + 小字 MUCODE 暖白 -->
@@ -182,12 +183,14 @@
       </Transition>
     </Teleport>
   </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import AppLayout from '@/components/layout/AppLayout.vue'
 import '@/components/pricing/muc-tokens.css'
 import PricingBackground from '@/components/pricing/PricingBackground.vue'
 import MucPlanCard, {
@@ -226,7 +229,7 @@ type MucPlanRow = SubscriptionPlan
 type CtaKind = 'buy' | 'upgrade' | 'downgrade' | 'scheduled' | 'current' | 'unavailable'
 
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t, tm, locale } = useI18n()
 const appStore = useAppStore()
 
 const plans = ref<MucPlanRow[]>([])
@@ -385,7 +388,7 @@ function ctaLabel(plan: MucPlanRow): string {
     scheduledRecord.value.ToPlanID === plan.id
   switch (scheduled ? 'scheduled' : ctaKind(plan)) {
     case 'upgrade':
-      return t('pricing.cta.upgrade')
+      return t('pricing.cta.upgradeTo', { plan: plan.name })
     case 'downgrade':
       return t('pricing.cta.downgrade')
     case 'scheduled':
@@ -422,8 +425,19 @@ function cardDisplay(plan: MucPlanRow): MucPlanCardDisplay {
     price: priceDisplay(plan),
     originalPrice: plan.original_price ? priceDisplay({ ...plan, price: plan.original_price }) : undefined,
     validitySuffix: t('pricing.perValidity', { validity: planValiditySuffix(plan, t) }),
-    features: plan.features
+    // 后端 features 为空时使用定性文案（不编造具体数值）
+    features: plan.features.length ? plan.features : fallbackFeatures(plan)
   }
+}
+
+/** 后端无 features 时的定性权益文案（i18n 以 | 分隔，叶子须为字符串以满足键完整性测试）。 */
+function fallbackFeatures(plan: MucPlanRow): string[] {
+  const variant = cardVariant(plan)
+  const messages = tm('pricing.fallbackFeatures') as Record<string, unknown> | undefined
+  const raw = messages?.[variant]
+  return typeof raw === 'string' && raw.trim()
+    ? raw.split('|').map((f) => f.trim()).filter(Boolean)
+    : []
 }
 
 /** 套餐价 USD 语义：配置了折算汇率则按 CNY 展示（与购买页口径严格镜像）。 */
@@ -690,7 +704,7 @@ function statusBarClass(status: UsageStatus): string {
 }
 
 .muc-pricing__watermark-word {
-  font-size: clamp(72px, 13vw, 176px);
+  font-size: clamp(88px, 15vw, 250px);
   font-weight: 800;
   line-height: 0.95;
   letter-spacing: 0.02em;
