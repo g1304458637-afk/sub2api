@@ -61,7 +61,7 @@ func (h *ResearchApplicationHandler) UploadAttachment(c *gin.Context) {
 		response.BadRequest(c, "failed to read uploaded file")
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	data, err := io.ReadAll(f)
 	if err != nil {
 		response.BadRequest(c, "failed to read uploaded file")

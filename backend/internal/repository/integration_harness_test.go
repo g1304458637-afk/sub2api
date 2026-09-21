@@ -35,6 +35,7 @@ const (
 )
 
 var (
+	integrationDSN       string
 	integrationDB        *sql.DB
 	integrationEntClient *dbent.Client
 	integrationRedis     *redisclient.Client
@@ -91,6 +92,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	integrationDSN = dsn
 	integrationDB, err = openSQLWithRetry(ctx, dsn, 30*time.Second)
 	if err != nil {
 		log.Printf("failed to open sql db: %v", err)
@@ -131,6 +133,8 @@ func TestMain(m *testing.M) {
 	_ = integrationRedis.Close()
 	_ = integrationDB.Close()
 
+	_ = redisContainer.Terminate(ctx)
+	_ = pgContainer.Terminate(ctx)
 	os.Exit(code)
 }
 
@@ -341,7 +345,7 @@ func (h prefixHook) prefixCmd(cmd redisclient.Cmder) {
 	}
 
 	switch strings.ToLower(cmd.Name()) {
-	case "get", "set", "setnx", "setex", "psetex", "incr", "decr", "incrby", "expire", "pexpire", "ttl", "pttl",
+	case "get", "getdel", "set", "setnx", "setex", "psetex", "incr", "decr", "incrby", "expire", "pexpire", "ttl", "pttl",
 		"hgetall", "hget", "hset", "hdel", "hincrbyfloat", "exists",
 		"zadd", "zcard", "zrange", "zrangebyscore", "zrem", "zremrangebyscore", "zrevrange", "zrevrangebyscore", "zscore":
 		prefixOne(1)

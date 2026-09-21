@@ -95,7 +95,7 @@ func (r *subscriptionResetCardRepository) GetAvailableForUserForUpdate(ctx conte
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if rows.Err() != nil {
 			return nil, rows.Err()

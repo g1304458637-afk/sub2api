@@ -130,7 +130,7 @@ func (r *subscriptionResetEventRepo) ApplicationStats(ctx context.Context, event
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	stats := map[string]int64{}
 	for rows.Next() {
 		var status string
@@ -194,7 +194,7 @@ func (r *subscriptionResetEventRepo) GetApplicationForUpdate(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		return nil, service.ErrResetEventNotFound
 	}
@@ -256,7 +256,7 @@ func (r *subscriptionResetEventRepo) RequeueFailed(ctx context.Context, eventID 
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var count int64
 	if rows.Next() {
 		if err := rows.Scan(&count); err != nil {
@@ -291,7 +291,7 @@ func (r *subscriptionResetEventRepo) CompleteIfDrained(ctx context.Context, even
 	if err != nil {
 		return "", err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	final := ""
 	if rows.Next() {
 		if err := rows.Scan(&final); err != nil {

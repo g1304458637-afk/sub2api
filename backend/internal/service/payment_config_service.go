@@ -182,7 +182,7 @@ type CreatePlanRequest struct {
 	SortOrder     int      `json:"sort_order"`
 	// TierRank 套餐等级（entitlement 档位；0=未配置，Plan Change 会拒绝 0 档位）。
 	// 与展示用 SortOrder 完全不同。nil=不设置（保持列默认 0）。
-	TierRank      *int     `json:"tier_rank"`
+	TierRank *int `json:"tier_rank"`
 }
 
 type UpdatePlanRequest struct {

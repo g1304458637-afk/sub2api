@@ -137,8 +137,6 @@ func (s *stubCodeStore) setInfraErr(err error) {
 	s.infraErr = err
 }
 
-var errMucCodeNotFound = muccode.ErrCodeNotFound
-
 // ---- 测试脚手架 ----
 
 func newMucTestEnv(t *testing.T) (*MucConnectHandler, *miniredis.Miniredis, *stubKeyManager) {
@@ -509,7 +507,11 @@ func TestMucExchange_LongChineseDeviceName(t *testing.T) {
 // 回归：Redis 基础设施故障必须表现为服务端错误，不得伪装成 code_not_found(404)。
 func TestMucExchange_RedisInfraErrorIsServerError(t *testing.T) {
 	h, _, _ := newMucTestEnv(t)
-	h.codes.(*stubCodeStore).setInfraErr(errors.New("connection refused"))
+	store, ok := h.codes.(*stubCodeStore)
+	if !ok {
+		t.Fatal("expected stub code store")
+	}
+	store.setInfraErr(errors.New("connection refused"))
 
 	c, w := mucCtxWithBody(t, `{"code":"whatever-aaaaaaaaaaaaaaaa"}`)
 	h.Exchange(c)

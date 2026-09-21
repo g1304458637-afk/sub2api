@@ -287,13 +287,13 @@ func TestWebChatCheckModelAllowed(t *testing.T) {
 		SettingKeyWebChatModels:  `[{"model":"glm-4.6","type":"chat"},{"model":"gemini-image","type":"image","api_only":true}]`,
 	}, nil, nil, nil)
 
-	require.NoError(t, svc.checkModelAllowed(context.Background(), 42, "glm-4.6", WebChatModelTypeChat))
+	require.NoError(t, svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "glm-4.6", WebChatModelTypeChat))
 
-	err := svc.checkModelAllowed(context.Background(), 42, "claude-sonnet-5", WebChatModelTypeChat)
+	err := svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "claude-sonnet-5", WebChatModelTypeChat)
 	require.Error(t, err)
 	require.Equal(t, 400, errors.Code(err))
 
-	err = svc.checkModelAllowed(context.Background(), 42, "gemini-image", WebChatModelTypeImage)
+	err = svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "gemini-image", WebChatModelTypeImage)
 	require.Error(t, err)
 	require.Equal(t, 400, errors.Code(err))
 
@@ -302,7 +302,7 @@ func TestWebChatCheckModelAllowed(t *testing.T) {
 		SettingKeyWebChatEnabled: "false",
 		SettingKeyWebChatModels:  `[{"model":"glm-4.6","type":"chat"}]`,
 	}, nil, nil, nil)
-	err = disabled.checkModelAllowed(context.Background(), 42, "glm-4.6", WebChatModelTypeChat)
+	err = disabled.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, disabled), 42, "glm-4.6", WebChatModelTypeChat)
 	require.Error(t, err)
 	require.Equal(t, 403, errors.Code(err))
 }
@@ -507,11 +507,11 @@ func TestWebChatCheckModelAllowedTTSAndMusic(t *testing.T) {
 		SettingKeyWebChatModels:  `[{"model":"tts-1","type":"tts"},{"model":"music-x","type":"music"}]`,
 	}, nil, nil, nil)
 
-	require.NoError(t, svc.checkModelAllowed(context.Background(), 42, "tts-1", WebChatModelTypeTTS))
-	require.NoError(t, svc.checkModelAllowed(context.Background(), 42, "music-x", WebChatModelTypeMusic))
+	require.NoError(t, svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "tts-1", WebChatModelTypeTTS))
+	require.NoError(t, svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "music-x", WebChatModelTypeMusic))
 
 	// speech 入口用 chat 模型 → 400
-	err := svc.checkModelAllowed(context.Background(), 42, "music-x", WebChatModelTypeTTS)
+	err := svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "music-x", WebChatModelTypeTTS)
 	require.Error(t, err)
 	require.Equal(t, 400, errors.Code(err))
 }
@@ -672,4 +672,12 @@ func TestWebChatProxyAudioSpeechRejectsNonTTSModel(t *testing.T) {
 	err = svc.ProxyAudioSpeech(c, 42, WebChatAudioSpeechRequest{Model: "music-x", Input: "hi"})
 	require.Error(t, err)
 	require.Equal(t, 400, errors.Code(err))
+}
+
+// Exercise the production whitelist entry point with the same settings read as request handling.
+func mustWebChatSettings(t *testing.T, svc *WebChatService) *SystemSettings {
+	t.Helper()
+	settings, err := svc.GetWebChatSettings(context.Background())
+	require.NoError(t, err)
+	return settings
 }

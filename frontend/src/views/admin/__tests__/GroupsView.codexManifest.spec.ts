@@ -1,3 +1,4 @@
+import { createPinia } from "pinia";
 import { defineComponent, h, type PropType } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -204,6 +205,7 @@ const CodexManifestAccountsFieldStub = defineComponent({
 const mountView = () =>
   mount(GroupsView, {
     global: {
+      plugins: [createPinia()],
       stubs: {
         AppLayout: AppLayoutStub,
         TablePageLayout: TablePageLayoutStub,

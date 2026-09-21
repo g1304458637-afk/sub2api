@@ -416,16 +416,6 @@ func (s *WebChatService) checkModelAllowedWithSettings(ctx context.Context, sett
 	return nil
 }
 
-// checkModelAllowed 服务端强制白名单：model 必须出现在指定类型（chat/image）的
-// 可选集中（type 匹配且非 api_only）。
-func (s *WebChatService) checkModelAllowed(ctx context.Context, userID int64, model, modelType string) error {
-	settings, err := s.GetWebChatSettings(ctx)
-	if err != nil {
-		return err
-	}
-	return s.checkModelAllowedWithSettings(ctx, settings, userID, model, modelType)
-}
-
 // webChatLoopbackBaseURL 回环转发目标：本机监听端口（固定 127.0.0.1，
 // 不依赖 Server.Host——它可能是 0.0.0.0 等通配地址）。
 func (s *WebChatService) webChatLoopbackBaseURL() string {

@@ -63,9 +63,9 @@ type sunoRecordInfoResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    struct {
-		Status      string `json:"status"`
-		TaskStatus  string `json:"taskStatus"`
-		FailMsg     string `json:"failMsg"`
+		Status        string `json:"status"`
+		TaskStatus    string `json:"taskStatus"`
+		FailMsg       string `json:"failMsg"`
 		ErrorResponse *struct {
 			Message string `json:"message"`
 		} `json:"error_response"`

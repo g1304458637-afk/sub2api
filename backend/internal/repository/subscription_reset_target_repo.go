@@ -81,7 +81,7 @@ func (r *subscriptionResetTargetRepo) ResolveActiveMeteredSubscriptionIDs(ctx co
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	ids := make([]int64, 0, 16)
 	for rows.Next() {
 		var id int64
@@ -103,7 +103,7 @@ func (r *subscriptionResetTargetRepo) ResolveActiveMeteredUserIDs(ctx context.Co
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	ids := make([]int64, 0, 16)
 	for rows.Next() {
 		var id int64
@@ -129,9 +129,13 @@ func (r *subscriptionResetTargetRepo) DescribeTargets(ctx context.Context, mode 
 	}
 	if countRows.Next() {
 		if err := countRows.Scan(&summary.SubscriptionCount, &summary.UniqueUserCount); err != nil {
-			countRows.Close()
+			_ = countRows.Close()
 			return nil, err
 		}
+	}
+	if err := countRows.Err(); err != nil {
+		_ = countRows.Close()
+		return nil, err
 	}
 	if err := countRows.Close(); err != nil {
 		return nil, err
@@ -145,23 +149,25 @@ func (r *subscriptionResetTargetRepo) DescribeTargets(ctx context.Context, mode 
 	for breakdownRows.Next() {
 		var st service.GroupTargetStat
 		if err := breakdownRows.Scan(&st.GroupID, &st.Name, &st.SubsCount); err != nil {
-			breakdownRows.Close()
+			_ = breakdownRows.Close()
 			return nil, err
 		}
 		summary.GroupBreakdown = append(summary.GroupBreakdown, st)
 	}
 	if err := breakdownRows.Err(); err != nil {
-		breakdownRows.Close()
+		_ = breakdownRows.Close()
 		return nil, err
 	}
-	breakdownRows.Close()
+	if err := breakdownRows.Close(); err != nil {
+		return nil, err
+	}
 
 	sampleRows, err := r.client.QueryContext(ctx,
 		"SELECT us.id, us.user_id, g.name"+targetJoin+where+" ORDER BY us.id LIMIT 10")
 	if err != nil {
 		return nil, err
 	}
-	defer sampleRows.Close()
+	defer func() { _ = sampleRows.Close() }()
 	for sampleRows.Next() {
 		var subID, userID int64
 		var groupName string

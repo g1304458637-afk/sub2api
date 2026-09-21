@@ -121,6 +121,7 @@ describe('admin DashboardView', () => {
         stubs: {
           AppLayout: { template: '<div><slot /></div>' },
           LoadingSpinner: true,
+          SubscriptionOpsPanel: true,
           Icon: true,
           DateRangePicker: true,
           Select: true,

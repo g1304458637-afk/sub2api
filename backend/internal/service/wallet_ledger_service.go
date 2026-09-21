@@ -74,7 +74,7 @@ func (s *WalletLedgerService) ListUserLedger(ctx context.Context, userID int64, 
 	if err != nil {
 		return nil, 0, fmt.Errorf("wallet ledger: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	entries := make([]WalletLedgerEntry, 0, limit)
 	var total int64
 	for rows.Next() {
