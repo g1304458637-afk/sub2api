@@ -145,15 +145,16 @@ export async function getAccountStatus(): Promise<AccountStatus> {
 }
 
 export type WalletLedgerEntry = {
-  type: 'recharge' | 'redeem' | 'reward' | 'payg_day'
+  id: string
+  type: 'wallet_recharge' | 'redeem_balance' | 'reward' | 'payg_usage' | 'refund' | 'manual_adjustment'
   amount: number
   ref?: string
   created_at: string
 }
 
-export async function getWalletLedger(limit = 50): Promise<{ entries: WalletLedgerEntry[] }> {
-  const response = await apiClient.get<{ entries: WalletLedgerEntry[] }>('/wallet/ledger', {
-    params: { page_size: limit }
+export async function getWalletLedger(limit = 50, page = 1): Promise<{ entries: WalletLedgerEntry[]; total: number }> {
+  const response = await apiClient.get<{ entries: WalletLedgerEntry[]; total: number }>('/wallet/ledger', {
+    params: { page_size: limit, page }
   })
   return response.data
 }

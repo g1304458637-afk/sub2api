@@ -86,7 +86,9 @@
             <Select v-model="planChangeStatusFilter" :options="planChangeStatusOptions" class="w-44" @change="loadPlanChanges" />
             <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('payment.admin.financeChangesTotal', { total: planChangeTotal }) }}</span>
           </div>
-          <p v-if="!changesLoading && planChangeRows.length === 0" class="text-sm text-gray-500 dark:text-dark-400">{{ t('payment.admin.financeChangesEmpty') }}</p>
+          <p v-if="changesLoading">{{ t('common.loading') }}</p>
+          <p v-else-if="changesError" role="alert">{{ t('common.error') }}</p>
+          <p v-else-if="planChangeRows.length === 0" class="text-sm text-gray-500 dark:text-dark-400">{{ t('payment.admin.financeChangesEmpty') }}</p>
           <div v-else class="overflow-x-auto">
             <table class="w-full text-left text-sm">
               <thead>
@@ -106,7 +108,7 @@
                   <td class="py-2 pr-4">{{ row.UserID }}</td>
                   <td class="py-2 pr-4">{{ row.ChangeType === 'upgrade' ? t('payment.orders.planChangeUpgrade') : t('payment.orders.planChangeDowngrade') }}</td>
                   <td class="py-2 pr-4">{{ row.FromTier }} → {{ row.ToTier }}</td>
-                  <td class="py-2 pr-4">{{ row.ChangeType === 'upgrade' ? `$${row.AmountDue.toFixed(2)}` : '—' }}</td>
+                  <td class="py-2 pr-4">{{ row.ChangeType === 'upgrade' ? formatPaymentAmount(row.AmountDue, row.Currency) : '—' }}</td>
                   <td class="py-2 pr-4">
                     <span
                       class="rounded-full border px-2 py-0.5 text-[11px]"
@@ -125,6 +127,7 @@
             </table>
           </div>
         </div>
+        <Pagination v-if="planChangeTotal > 0" :page="changesPage" :total="planChangeTotal" :page-size="30" :show-page-size-selector="false" @update:page="(page) => { changesPage = page; loadPlanChanges() }" />
       </template>
 
       <!-- Tab 3: 钱包流水（全局 ledger 后端暂缺 — BLOCKED #1；先提供按用户查询） -->
@@ -140,10 +143,11 @@
           <p v-if="ledgerError" class="text-sm text-red-500">{{ ledgerError }}</p>
           <ul v-if="ledgerRows.length" class="space-y-1.5 text-sm">
             <li v-for="(row, i) in ledgerRows" :key="i" class="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 dark:border-dark-700">
-              <span class="truncate font-mono text-xs">{{ row.code || '#' + (row.id ?? i) }}</span>
+              <span class="truncate font-mono text-xs">{{ t('wallet.ledgerType.' + row.type) }} · ${{ row.amount.toFixed(2) }}</span>
               <span class="text-xs text-gray-500">{{ fmtLedgerDate(row.created_at) }}</span>
             </li>
           </ul>
+          <Pagination v-if="ledgerTotal > 0" :page="ledgerPage" :total="ledgerTotal" :page-size="20" :show-page-size-selector="false" @update:page="(page) => { ledgerPage = page; loadLedger() }" />
         </div>
       </template>
     </div>
@@ -205,12 +209,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
 import { adminAPI } from '@/api/admin'
-import type { AdminPlanChangeRow } from '@/api/admin/subscriptionReset'
+import { getAdminWalletLedger, type AdminPlanChangeRow } from '@/api/admin/subscriptionReset'
+import type { WalletLedgerEntry } from '@/api/subscriptions'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { formatOrderDateTime } from '@/components/payment/orderUtils'
 import type { PaymentOrder } from '@/types/payment'
@@ -222,7 +227,7 @@ import Icon from '@/components/icons/Icon.vue'
 import AdminRefundDialog from '@/components/admin/payment/AdminRefundDialog.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import OrderTable from '@/components/payment/OrderTable.vue'
-import { currencySymbol } from '@/components/payment/currency'
+import { currencySymbol, formatPaymentAmount } from '@/components/payment/currency'
 
 interface AuditLog {
   id: number
@@ -254,25 +259,39 @@ const planChangeStatusOptions = [
   { value: 'cancelled', label: 'cancelled' }
 ]
 const changesLoading = ref(false)
+const changesError = ref(false)
+const changesPage = ref(1)
+let changesRequest = 0
 
 async function loadPlanChanges() {
+  const request = ++changesRequest
+  changesError.value = false
   changesLoading.value = true
   try {
     const res = await adminAPI.planChanges.list({
-      page: 1,
+      page: changesPage.value,
       page_size: 30,
       status: planChangeStatusFilter.value || undefined
     })
+    if (request !== changesRequest) return
     planChangeRows.value = res.data.items ?? []
     planChangeTotal.value = res.data.total ?? 0
+  } catch {
+    if (request !== changesRequest) return
+    planChangeRows.value = []; changesError.value = true
   } finally {
-    changesLoading.value = false
+    if (request === changesRequest) changesLoading.value = false
   }
 }
 const ledgerUserId = ref<number>()
 const ledgerLoading = ref(false)
-const ledgerRows = ref<Array<{ id?: number; code?: string; created_at?: string }>>([])
+const ledgerRows = ref<WalletLedgerEntry[]>([])
 const ledgerError = ref('')
+const ledgerPage = ref(1)
+const ledgerTotal = ref(0)
+let ledgerRequest = 0
+watch(ledgerUserId, () => { ++ledgerRequest; ledgerPage.value = 1; ledgerTotal.value = 0; ledgerRows.value = []; ledgerLoading.value = false; ledgerError.value = '' })
+watch(planChangeStatusFilter, () => { changesPage.value = 1 })
 
 async function switchFinanceTab(tab: 'orders' | 'changes' | 'ledger') {
   financeTab.value = tab
@@ -282,21 +301,23 @@ async function switchFinanceTab(tab: 'orders' | 'changes' | 'ledger') {
 }
 
 async function loadLedger() {
-  if (!ledgerUserId.value) return
+  const userId = ledgerUserId.value
+  if (!userId) return
+  const request = ++ledgerRequest
   ledgerLoading.value = true
   ledgerError.value = ''
   ledgerRows.value = []
   try {
-    const res = await adminPaymentAPI.getOrders({ page: 1, page_size: 1, user_id: ledgerUserId.value })
-    void res
-    const { getUserBalanceHistory } = await import('@/api/admin/users')
-    const history = await getUserBalanceHistory(ledgerUserId.value, 1, 20)
-    ledgerRows.value = (history.items ?? []).slice(0, 20)
+    const { data } = await getAdminWalletLedger(userId, ledgerPage.value, 20)
+    if (request !== ledgerRequest || userId !== ledgerUserId.value) return
+    ledgerRows.value = data.entries
+    ledgerTotal.value = data.total
     if (ledgerRows.value.length === 0) ledgerError.value = t('payment.admin.ledgerEmpty')
   } catch {
+    if (request !== ledgerRequest) return
     ledgerError.value = t('payment.admin.ledgerFailed')
   } finally {
-    ledgerLoading.value = false
+    if (request === ledgerRequest) ledgerLoading.value = false
   }
 }
 
@@ -325,7 +346,9 @@ function debounceLoadOrders() {
   debounceTimer = setTimeout(() => loadOrders(), 300)
 }
 
+let ordersRequest = 0
 async function loadOrders() {
+  const request = ++ordersRequest
   ordersLoading.value = true
   try {
     const res = await adminPaymentAPI.getOrders({
@@ -333,11 +356,13 @@ async function loadOrders() {
       keyword: orderSearch.value || undefined, status: orderFilters.status || undefined,
       payment_type: orderFilters.payment_type || undefined, order_type: orderFilters.order_type || undefined,
     })
+    if (request !== ordersRequest) return
     orders.value = res.data.items || []
     orderPagination.total = res.data.total || 0
   } catch (err: unknown) {
+    if (request !== ordersRequest) return
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
-  } finally { ordersLoading.value = false }
+  } finally { if (request === ordersRequest) ordersLoading.value = false }
 }
 
 function handleOrderPageChange(page: number) { orderPagination.page = page; loadOrders() }
@@ -463,5 +488,6 @@ async function handleQueryRefund(order: PaymentOrder) {
 
 function formatDateTime(dateStr: string): string { return formatOrderDateTime(dateStr) }
 
+onBeforeUnmount(() => { ++ordersRequest; ++ledgerRequest; ++changesRequest; if (debounceTimer) clearTimeout(debounceTimer) })
 onMounted(() => loadOrders())
 </script>

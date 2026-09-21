@@ -17,6 +17,8 @@
             </button>
           </header>
 
+          <p v-if="loading" role="status">{{ t('common.loading') }}</p>
+          <p v-if="loadError" role="alert">{{ t('user360.actionFailed') }}</p>
           <!-- 四摘要 -->
           <div class="grid grid-cols-2 gap-3">
             <div class="sum-card">
@@ -39,10 +41,10 @@
 
           <!-- 快捷操作 -->
           <div class="mt-4 flex flex-wrap gap-2">
-            <button class="act-btn" :disabled="resetting || !primarySubId" @click="askDirectReset">
+            <button class="act-btn" :disabled="loading || resetting || !primarySubId" @click="askDirectReset">
               {{ resetting ? t('common.processing') : t('user360.directReset') }}
             </button>
-            <button class="act-btn" :disabled="granting" @click="askGrantCard">
+            <button class="act-btn" :disabled="loading || granting" @click="askGrantCard">
               {{ granting ? t('common.processing') : t('user360.grantCard') }}
             </button>
             <button class="act-btn" @click="showPlanChanges = !showPlanChanges">
@@ -93,7 +95,7 @@
             <p v-if="balanceHistory.length === 0" class="text-sm text-gray-500 dark:text-dark-400">{{ t('user360.noHistory') }}</p>
             <ul v-else class="space-y-1.5 text-sm">
               <li v-for="(row, i) in balanceHistory.slice(0, 10)" :key="i" class="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 dark:border-dark-700">
-                <span class="truncate">{{ row.code || row.id || '—' }}</span>
+                <span class="truncate">{{ t('wallet.ledgerType.' + row.type) }} · ${{ row.amount.toFixed(2) }}</span>
                 <span class="text-xs text-gray-500">{{ fmtDate(row.created_at) }}</span>
               </li>
             </ul>
@@ -155,7 +157,10 @@ import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api/admin'
 import { maskApiKey } from '@/utils/maskApiKey'
 import type { UserSubscription, ApiKey } from '@/types'
-import type { ResetCardRow } from '@/api/admin/subscriptionReset'
+import { getAdminWalletLedger, type ResetCardRow } from '@/api/admin/subscriptionReset'
+import type { WalletLedgerEntry } from '@/api/subscriptions'
+import { createMutationAttempt } from '@/utils/mutationAttempt'
+import { formatPaymentAmount } from '@/components/payment/currency'
 
 /**
  * Admin 用户详情 Customer 360 抽屉（挂在现有 UsersView，不新开页面）。
@@ -181,7 +186,7 @@ interface SubRow extends UserSubscription { _expanded?: boolean }
 const subscriptions = ref<SubRow[]>([])
 const apiKeys = ref<ApiKey[]>([])
 const resetCardRows = ref<ResetCardRow[]>([])
-const balanceHistory = ref<Array<{ id?: number; code?: string; created_at?: string }>>([])
+const balanceHistory = ref<WalletLedgerEntry[]>([])
 const planChangeOrders = ref<Array<{ id: number; label: string; tier: string; amount: string; status: string; created_at: string }>>([])
 const resetCardsAvailable = ref(0)
 const resetting = ref(false)
@@ -190,6 +195,11 @@ const resetConfirming = ref(false)
 const actionMessage = ref('')
 const actionOk = ref(false)
 const showPlanChanges = ref(false)
+const loading = ref(false)
+const loadError = ref(false)
+let detailRequest = 0
+const resetAttempt = createMutationAttempt('u360-reset')
+const grantAttempt = createMutationAttempt('u360-grant')
 
 const userBalance = computed(() => Number(props.user?.balance ?? 0).toFixed(2))
 
@@ -207,30 +217,33 @@ const subscriptionLine = computed(() => {
 watch(
   () => props.user?.id,
   async (id) => {
+    const request = ++detailRequest
+    subscriptions.value = []; apiKeys.value = []; resetCardRows.value = []
+    balanceHistory.value = []; planChangeOrders.value = []; resetCardsAvailable.value = 0
+    loading.value = !!id; loadError.value = false
+    resetConfirming.value = false; resetting.value = false; granting.value = false
+    resetAttempt.clear(); grantAttempt.clear()
     if (!id) return
     actionMessage.value = ''
     showPlanChanges.value = false
     // Promise.all + catch(null)：保留元组类型，单项失败不影响其他摘要
-    const [subsRes, keysRes, cardsRes, historyRes, ordersRes, countRes] = await Promise.all([
+    const [subsRes, keysRes, historyRes, cardsRes, ordersRes, countRes] = await Promise.all([
       adminAPI.subscriptions.list(1, 50, { user_id: id, status: 'active' }).catch(() => null),
       adminAPI.users.getUserApiKeys(id).catch(() => null),
-      adminAPI.users.getUserBalanceHistory(id, 1, 10).catch(() => null),
+      getAdminWalletLedger(id, 1, 10).catch(() => null),
       adminAPI.resetCards.list({ user_id: id, page: 1, page_size: 20 }).catch(() => null),
       adminAPI.planChanges.list({ user_id: id, page: 1, page_size: 20 }).catch(() => null),
       adminAPI.resetCards.count(id).catch(() => null)
     ])
-    subscriptions.value =
-      (subsRes as unknown as { items?: UserSubscription[] } | null)?.items ?? []
-    apiKeys.value = (keysRes as unknown as { items?: ApiKey[] } | null)?.items ?? []
-    balanceHistory.value =
-      (historyRes as unknown as {
-        items?: Array<{ id?: number; code?: string; created_at?: string }>
-      } | null)?.items ?? []
-    const cardsRaw = (cardsRes as unknown as { data?: { items?: ResetCardRow[] } } | null)?.data
-    const cardsPayload = cardsRaw ?? null
-    resetCardRows.value = Array.isArray(cardsPayload) ? cardsPayload : (cardsPayload?.items ?? [])
+    if (request !== detailRequest) return
+    loading.value = false
+    loadError.value = [subsRes, keysRes, historyRes, cardsRes, ordersRes, countRes].some(result => result === null)
+    subscriptions.value = subsRes?.items ?? []
+    apiKeys.value = keysRes?.items ?? []
+    balanceHistory.value = historyRes?.data.entries ?? []
+    resetCardRows.value = cardsRes?.data.items ?? []
     const ordersRaw = (ordersRes as unknown as {
-      data?: { items?: Array<{ ID: number; ChangeType: string; FromTier: number; ToTier: number; AmountDue: number; Status: string; CreatedAt: string }> }
+      data?: { items?: Array<{ ID: number; ChangeType: string; FromTier: number; ToTier: number; AmountDue: number; Currency: string; Status: string; CreatedAt: string }> }
     } | null)?.data
     planChangeOrders.value = (ordersRaw?.items ?? []).map((r) => ({
       id: r.ID,
@@ -238,7 +251,7 @@ watch(
         ? t('payment.orders.planChangeUpgrade')
         : t('payment.orders.planChangeDowngrade'),
       tier: `${r.FromTier}→${r.ToTier}`,
-      amount: r.ChangeType === 'upgrade' ? `$${r.AmountDue.toFixed(2)}` : '—',
+      amount: r.ChangeType === 'upgrade' ? formatPaymentAmount(r.AmountDue, r.Currency) : '—',
       status: r.Status,
       created_at: r.CreatedAt
     })).slice(0, 10)
@@ -254,46 +267,56 @@ function askDirectReset() {
 }
 
 async function confirmDirectReset() {
-  if (!primarySubId.value) return
+  if (!primarySubId.value || resetting.value) return
+  const request = detailRequest
+  const subId = primarySubId.value
   resetting.value = true
   try {
     await adminAPI.resetEvents.create({
       target_mode: 'subscription_ids',
-      subscription_ids: [primarySubId.value],
+      subscription_ids: [subId],
       reason: 'admin user-360 direct reset',
-      idempotency_key: `u360-${primarySubId.value}-${Date.now()}`
+      idempotency_key: resetAttempt.keyFor({ subscription_id: subId })
     })
+    if (request !== detailRequest) return
+    resetAttempt.clear()
     actionOk.value = true
     actionMessage.value = t('user360.resetQueued')
     resetConfirming.value = false
   } catch {
+    if (request !== detailRequest) return
     actionOk.value = false
     actionMessage.value = t('user360.actionFailed')
   } finally {
-    resetting.value = false
+    if (request === detailRequest) resetting.value = false
   }
 }
 
 async function askGrantCard() {
-  if (!props.user) return
+  if (!props.user || granting.value) return
+  const request = detailRequest
+  const userId = props.user.id
   granting.value = true
   actionMessage.value = ''
   try {
     await adminAPI.resetCards.grant({
       target_mode: 'users',
-      user_ids: [props.user.id],
+      user_ids: [userId],
       quantity_per_user: 1,
       reason: 'admin user-360 grant',
-      idempotency_key: `u360card-${props.user.id}-${Date.now()}`
+      idempotency_key: grantAttempt.keyFor({ user_id: userId })
     })
+    if (request !== detailRequest) return
+    grantAttempt.clear()
     actionOk.value = true
     actionMessage.value = t('user360.cardGranted')
     resetCardsAvailable.value += 1
   } catch {
+    if (request !== detailRequest) return
     actionOk.value = false
     actionMessage.value = t('user360.actionFailed')
   } finally {
-    granting.value = false
+    if (request === detailRequest) granting.value = false
   }
 }
 

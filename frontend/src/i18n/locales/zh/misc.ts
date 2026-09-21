@@ -846,13 +846,13 @@ export default {
     rewardDesc: '学生认证奖励等活动奖励，到账即自动存入钱包。',
     rewardEmpty: '暂无奖励记录',
     ledgerType: {
-      recharge: '充值',
-      redeem: '兑换码',
+      wallet_recharge: '充值',
+      redeem_balance: '余额兑换',
       reward: '奖励',
-      payg_day: '按量消费（日合计）',
+      payg_usage: '按量消费（日合计）',
+      refund: '退款扣回',
+      manual_adjustment: '人工调整',
     },
-    rewardSampleAmount: '+$5.00',
-    rewardSampleCampaign: '2026-fall-student',
     loadError: '钱包信息加载失败',
   },
   rewardGift: {

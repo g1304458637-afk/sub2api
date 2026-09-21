@@ -24,17 +24,16 @@
         <!-- 说明条：一个钱包，来源见流水 -->
         <p class="muc-wallet__note">{{ t('wallet.singleWalletNote') }}</p>
 
-        <!-- 流水：当前后端无用户侧 ledger 端点（见 FINAL_FRONTEND_REFERENCE_LOG.md BLOCKED #1），
-             先呈现空态；奖励到账卡片样式见下方记录区。 -->
         <MucSectionHeader :title="t('wallet.historyTitle')" :description="t('wallet.historyDesc')" />
 
         <MucGlassCard class="muc-wallet__history">
           <div v-if="ledgerLoading" class="muc-wallet__skeleton">
             <MucSkeleton v-for="i in 3" :key="i" height="34px" />
           </div>
+          <MucState v-else-if="ledgerError" :message="ledgerError" icon="inbox" />
           <MucState v-else-if="ledger.length === 0" :message="t('wallet.historyEmpty')" icon="inbox" />
           <ul v-else class="muc-wallet__list">
-            <li v-for="(entry, i) in ledger" :key="i" class="muc-wallet__row">
+            <li v-for="entry in ledger" :key="entry.id" class="muc-wallet__row">
               <div class="muc-wallet__entry">
                 <span class="muc-wallet__type">{{ t('wallet.ledgerType.' + entry.type) }}</span>
                 <span class="muc-wallet__ref">{{ entry.ref || ledgerDate(entry.created_at) }}</span>
@@ -49,20 +48,7 @@
           </ul>
         </MucGlassCard>
 
-        <!-- 奖励记录：学生认证奖励等（Reward → Wallet 自动入账）。
-             后端暂无用户侧 reward 查询端点（BLOCKED #2），先提供静态卡片样式记录位。 -->
-        <MucSectionHeader :title="t('wallet.rewardTitle')" :description="t('wallet.rewardDesc')" />
-
-        <MucGlassCard class="muc-wallet__history muc-wallet__rewards">
-          <MucRewardGiftCard
-            v-if="showRewardSample"
-            mini
-            :amount="t('wallet.rewardSampleAmount')"
-            :campaign="t('wallet.rewardSampleCampaign')"
-            :animate="false"
-          />
-          <MucState v-else :message="t('wallet.rewardEmpty')" icon="inbox" />
-        </MucGlassCard>
+        <Pagination v-if="ledgerTotal > 0" :page="ledgerPage" :total="ledgerTotal" :page-size="50" :show-page-size-selector="false" @update:page="loadLedger" />
       </div>
     </div>
   </AppLayout>
@@ -78,7 +64,8 @@ import MucGlassCard from '@/components/muc/MucGlassCard.vue'
 import MucButton from '@/components/muc/MucButton.vue'
 import MucSectionHeader from '@/components/muc/MucSectionHeader.vue'
 import MucState from '@/components/muc/MucState.vue'
-import MucRewardGiftCard from '@/components/muc/MucRewardGiftCard.vue'
+import MucSkeleton from '@/components/muc/MucSkeleton.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import { getAccountStatus, getWalletLedger, type WalletLedgerEntry } from '@/api/subscriptions'
 import { paymentAPI } from '@/api/payment'
 import type { PaymentConfig } from '@/types/payment'
@@ -92,7 +79,7 @@ import { useAppStore } from '@/stores'
  * Wallet：充值 + Reward + PAYG 统一账户钱包。
  * 余额来自 /subscriptions/status 合同（users.balance，canonical USD）；
  * ≈¥ 仅在后台配置了展示汇率（usd_to_cny_display_rate > 0）时显示。
- * 流水区当前无用户端 ledger API（FRONTEND_BLOCKED_BY_API #1），空态先行。
+ * 流水只显示后端返回的真实资金记录。
  */
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -101,7 +88,10 @@ const appStore = useAppStore()
 const balance = ref<string | null>(null)
 const canonicalCurrency = ref('')
 const displayRate = ref(0)
-const showRewardSample = ref(true)
+const ledgerTotal = ref(0)
+const ledgerPage = ref(1)
+const ledgerError = ref('')
+let ledgerRequest = 0
 const ledger = ref<WalletLedgerEntry[]>([])
 const ledgerLoading = ref(true)
 
@@ -132,25 +122,37 @@ const cnyApproxDisplay = computed(() => {
   return formatPaymentAmount(value * displayRate.value, 'CNY', loc.value)
 })
 
-onMounted(async () => {
+async function loadLedger(page = 1) {
+  const request = ++ledgerRequest
+  ledgerPage.value = page
+  ledgerLoading.value = true
+  ledgerError.value = ''
   try {
-    const [status, config, ledgerRes] = await Promise.all([
-      getAccountStatus(),
-      paymentAPI.getConfig().catch(() => null),
-      getWalletLedger(50).catch(() => null)
+    const result = await getWalletLedger(50, page)
+    if (request !== ledgerRequest) return
+    ledger.value = result.entries
+    ledgerTotal.value = result.total
+  } catch {
+    if (request !== ledgerRequest) return
+    ledger.value = []
+    ledgerError.value = t('wallet.loadError')
+  } finally {
+    if (request === ledgerRequest) ledgerLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  void loadLedger()
+  try {
+    const [status, config] = await Promise.all([
+      getAccountStatus(), paymentAPI.getConfig().catch(() => null)
     ])
     balance.value = status.wallet.balance
     canonicalCurrency.value = status.wallet.canonical_currency
     const cfg = config?.data as PaymentConfig | null
     displayRate.value = cfg?.usd_to_cny_display_rate ?? 0
-    ledger.value = ledgerRes?.entries ?? []
-    ledgerLoading.value = false
-  } catch (err) {
-    appStore.showError(
-      err && typeof err === 'object' && 'message' in err
-        ? String((err as { message?: unknown }).message)
-        : t('wallet.loadError')
-    )
+  } catch {
+    appStore.showError(t('wallet.loadError'))
   }
 })
 

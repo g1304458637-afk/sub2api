@@ -2,20 +2,15 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 )
 
-// WalletLedgerService 统一钱包流水（Final Frontend CLOSURE：解除 BLOCKED #1/#2）。
-//
-// 组合既有事实表，不新建账本、不改余额语义：
-//   - recharge  充值到账（redeem_codes.type=balance 的已用码——余额充值的履约
-//     就是以自动兑换码入账，码表即充值流水；因此不再重复计 payment_orders）
-//   - redeem    其他来源兑换码（status=used）
-//   - reward    系统奖励（reward_grants：学生认证/活动等）
-//   - payg_day  按量消费日聚合（usage_logs.actual_cost 按天汇总）
+// WalletLedgerService reads wallet movements from their authoritative sources.
+// Subscription entitlements and non-balance redemption never enter this view.
 type WalletLedgerService struct {
 	entClient  *dbent.Client
 	rewardRepo RewardGrantRepository
@@ -25,98 +20,75 @@ func NewWalletLedgerService(entClient *dbent.Client, rewardRepo RewardGrantRepos
 	return &WalletLedgerService{entClient: entClient, rewardRepo: rewardRepo}
 }
 
-// WalletLedgerEntry 单条流水。
+// WalletLedgerEntry is a signed USD balance movement with a stable source ID.
 type WalletLedgerEntry struct {
-	Type      string    `json:"type"` // recharge | redeem | reward | payg_day
+	ID        string    `json:"id"`
+	Type      string    `json:"type"`
 	Amount    float64   `json:"amount"`
-	Ref       string    `json:"ref,omitempty"` // 单号 / 兑换码 / 活动 / 日期
+	Ref       string    `json:"ref,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// ListUserLedger 用户侧钱包流水（各来源限额后合并，created_at 倒序）。
-func (s *WalletLedgerService) ListUserLedger(ctx context.Context, userID int64, limit int) ([]WalletLedgerEntry, error) {
-	if limit <= 0 {
+// All sources are combined before pagination; tied timestamps use source IDs.
+// Refund amounts use the recorded wallet deduction, never the gateway amount.
+const walletLedgerSources = `WITH entries AS (
+ SELECT 'redeem:' || r.id AS id,
+ CASE WHEN r.type = 'admin_balance' THEN 'manual_adjustment'
+      WHEN EXISTS (SELECT 1 FROM payment_orders p WHERE p.recharge_code = r.code AND p.user_id = r.used_by AND p.order_type = 'balance') THEN 'wallet_recharge'
+      ELSE 'redeem_balance' END AS type,
+ r.value AS amount, r.code AS ref, r.used_at AS created_at
+ FROM redeem_codes r
+ WHERE r.used_by = $1 AND r.status = 'used' AND r.used_at IS NOT NULL
+   AND r.type IN ('balance', 'admin_balance') AND r.value <> 0
+ UNION ALL
+ SELECT 'reward:' || id, 'reward', amount, COALESCE(NULLIF(campaign, ''), source_type), created_at
+ FROM reward_grants WHERE user_id = $1 AND amount <> 0
+ UNION ALL
+ SELECT 'affiliate:' || id, 'reward', amount, 'affiliate_transfer', created_at
+ FROM user_affiliate_ledger WHERE user_id = $1 AND action = 'transfer' AND amount <> 0
+ UNION ALL
+ SELECT 'usage:' || to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), 'payg_usage',
+ -SUM(actual_cost), to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), MAX(created_at)
+ FROM usage_logs WHERE user_id = $1 AND billing_type = 0 AND actual_cost > 0
+ GROUP BY to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+ UNION ALL
+ SELECT 'refund:' || a.id, 'refund', -(a.detail::jsonb->>'balanceDeducted')::numeric,
+ p.id::text, a.created_at
+ FROM payment_audit_logs a JOIN payment_orders p ON p.id::text = a.order_id
+ WHERE p.user_id = $1 AND p.order_type = 'balance' AND a.action = 'REFUND_SUCCESS'
+   AND (a.detail::jsonb->>'balanceDeducted')::numeric > 0
+)`
+
+func (s *WalletLedgerService) ListUserLedger(ctx context.Context, userID int64, limit, offset int) ([]WalletLedgerEntry, int64, error) {
+	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	perSource := limit
+	if offset < 0 {
+		offset = 0
+	}
+	rows, err := s.entClient.QueryContext(ctx, walletLedgerSources+`,
+ page AS (SELECT * FROM entries ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3)
+ SELECT totals.total, page.id, page.type, page.amount, page.ref, page.created_at
+ FROM (SELECT COUNT(*) AS total FROM entries) totals LEFT JOIN page ON TRUE
+ ORDER BY page.created_at DESC, page.id DESC`, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("wallet ledger: %w", err)
+	}
+	defer rows.Close()
 	entries := make([]WalletLedgerEntry, 0, limit)
-
-	// 兑换码（含余额充值履约码 type=balance 与普通兑换码；即全部余额入账流水）
-	rows, err := s.entClient.QueryContext(ctx, `
-SELECT value, code, type, used_at
-FROM redeem_codes
-WHERE used_by = $1 AND status = 'used'
-ORDER BY used_at DESC LIMIT $2`, userID, perSource)
-	if err != nil {
-		return nil, fmt.Errorf("ledger redeem: %w", err)
-	}
+	var total int64
 	for rows.Next() {
-		var amount float64
-		var code, codeType string
-		var at time.Time
-		if err := rows.Scan(&amount, &code, &codeType, &at); err != nil {
-			_ = rows.Close()
-			return nil, err
+		var id, typ, ref sql.NullString
+		var amount sql.NullFloat64
+		var at sql.NullTime
+		if err := rows.Scan(&total, &id, &typ, &amount, &ref, &at); err != nil {
+			return nil, 0, err
 		}
-		entryType := "redeem"
-		if codeType == "balance" {
-			entryType = "recharge"
-		}
-		entries = append(entries, WalletLedgerEntry{Type: entryType, Amount: amount, Ref: code, CreatedAt: at})
-	}
-	_ = rows.Close()
-
-	// reward
-	grants, err := s.rewardRepo.ListByUser(ctx, userID, perSource)
-	if err != nil {
-		return nil, fmt.Errorf("ledger reward: %w", err)
-	}
-	for _, g := range grants {
-		ref := g.Campaign
-		if ref == "" {
-			ref = g.SourceType
-		}
-		entries = append(entries, WalletLedgerEntry{Type: "reward", Amount: g.Amount, Ref: ref, CreatedAt: g.CreatedAt})
-	}
-
-	// payg_day（按量消费日聚合）
-	rows, err = s.entClient.QueryContext(ctx, `
-SELECT date_trunc('day', created_at) AS d, SUM(actual_cost)
-FROM usage_logs
-WHERE user_id = $1
-GROUP BY d
-ORDER BY d DESC LIMIT $2`, userID, perSource)
-	if err != nil {
-		return nil, fmt.Errorf("ledger payg: %w", err)
-	}
-	for rows.Next() {
-		var day time.Time
-		var amount float64
-		if err := rows.Scan(&day, &amount); err != nil {
-			_ = rows.Close()
-			return nil, err
-		}
-		entries = append(entries, WalletLedgerEntry{
-			Type:      "payg_day",
-			Amount:    -amount,
-			Ref:       day.Format("2006-01-02"),
-			CreatedAt: day,
-		})
-	}
-	_ = rows.Close()
-
-	// 合并倒序截断
-	for i := 0; i < len(entries); i++ {
-		for j := i + 1; j < len(entries); j++ {
-			if entries[j].CreatedAt.After(entries[i].CreatedAt) {
-				entries[i], entries[j] = entries[j], entries[i]
-			}
+		if id.Valid {
+			entries = append(entries, WalletLedgerEntry{ID: id.String, Type: typ.String, Amount: amount.Float64, Ref: ref.String, CreatedAt: at.Time})
 		}
 	}
-	if len(entries) > limit {
-		entries = entries[:limit]
-	}
-	return entries, nil
+	return entries, total, rows.Err()
 }
 
 // RewardGrantView 管理端发放记录视图。

@@ -185,3 +185,9 @@ export const resetCardsAPI = {
     })
   }
 }
+
+export async function getAdminWalletLedger(userId: number, page = 1, pageSize = 20) {
+  return apiClient.get<{ entries: import('@/api/subscriptions').WalletLedgerEntry[]; total: number }>('/admin/wallet/ledger', {
+    params: { user_id: userId, page, page_size: pageSize }
+  })
+}

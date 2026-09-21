@@ -711,6 +711,7 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		}
 
 		// ── Final Frontend CLOSURE：Reward 审计 + 套餐变更审计 ──
+		admin.GET("/wallet/ledger", h.WalletLedger.AdminLedger)
 		admin.GET("/rewards", h.WalletLedger.AdminRewardList)
 		admin.GET("/rewards/stats", h.WalletLedger.AdminRewardStats)
 		admin.GET("/plan-changes", h.WalletLedger.AdminPlanChangeList)

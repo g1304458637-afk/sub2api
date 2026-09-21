@@ -7,6 +7,7 @@ package handler
 // 全部为只读查询，复用既有 service 事实表，不改变任何余额/套餐语义。
 
 import (
+	"errors"
 	"strconv"
 	"time"
 
@@ -31,8 +32,11 @@ func parseOptionalInt64(v string) (*int64, error) {
 		return nil, nil
 	}
 	n, err := strconv.ParseInt(v, 10, 64)
-	if err != nil || n <= 0 {
+	if err != nil {
 		return nil, err
+	}
+	if n <= 0 {
+		return nil, errors.New("must be positive")
 	}
 	return &n, nil
 }
@@ -56,13 +60,29 @@ func (h *WalletLedgerHandler) UserLedger(c *gin.Context) {
 		response.Unauthorized(c, "User not found in context")
 		return
 	}
-	limit, _ := parseLimitOffset(c, 50)
-	entries, err := h.ledger.ListUserLedger(c.Request.Context(), subject.UserID, limit)
+	limit, offset := parseLimitOffset(c, 50)
+	entries, total, err := h.ledger.ListUserLedger(c.Request.Context(), subject.UserID, limit, offset)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"entries": entries})
+	response.Success(c, gin.H{"entries": entries, "total": total, "page": offset/limit + 1, "page_size": limit})
+}
+
+// AdminLedger uses the same money-only ledger as the user wallet.
+func (h *WalletLedgerHandler) AdminLedger(c *gin.Context) {
+	userID, err := parseOptionalInt64(c.Query("user_id"))
+	if err != nil || userID == nil {
+		response.BadRequest(c, "positive user_id is required")
+		return
+	}
+	limit, offset := parseLimitOffset(c, 20)
+	entries, total, err := h.ledger.ListUserLedger(c.Request.Context(), *userID, limit, offset)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"entries": entries, "total": total, "page": offset/limit + 1, "page_size": limit})
 }
 
 // AdminRewardList GET /api/v1/admin/rewards?user_id=&page=&page_size=

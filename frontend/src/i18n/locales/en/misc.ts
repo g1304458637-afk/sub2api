@@ -822,13 +822,13 @@ export default {
     rewardDesc: 'Campaign rewards such as student verification are deposited to your wallet automatically.',
     rewardEmpty: 'No rewards yet',
     ledgerType: {
-      recharge: 'Top-up',
-      redeem: 'Redeem code',
+      wallet_recharge: 'Top-up',
+      redeem_balance: 'Balance redemption',
       reward: 'Reward',
-      payg_day: 'Pay-as-you-go (daily)',
+      payg_usage: 'Pay-as-you-go (daily)',
+      refund: 'Refund deduction',
+      manual_adjustment: 'Manual adjustment',
     },
-    rewardSampleAmount: '+$5.00',
-    rewardSampleCampaign: '2026-fall-student',
     loadError: 'Failed to load wallet',
   },
   rewardGift: {
