@@ -221,6 +221,10 @@ export default {
     auditLogs: '操作日志',
     // 普通用户侧边栏门户分组
     groupLlm: '大模型服务',
+    groupAdminUsersBiz: '用户与订阅',
+    groupAdminChannels: '渠道与用量',
+    groupAdminGrowth: '运营与增长',
+    groupAdminSecurity: '安全与运维',
     groupMine: '我的',
     chat: 'AI 对话',
     draw: '绘图',

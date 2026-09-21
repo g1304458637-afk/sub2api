@@ -68,7 +68,16 @@
                   :key="child.path"
                   :to="child.path"
                   class="sidebar-link mb-0.5 py-1.5 text-sm"
-                  :class="{ 'sidebar-link-active': route.path === child.path }"
+                  :class="{ 'sidebar-link-active': isActive(child.path) }"
+                  :id="
+                    child.path === '/admin/accounts'
+                      ? 'sidebar-channel-manage'
+                      : child.path === '/admin/groups'
+                        ? 'sidebar-group-manage'
+                        : child.path === '/admin/redeem'
+                          ? 'sidebar-wallet'
+                          : undefined
+                  "
                   @click="handleMenuItemClick(child.path)"
                 >
                   <component :is="child.icon" class="h-4 w-4 flex-shrink-0" />
@@ -83,15 +92,6 @@
               class="sidebar-link mb-1"
               :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
               :title="sidebarCollapsed ? item.label : undefined"
-              :id="
-                item.path === '/admin/accounts'
-                  ? 'sidebar-channel-manage'
-                  : item.path === '/admin/groups'
-                    ? 'sidebar-group-manage'
-                    : item.path === '/admin/redeem'
-                      ? 'sidebar-wallet'
-                      : undefined
-              "
               @click="handleMenuItemClick(item.path)"
             >
               <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
@@ -104,31 +104,77 @@
           <SidebarUserActions v-if="authStore.isSimpleMode && !sidebarCollapsed" class="mt-1" />
         </div>
 
-        <!-- Personal Section for Admin (hidden in simple mode) -->
+        <!-- Personal Section for Admin (hidden in simple mode)：与用户端同构的两个分组 -->
         <div v-if="!authStore.isSimpleMode" class="sidebar-section">
-          <!-- 用户卡片：头像 + 用户名 + 余额（替代原「我的账户」标题） -->
-          <div
-            class="sidebar-link mb-1 w-full cursor-default"
-            :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
-            :title="sidebarCollapsed ? displayName : undefined"
-          >
-            <SidebarUserIdentity :collapsed="sidebarCollapsed" />
-          </div>
-
-          <router-link
-            v-for="item in personalNavItems"
-            :key="item.path"
-            :to="item.path"
-            class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
-            :title="sidebarCollapsed ? item.label : undefined"
-            :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
-            @click="handleMenuItemClick(item.path)"
-          >
-            <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
-            <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
-          </router-link>
+          <template v-for="item in personalNavGroups" :key="item.path">
+            <template v-if="item.children?.length">
+              <!-- Collapsible group：「我的」组头即用户卡片（头像 + 用户名 + 余额） -->
+              <button
+                type="button"
+                class="sidebar-link mb-1 w-full"
+                :class="{
+                  'sidebar-link-active': isGroupActive(item) && !isGroupExpanded(item),
+                  'sidebar-link-collapsed': sidebarCollapsed
+                }"
+                :title="sidebarCollapsed ? item.label : undefined"
+                @click="handleGroupClick(item)"
+              >
+                <template v-if="item.path === 'group-my-account'">
+                  <SidebarUserIdentity :collapsed="sidebarCollapsed">
+                    <template #chevron>
+                      <ChevronDownIcon
+                        class="h-4 w-4 shrink-0 transition-transform duration-200"
+                        :class="isGroupExpanded(item) ? 'rotate-180' : ''"
+                      />
+                    </template>
+                  </SidebarUserIdentity>
+                </template>
+                <template v-else>
+                  <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+                  <span
+                    class="sidebar-label sidebar-label-flex"
+                    :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"
+                    :aria-hidden="sidebarCollapsed ? 'true' : 'false'"
+                  >
+                    <span class="min-w-0 truncate">{{ item.label }}</span>
+                    <ChevronDownIcon
+                      class="h-4 w-4 flex-shrink-0 transition-transform duration-200"
+                      :class="isGroupExpanded(item) ? 'rotate-180' : ''"
+                    />
+                  </span>
+                </template>
+              </button>
+              <!-- Children -->
+              <div v-if="!sidebarCollapsed && isGroupExpanded(item)" class="mb-1 ml-4 border-l border-gray-200 pl-2 dark:border-dark-600">
+                <router-link
+                  v-for="child in item.children"
+                  :key="child.path"
+                  :to="child.path"
+                  class="sidebar-link mb-0.5 py-1.5 text-sm"
+                  :class="{ 'sidebar-link-active': isActive(child.path) }"
+                  :data-tour="child.path === '/keys' ? 'sidebar-my-keys' : undefined"
+                  @click="handleMenuItemClick(child.path)"
+                >
+                  <span v-if="child.iconSvg" class="h-4 w-4 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(child.iconSvg)"></span>
+                  <component v-else :is="child.icon" class="h-4 w-4 flex-shrink-0" />
+                  <span>{{ child.label }}</span>
+                </router-link>
+              </div>
+            </template>
+            <!-- Normal item (no children): defensive fallback -->
+            <router-link
+              v-else
+              :to="item.path"
+              class="sidebar-link mb-1"
+              :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
+              :title="sidebarCollapsed ? item.label : undefined"
+              @click="handleMenuItemClick(item.path)"
+            >
+              <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
+              <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+              <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+            </router-link>
+          </template>
 
           <!-- 语言 / 货币 / 退出登录 -->
           <SidebarUserActions v-if="!sidebarCollapsed" class="mt-1" />
@@ -342,13 +388,6 @@ const sidebarNavRef = ref<HTMLElement | null>(null)
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
 const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
-
-// 用户卡片展示信息（原顶栏用户区收敛到侧边栏）
-const displayName = computed(() => {
-  const user = authStore.user
-  if (!user) return ''
-  return user.username || user.email?.split('@')[0] || ''
-})
 
 // Per-group expand/collapse overrides. A group with no entry follows the
 // automatic behavior (expanded while the active route is one of its children);
@@ -962,9 +1001,8 @@ const flagMusicEntrance = flagWebChatEntrance("music")
 const showChatHistory = computed(() => flagChatEntrance())
 
 // buildSelfNavGroups 构造用户自己的导航，按门户分成两个可折叠分组：
-// 「大模型服务」（AI 对话 / 绘图 / 下载 MUC）与「我的」（账户、密钥、用量、订阅等）。
-// 用户端主菜单直接渲染这两个分组；管理员的"我的账户"区是扁平列表（无分组渲染），
-// 通过 flattenNavGroups 复用同一份声明，保持管理端旧结构不变。
+// 「大模型服务」（AI 对话 / 绘图 / 语音合成 / 音乐合成 / 下载 MUC）与「我的」（密钥、用量、订阅等）。
+// 用户端主菜单与管理员个人区直接渲染这两个分组。
 //
 // withDashboard=true 时「我的」分组包含概览（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
 //
@@ -1028,11 +1066,6 @@ function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
   ]
 }
 
-// flattenNavGroups：把分组声明拍平成叶子项，供管理员的"我的账户"扁平列表复用。
-function flattenNavGroups(groups: NavItem[]): NavItem[] {
-  return groups.flatMap((group) => group.children ?? [])
-}
-
 // simple 模式过滤同样要递归进 children：hideInSimpleMode 标在分组内的叶子项上。
 function filterHiddenInSimpleMode(items: NavItem[]): NavItem[] {
   const out: NavItem[] = []
@@ -1067,7 +1100,8 @@ const userNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavGroups(tr
 // to the regular-user view. Admins access 可用渠道 from this section just like
 // regular users — there is no separate admin entry, since the page is purely a
 // user-facing view.
-const personalNavItems = computed((): NavItem[] => flattenNavGroups(finalizeNav(buildSelfNavGroups(false))))
+// 管理员个人区与用户端共用同一分组声明（大模型服务 + 我的），仅渲染位置不同
+const personalNavGroups = computed((): NavItem[] => finalizeNav(buildSelfNavGroups(false)))
 
 // Custom menu items filtered by visibility
 const customMenuItemsForUser = computed(() => {
@@ -1083,76 +1117,75 @@ const customMenuItemsForAdmin = computed(() => {
     .sort((a, b) => a.sort_order - b.sort_order)
 })
 
-// Admin navigation items
+// Admin navigation items：仪表盘置顶 + 四个可折叠分类组 + 系统设置/自定义菜单收尾。
+// 分类组为 expandOnly（点击仅展开/收起，不导航），默认收起；所在路由激活时自动展开并高亮。
+// 子项全部是真实页面（原 expandOnly 容器的子页已平铺，/admin/security-audit、
+// /admin/affiliates 为纯重定向容器，只保留真实子页）。
 const adminNavItems = computed((): NavItem[] => {
   const baseItems: NavItem[] = [
     { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
-    { path: '/admin/ops', label: t('nav.ops'), icon: ChartIcon, featureFlag: flagOpsMonitoring },
-    { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
-    { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon },
     {
-      path: '/admin/channels',
-      label: t('nav.channelManagement'),
-      icon: ChannelIcon,
-      hideInSimpleMode: true,
+      path: 'group-admin-users-biz',
+      label: t('nav.groupAdminUsersBiz'),
+      icon: UsersIcon,
       expandOnly: true,
       children: [
+        { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
+        { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon },
+        // 「仅充值」站点连管理端的「订阅管理」入口也一并收起（路由本身不拦截）。
+        { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
+        { path: '/admin/orders/dashboard', label: t('nav.paymentDashboard'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagAdminPayment },
+        { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon, hideInSimpleMode: true, featureFlag: flagAdminPayment },
+        { path: '/admin/orders/plans', label: t('nav.paymentPlans'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagAdminPayment },
+      ],
+    },
+    {
+      path: 'group-admin-channels',
+      label: t('nav.groupAdminChannels'),
+      icon: ChannelIcon,
+      expandOnly: true,
+      children: [
+        { path: '/admin/channels', label: t('nav.channelManagement'), icon: ChannelIcon },
         { path: '/admin/channels/pricing', label: t('nav.channelPricing'), icon: PriceTagIcon },
         { path: '/admin/channels/monitor', label: t('nav.channelMonitor'), icon: SignalIcon, featureFlag: flagChannelMonitor },
+        { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
+        { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },
+        { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon },
       ],
     },
-    // 「仅充值」站点连管理端的「订阅管理」入口也一并收起（路由本身不拦截）。
-    { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
-    { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
-    { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },
-    { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
-    { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
     {
-      path: '/admin/security-audit',
-      label: t('nav.securityAudit'),
+      path: 'group-admin-growth',
+      label: t('nav.groupAdminGrowth'),
+      icon: GiftIcon,
+      expandOnly: true,
+      children: [
+        { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
+        { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
+        { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
+        { path: '/admin/reward-grants', label: t('nav.rewardGrants'), icon: BanknotesIcon, hideInSimpleMode: true },
+        { path: '/admin/research', label: t('nav.adminResearch'), icon: AcademicCapIcon, hideInSimpleMode: true },
+        { path: '/admin/affiliates/invites', label: t('nav.affiliateInviteRecords'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
+        { path: '/admin/affiliates/rebates', label: t('nav.affiliateRebateRecords'), icon: OrderIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
+        { path: '/admin/affiliates/transfers', label: t('nav.affiliateTransferRecords'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
+      ],
+    },
+    {
+      path: 'group-admin-security',
+      label: t('nav.groupAdminSecurity'),
       icon: ShieldIcon,
       expandOnly: true,
-      featureFlag: flagRiskControl,
       children: [
-        { path: '/admin/risk-control', label: t('nav.contentModeration'), icon: ShieldIcon },
-        { path: '/admin/prompt-audit', label: t('nav.promptAudit'), icon: ShieldIcon },
+        { path: '/admin/ops', label: t('nav.ops'), icon: ChartIcon, featureFlag: flagOpsMonitoring },
+        { path: '/admin/risk-control', label: t('nav.contentModeration'), icon: ShieldIcon, featureFlag: flagRiskControl },
+        { path: '/admin/prompt-audit', label: t('nav.promptAudit'), icon: ShieldIcon, featureFlag: flagRiskControl },
+        { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
+        { path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ShieldIcon, hideInSimpleMode: true },
       ],
     },
-    { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
-    { path: '/admin/research', label: t('nav.adminResearch'), icon: AcademicCapIcon, hideInSimpleMode: true },
-    { path: '/admin/reward-grants', label: t('nav.rewardGrants'), icon: BanknotesIcon, hideInSimpleMode: true },
-    { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
-    {
-      path: '/admin/affiliates',
-      label: t('nav.affiliateManagement'),
-      icon: UsersIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      featureFlag: flagAffiliate,
-      children: [
-        { path: '/admin/affiliates/invites', label: t('nav.affiliateInviteRecords'), icon: UsersIcon },
-        { path: '/admin/affiliates/rebates', label: t('nav.affiliateRebateRecords'), icon: OrderIcon },
-        { path: '/admin/affiliates/transfers', label: t('nav.affiliateTransferRecords'), icon: CreditCardIcon },
-      ],
-    },
-    {
-      path: '/admin/orders',
-      label: t('nav.orderManagement'),
-      icon: OrderIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      featureFlag: flagAdminPayment,
-      children: [
-        { path: '/admin/orders/dashboard', label: t('nav.paymentDashboard'), icon: ChartIcon },
-        { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon },
-        { path: '/admin/orders/plans', label: t('nav.paymentPlans'), icon: CreditCardIcon },
-      ],
-    },
-    { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon },
-    { path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ShieldIcon, hideInSimpleMode: true }
   ]
 
-  const visible = applyFeatureFlags(baseItems)
+  // 递归应用功能旗标，并剪掉空分类组（所有子项都被旗标隐藏时）
+  const visible = pruneEmptyExpandOnlyGroups(applyFeatureFlags(baseItems))
 
   // 简单模式下，在系统设置前插入 API密钥
   if (authStore.isSimpleMode) {
@@ -1212,7 +1245,8 @@ function isActive(path: string): boolean {
 
 function isGroupActive(item: NavItem): boolean {
   if (!item.children) return false
-  return item.children.some(child => route.path === child.path)
+  // startsWith 覆盖详情页（如 /admin/users/:id 仍让「用户与订阅」组保持展开高亮）
+  return item.children.some(child => route.path === child.path || route.path.startsWith(child.path + '/'))
 }
 
 function isGroupExpanded(item: NavItem): boolean {
@@ -1220,6 +1254,8 @@ function isGroupExpanded(item: NavItem): boolean {
   if (override !== undefined) return override
   // 固定门户分组默认展开；用户手动收起后（override 生效）尊重用户的选择
   if (item.defaultExpanded) return true
+  // 新手引导进行中展开全部分类组，保证 tour 目标元素（#sidebar-wallet 等分类子项）在 DOM 中
+  if (onboardingStore.isDriverActive()) return true
   return isGroupActive(item)
 }
 
