@@ -688,6 +688,14 @@ func ProvideImageTaskService(store ImageTaskStore, settings *ImageStorageSetting
 	return NewImageTaskServiceWithResolver(store, settings.Resolver(), defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 }
 
+// ProvideMusicTaskService 构造异步音乐生成任务服务。
+//
+// 与异步生图不同，对象存储是增强而非开关：上传器可用时音频转存对象存储并只留
+// audio_url；不可用时回退内联 base64（封顶 10MB），功能始终可用。
+func ProvideMusicTaskService(store MusicTaskStore, settings *ImageStorageSettingService) *MusicTaskService {
+	return NewMusicTaskServiceWithResolver(store, settings.Resolver(), defaultMusicTaskTTL, defaultMusicTaskExecutionTimeout)
+}
+
 // ProvideBackupService creates and starts BackupService
 func ProvideBackupService(
 	settingRepo SettingRepository,
@@ -848,6 +856,7 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
+	ProvideMusicTaskService,
 	ProvideBatchImageModelPricingResolver,
 	NewBatchImagePublicService,
 	NewBatchImageDownloadService,

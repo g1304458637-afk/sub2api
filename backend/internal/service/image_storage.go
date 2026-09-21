@@ -57,6 +57,15 @@ func defaultImageDownloadHTTPClient() *http.Client {
 	return &http.Client{Timeout: 60 * time.Second}
 }
 
+// Save 把一段已生成的媒体字节直接写入底层对象存储并返回可访问 URL。
+// 异步音乐任务用它自托管上游音频（上游 CDN 直链会过期）。
+func (u *ImageResultUploader) Save(ctx context.Context, key, contentType string, data []byte) (string, error) {
+	if u == nil || u.storage == nil {
+		return "", errors.New("object storage is not configured")
+	}
+	return u.storage.Save(ctx, key, contentType, data)
+}
+
 // Rewrite 将 result（上游生图响应 JSON）里的每张图片转存到对象存储，
 // 返回改写后的紧凑结果（data[i].url 指向对象存储，b64_json 被移除）。
 // 任一图片转存失败即返回 error（调用方据此将任务标记为失败，绝不把大 blob 落 Redis）。

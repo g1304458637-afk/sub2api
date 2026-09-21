@@ -32,12 +32,20 @@
           :models="imageModels"
           :generating="generating"
           :show-prompt-error="showPromptError"
+          :context-image="contextImage"
           @submit="generate"
+          @clear-context="clearContext"
         />
 
-        <!-- 结果区 -->
+        <!-- 会话线程 -->
         <div class="mt-8">
-          <DrawGallery :items="images" />
+          <DrawThread
+            :turns="turns"
+            :pending-prompt="pendingPrompt"
+            :context-image-id="contextImage?.id ?? null"
+            @select-context="selectContext"
+            @retry="retryTurn"
+          />
         </div>
 
         <p class="mt-6 text-center text-xs text-gray-400 dark:text-gray-500">{{ t('draw.saveHint') }}</p>
@@ -48,10 +56,11 @@
 
 <script setup lang="ts">
 /**
- * 网页绘图页（/draw，路由由外部注册）。
+ * 网页绘图页（/draw，路由由外部注册）——会话式多轮改图。
  * - 生图能力来自网页聊天配置（useWebChatStore）中 type=image 且非 api_only 的模型；
- * - 生成走 generateWebChatImages（JWT 面板鉴权封装）；
- * - 不做绘图历史持久化：结果仅保留在内存中，刷新即清。
+ * - 全新生成走 generateWebChatImages；设置编辑上下文后走 generateWebChatImageEdits（固定 n=1）；
+ * - 点击线程中任意图片将其选为上下文（编辑 chaining：生成成功后自动以新图作为下一轮上下文）；
+ * - 不做绘图历史持久化：会话仅保留在内存中，刷新即清；图片总量受 DRAW_RESULT_LIMIT 约束。
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -60,10 +69,16 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
 import DrawForm from '@/components/draw/DrawForm.vue'
-import DrawGallery from '@/components/draw/DrawGallery.vue'
-import { toDrawImageItem, DRAW_RESULT_LIMIT, type DrawImageItem } from '@/components/draw/types'
+import DrawThread from '@/components/draw/DrawThread.vue'
+import {
+  toDrawImageItem,
+  DRAW_RESULT_LIMIT,
+  type DrawImageItem,
+  type DrawTurn,
+  type DrawTurnRequest,
+} from '@/components/draw/types'
 import { useWebChatStore } from '@/stores/webChat'
-import { generateWebChatImages } from '@/api/webChat'
+import { generateWebChatImages, generateWebChatImageEdits } from '@/api/webChat'
 import { useAppStore } from '@/stores'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
@@ -112,9 +127,39 @@ watch(
   { immediate: true },
 )
 
+// ── 会话状态（仅内存） ──
+const turns = ref<DrawTurn[]>([])
+const pendingPrompt = ref<string | null>(null)
+/** 编辑上下文：线程中点击的图片；生成成功后自动指向本轮首图（chaining） */
+const contextImage = ref<DrawImageItem | null>(null)
+
+let turnSeq = 0
+
+function selectContext(item: DrawImageItem): void {
+  contextImage.value = item
+}
+
+function clearContext(): void {
+  contextImage.value = null
+}
+
+/** 追加一轮并把总图片数裁剪到 DRAW_RESULT_LIMIT（最老的先被丢弃） */
+function appendTurn(turn: DrawTurn): void {
+  turns.value.push(turn)
+  let total = turns.value.reduce((sum, entry) => sum + entry.images.length, 0)
+  while (total > DRAW_RESULT_LIMIT) {
+    const oldest = turns.value[0]
+    if (!oldest || oldest.images.length === 0) break
+    oldest.images.shift()
+    total -= 1
+    if (oldest.images.length === 0) {
+      turns.value.shift()
+    }
+  }
+}
+
 // ── 生成 ──
 const generating = ref(false)
-const images = ref<DrawImageItem[]>([])
 
 async function generate(): Promise<void> {
   if (generating.value) return
@@ -122,28 +167,87 @@ async function generate(): Promise<void> {
   const trimmedPrompt = prompt.value.trim()
   if (!trimmedPrompt || !selectedModel.value) return
 
+  // 提示词随轮次上屏，输入框进入下一轮（会话式）
+  showPromptError.value = false
+  prompt.value = ''
+  await runGenerate({
+    prompt: trimmedPrompt,
+    model: selectedModel.value,
+    size: selectedSize.value,
+    n: selectedCount.value,
+    contextImage: contextImage.value,
+  })
+}
+
+/** 失败轮重试：移除失败轮并按原参数重新提交 */
+async function retryTurn(turn: DrawTurn): Promise<void> {
+  if (generating.value || !turn.request) return
+  turns.value = turns.value.filter((entry) => entry.id !== turn.id)
+  await runGenerate(turn.request)
+}
+
+async function runGenerate(request: DrawTurnRequest): Promise<void> {
+  if (generating.value) return
   generating.value = true
+  pendingPrompt.value = request.prompt
   try {
-    const results = await generateWebChatImages({
-      model: selectedModel.value,
-      prompt: trimmedPrompt,
-      size: selectedSize.value,
-      n: selectedCount.value,
-    })
+    // 编辑模式：以参考图发起 edits（固定 n=1）；否则全新生成
+    const contextSrc = request.contextImage
+      ? (request.contextImage.dataUrl ?? request.contextImage.src)
+      : null
+    const results = contextSrc
+      ? await generateWebChatImageEdits({
+          model: request.model,
+          prompt: request.prompt,
+          image: [contextSrc],
+          size: request.size,
+          n: 1,
+        })
+      : await generateWebChatImages({
+          model: request.model,
+          prompt: request.prompt,
+          size: request.size,
+          n: request.n,
+        })
+
     if (!Array.isArray(results) || results.length === 0) {
-      appStore.showError(t('draw.generateFailed'))
+      appendTurn({
+        id: nextTurnId(),
+        prompt: request.prompt,
+        images: [],
+        error: t('draw.generateFailed'),
+        request,
+      })
       return
     }
-    const items = results.map((result, index) =>
-      toDrawImageItem(result, trimmedPrompt, index),
-    )
-    // 最新一批排在最前；仅保存在内存中，刷新即清，控制总量防止 b64 撑爆内存
-    images.value = [...items, ...images.value].slice(0, DRAW_RESULT_LIMIT)
+
+    const items = results.map((result, index) => toDrawImageItem(result, request.prompt, index))
+    const firstImage = items[0]
+    appendTurn({
+      id: firstImage ? `${firstImage.id}-turn` : nextTurnId(),
+      prompt: request.prompt,
+      images: items,
+      request,
+    })
+    // 编辑 chaining：新图自动成为下一轮的编辑上下文
+    contextImage.value = firstImage ?? null
   } catch (err) {
-    appStore.showError(extractApiErrorMessage(err, t('draw.generateFailed')))
+    appendTurn({
+      id: nextTurnId(),
+      prompt: request.prompt,
+      images: [],
+      error: extractApiErrorMessage(err, t('draw.generateFailed')),
+      request,
+    })
   } finally {
+    pendingPrompt.value = null
     generating.value = false
   }
+}
+
+function nextTurnId(): string {
+  turnSeq += 1
+  return `draw-turn-${Date.now()}-${turnSeq}`
 }
 
 onMounted(() => {

@@ -31,6 +31,10 @@ func RegisterWebChatRoutes(
 			webChat.GET("/config", h.WebChat.GetConfig)
 			webChat.POST("/chat/completions", h.WebChat.ChatCompletions)
 			webChat.POST("/images/generations", h.WebChat.ImagesGenerations)
+			webChat.POST("/images/edits", h.WebChat.ImagesEdits)
+			webChat.POST("/audio/speech", h.WebChat.AudioSpeech)
+			webChat.POST("/music/generations", h.WebChat.MusicGenerations)
+			webChat.GET("/music/tasks/:task_id", h.WebChat.MusicTaskGet)
 		}
 	}
 }

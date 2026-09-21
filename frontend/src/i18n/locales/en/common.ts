@@ -223,6 +223,8 @@ export default {
     groupMine: 'My Account',
     chat: 'AI Chat',
     draw: 'Image Generation',
+    tts: 'Text to Speech',
+    music: 'Music',
     mucDownload: 'Download MUC',
   },
 

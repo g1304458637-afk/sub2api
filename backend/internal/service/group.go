@@ -69,6 +69,8 @@ type Group struct {
 	AudioRealtimePricePerMin     *float64
 	AudioTTSPricePerMillionChars *float64
 	AudioSTTPricePerHour         *float64
+	// 音乐生成按首计价；nil = 默认价 defaultMusicPricePerTrack，显式 0 = 免费。
+	MusicPricePerTrack *float64
 
 	// ModelPricing overrides channel and built-in prices for matching models.
 	// Token intervals are selected only when LongContextPricingEnabled is true.

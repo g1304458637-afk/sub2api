@@ -221,6 +221,26 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/tts',
+    name: 'Tts',
+    component: () => import('@/views/user/TtsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Text to Speech'
+    }
+  },
+  {
+    path: '/music',
+    name: 'Music',
+    component: () => import('@/views/user/MusicView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Music'
+    }
+  },
+  {
     path: '/dashboard',
     name: 'Dashboard',
     component: () => import('@/views/user/DashboardView.vue'),

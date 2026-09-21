@@ -908,6 +908,7 @@ func groupMediaPricingLooksIncomplete(group *Group) bool {
 		group.AudioRealtimePricePerMin != nil ||
 		group.AudioTTSPricePerMillionChars != nil ||
 		group.AudioSTTPricePerHour != nil ||
+		group.MusicPricePerTrack != nil ||
 		group.WebSearchPricePerCall != nil {
 		return false
 	}

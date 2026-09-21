@@ -23,6 +23,13 @@ export default {
       promptRequired: 'Please enter a prompt first',
       generate: 'Generate',
       generating: 'Generating…',
+      editWithContext: 'Edit based on this image',
+      clearContext: 'Remove base image',
+      continueEdit: 'Continue editing',
+    },
+    thread: {
+      generatingPlaceholder: 'Generating…',
+      turnRetry: 'Retry',
     },
     gallery: {
       title: 'Results',

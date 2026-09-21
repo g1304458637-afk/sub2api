@@ -95,6 +95,24 @@ func RegisterGatewayRoutes(
 			})
 		}
 	}
+	// OpenAI 形状的 TTS：PlatformGrok 复用 xAI 原生 Voice TTS，PlatformOpenAI
+	// 走 apikey 透传（与 imagesHandler 相同的平台准入口径）。
+	audioSpeechHandler := func(c *gin.Context) {
+		switch getGroupPlatform(c) {
+		case service.PlatformOpenAI:
+			h.OpenAIGateway.Speech(c)
+		case service.PlatformGrok:
+			h.OpenAIGateway.GrokVoice(c, "tts")
+		default:
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": gin.H{
+					"type":    "not_found_error",
+					"message": "Audio Speech API is not supported for this platform",
+				},
+			})
+		}
+	}
 	videoGenerationHandler := func(c *gin.Context) {
 		// Video status/content lookups below already allow Composite groups; keep
 		// task creation aligned so composite keys that route to Grok accounts can
@@ -256,6 +274,7 @@ func RegisterGatewayRoutes(
 		})
 		gateway.POST("/images/generations", imagesHandler)
 		gateway.POST("/images/edits", imagesHandler)
+		gateway.POST("/audio/speech", audioSpeechHandler)
 		gateway.POST("/images/generations/async", h.AsyncImage.Submit)
 		gateway.POST("/images/edits/async", h.AsyncImage.Submit)
 		gateway.GET("/images/tasks/:task_id", h.AsyncImage.Get)
@@ -413,6 +432,7 @@ func RegisterGatewayRoutes(
 	})
 	rootRoute(http.MethodPost, "/images/generations", bodyLimit, imagesHandler)
 	rootRoute(http.MethodPost, "/images/edits", bodyLimit, imagesHandler)
+	rootRoute(http.MethodPost, "/audio/speech", bodyLimit, audioSpeechHandler)
 	rootRoute(http.MethodPost, "/images/generations/async", bodyLimit, h.AsyncImage.Submit)
 	rootRoute(http.MethodPost, "/images/edits/async", bodyLimit, h.AsyncImage.Submit)
 	rootRoute(http.MethodGet, "/images/tasks/:task_id", bodyLimit, h.AsyncImage.Get)

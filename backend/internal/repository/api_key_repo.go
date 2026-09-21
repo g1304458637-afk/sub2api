@@ -998,6 +998,7 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		AudioRealtimePricePerMin:        g.AudioRealtimePricePerMin,
 		AudioTTSPricePerMillionChars:    g.AudioTtsPricePerMillionChars,
 		AudioSTTPricePerHour:            g.AudioSttPricePerHour,
+		MusicPricePerTrack:              g.MusicPricePerTrack,
 		LongContextPricingEnabled:       g.LongContextPricingEnabled,
 		ModelPricing:                    modelPricing,
 		DefaultValidityDays:             g.DefaultValidityDays,

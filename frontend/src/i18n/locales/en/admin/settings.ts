@@ -162,6 +162,8 @@ export default {
           descriptionPlaceholder: 'Description',
           typeChat: 'Chat',
           typeImage: 'Image',
+          typeTts: 'TTS',
+          typeMusic: 'Music',
           removeModel: 'Remove this model',
           col: {
             model: 'Model',

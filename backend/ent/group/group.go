@@ -96,6 +96,8 @@ const (
 	FieldAudioTtsPricePerMillionChars = "audio_tts_price_per_million_chars"
 	// FieldAudioSttPricePerHour holds the string denoting the audio_stt_price_per_hour field in the database.
 	FieldAudioSttPricePerHour = "audio_stt_price_per_hour"
+	// FieldMusicPricePerTrack holds the string denoting the music_price_per_track field in the database.
+	FieldMusicPricePerTrack = "music_price_per_track"
 	// FieldLongContextPricingEnabled holds the string denoting the long_context_pricing_enabled field in the database.
 	FieldLongContextPricingEnabled = "long_context_pricing_enabled"
 	// FieldModelPricing holds the string denoting the model_pricing field in the database.
@@ -265,6 +267,7 @@ var Columns = []string{
 	FieldAudioRealtimePricePerMin,
 	FieldAudioTtsPricePerMillionChars,
 	FieldAudioSttPricePerHour,
+	FieldMusicPricePerTrack,
 	FieldLongContextPricingEnabled,
 	FieldModelPricing,
 	FieldClaudeCodeOnly,
@@ -387,6 +390,8 @@ var (
 	AudioTtsPricePerMillionCharsValidator func(float64) error
 	// AudioSttPricePerHourValidator is a validator for the "audio_stt_price_per_hour" field. It is called by the builders before save.
 	AudioSttPricePerHourValidator func(float64) error
+	// MusicPricePerTrackValidator is a validator for the "music_price_per_track" field. It is called by the builders before save.
+	MusicPricePerTrackValidator func(float64) error
 	// DefaultLongContextPricingEnabled holds the default value on creation for the "long_context_pricing_enabled" field.
 	DefaultLongContextPricingEnabled bool
 	// DefaultClaudeCodeOnly holds the default value on creation for the "claude_code_only" field.
@@ -642,6 +647,11 @@ func ByAudioTtsPricePerMillionChars(opts ...sql.OrderTermOption) OrderOption {
 // ByAudioSttPricePerHour orders the results by the audio_stt_price_per_hour field.
 func ByAudioSttPricePerHour(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAudioSttPricePerHour, opts...).ToFunc()
+}
+
+// ByMusicPricePerTrack orders the results by the music_price_per_track field.
+func ByMusicPricePerTrack(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMusicPricePerTrack, opts...).ToFunc()
 }
 
 // ByLongContextPricingEnabled orders the results by the long_context_pricing_enabled field.

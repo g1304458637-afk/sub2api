@@ -23,6 +23,13 @@ export default {
       promptRequired: '请先输入提示词',
       generate: '生成图片',
       generating: '生成中…',
+      editWithContext: '基于此图编辑',
+      clearContext: '移除参考图',
+      continueEdit: '继续编辑',
+    },
+    thread: {
+      generatingPlaceholder: '正在生成…',
+      turnRetry: '重试',
     },
     gallery: {
       title: '生成结果',

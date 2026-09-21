@@ -162,6 +162,8 @@ export default {
           descriptionPlaceholder: '描述',
           typeChat: '对话',
           typeImage: '绘图',
+          typeTts: '语音合成',
+          typeMusic: '音乐合成',
           removeModel: '删除该模型',
           col: {
             model: '模型',
