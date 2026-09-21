@@ -578,6 +578,28 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/reset-center',
+    name: 'AdminResetCenter',
+    component: () => import('@/views/admin/ResetCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Reset Center',
+      titleKey: 'admin.resetCenter.title'
+    }
+  },
+  {
+    path: '/admin/reward-center',
+    name: 'AdminRewardCenter',
+    component: () => import('@/views/admin/RewardCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Reward Center',
+      titleKey: 'admin.rewardCenter.title'
+    }
+  },
+  {
     path: '/admin/accounts',
     name: 'AdminAccounts',
     component: () => import('@/views/admin/AccountsView.vue'),
