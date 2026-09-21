@@ -114,6 +114,20 @@ export async function getAccountStatus(): Promise<AccountStatus> {
   return response.data
 }
 
+export type WalletLedgerEntry = {
+  type: 'recharge' | 'redeem' | 'reward' | 'payg_day'
+  amount: number
+  ref?: string
+  created_at: string
+}
+
+export async function getWalletLedger(limit = 50): Promise<{ entries: WalletLedgerEntry[] }> {
+  const response = await apiClient.get<{ entries: WalletLedgerEntry[] }>('/wallet/ledger', {
+    params: { page_size: limit }
+  })
+  return response.data
+}
+
 // ── Phase 10 Plan Change（升级/到期切换）；金额全部来自服务端权威报价 ──
 
 /** 服务端权威报价。金额字段为 decimal 字符串（后端 json:",string"），禁止用 float 重算。 */
@@ -278,6 +292,7 @@ export default {
   scheduleDowngrade,
   cancelScheduledDowngrade,
   getSubscriptionChanges,
+  getWalletLedger,
   resetWithCard,
   updatePaygFallback
 }

@@ -79,10 +79,52 @@
       <Pagination v-if="orderPagination.total > 0" :page="orderPagination.page" :total="orderPagination.total" :page-size="orderPagination.page_size" @update:page="handleOrderPageChange" @update:pageSize="handleOrderPageSizeChange" />
       </template>
 
-      <!-- Tab 2: 套餐变更（plan_change 订单；scheduled downgrade 非支付订单，admin 审计端点暂缺 — BLOCKED #3） -->
+      <!-- Tab 2: 套餐变更（admin /admin/plan-changes 全量审计：升级 + 预约降级） -->
       <template v-else-if="financeTab === 'changes'">
-        <div class="card p-4 text-xs text-gray-500 dark:text-dark-400">{{ t('payment.admin.financeChangesNote') }}</div>
-        <OrderTable :orders="planChangeOrders" :loading="changesLoading" show-user show-type />
+        <div class="card p-4">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <Select v-model="planChangeStatusFilter" :options="planChangeStatusOptions" class="w-44" @change="loadPlanChanges" />
+            <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('payment.admin.financeChangesTotal', { total: planChangeTotal }) }}</span>
+          </div>
+          <p v-if="!changesLoading && planChangeRows.length === 0" class="text-sm text-gray-500 dark:text-dark-400">{{ t('payment.admin.financeChangesEmpty') }}</p>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="border-b border-gray-100 text-xs text-gray-500 dark:border-dark-700 dark:text-dark-400">
+                  <th class="py-2 pr-4">ID</th>
+                  <th class="py-2 pr-4">{{ t('payment.admin.pcUser') }}</th>
+                  <th class="py-2 pr-4">{{ t('payment.admin.pcType') }}</th>
+                  <th class="py-2 pr-4">{{ t('payment.admin.pcTier') }}</th>
+                  <th class="py-2 pr-4">{{ t('payment.admin.pcAmount') }}</th>
+                  <th class="py-2 pr-4">{{ t('payment.admin.pcStatus') }}</th>
+                  <th class="py-2 pr-4">{{ t('payment.orders.createdAt') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in planChangeRows" :key="row.ID" class="border-b border-gray-50 dark:border-dark-700/50">
+                  <td class="py-2 pr-4 font-mono text-xs">{{ row.ID }}</td>
+                  <td class="py-2 pr-4">{{ row.UserID }}</td>
+                  <td class="py-2 pr-4">{{ row.ChangeType === 'upgrade' ? t('payment.orders.planChangeUpgrade') : t('payment.orders.planChangeDowngrade') }}</td>
+                  <td class="py-2 pr-4">{{ row.FromTier }} → {{ row.ToTier }}</td>
+                  <td class="py-2 pr-4">{{ row.ChangeType === 'upgrade' ? `$${row.AmountDue.toFixed(2)}` : '—' }}</td>
+                  <td class="py-2 pr-4">
+                    <span
+                      class="rounded-full border px-2 py-0.5 text-[11px]"
+                      :class="row.Status === 'fulfilled'
+                        ? 'border-emerald-200 text-emerald-600'
+                        : row.Status === 'cancelled'
+                          ? 'border-gray-200 text-gray-400 dark:border-dark-600 dark:text-dark-400'
+                          : 'border-amber-200 text-amber-600'"
+                    >
+                      {{ t('payment.orders.planChangeStatus.' + row.Status, row.Status) }}
+                    </span>
+                  </td>
+                  <td class="py-2 pr-4 text-xs text-gray-500">{{ fmtLedgerDate(row.CreatedAt) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </template>
 
       <!-- Tab 3: 钱包流水（全局 ledger 后端暂缺 — BLOCKED #1；先提供按用户查询） -->
@@ -167,6 +209,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
+import { adminAPI } from '@/api/admin'
+import type { AdminPlanChangeRow } from '@/api/admin/subscriptionReset'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { formatOrderDateTime } from '@/components/payment/orderUtils'
 import type { PaymentOrder } from '@/types/payment'
@@ -198,8 +242,33 @@ const orderFilters = reactive({ status: '', payment_type: '', order_type: '' })
 
 // ── Finance Center tabs（Final Frontend C8）──
 const financeTab = ref<'orders' | 'changes' | 'ledger'>('orders')
-const planChangeOrders = ref<PaymentOrder[]>([])
+const planChangeRows = ref<AdminPlanChangeRow[]>([])
+const planChangeTotal = ref(0)
+const planChangeStatusFilter = ref('')
+const planChangeStatusOptions = [
+  { value: '', label: 'All' },
+  { value: 'quoted', label: 'quoted' },
+  { value: 'scheduled', label: 'scheduled' },
+  { value: 'paid', label: 'paid' },
+  { value: 'fulfilled', label: 'fulfilled' },
+  { value: 'cancelled', label: 'cancelled' }
+]
 const changesLoading = ref(false)
+
+async function loadPlanChanges() {
+  changesLoading.value = true
+  try {
+    const res = await adminAPI.planChanges.list({
+      page: 1,
+      page_size: 30,
+      status: planChangeStatusFilter.value || undefined
+    })
+    planChangeRows.value = res.data.items ?? []
+    planChangeTotal.value = res.data.total ?? 0
+  } finally {
+    changesLoading.value = false
+  }
+}
 const ledgerUserId = ref<number>()
 const ledgerLoading = ref(false)
 const ledgerRows = ref<Array<{ id?: number; code?: string; created_at?: string }>>([])
@@ -207,14 +276,8 @@ const ledgerError = ref('')
 
 async function switchFinanceTab(tab: 'orders' | 'changes' | 'ledger') {
   financeTab.value = tab
-  if (tab === 'changes' && planChangeOrders.value.length === 0) {
-    changesLoading.value = true
-    try {
-      const res = await adminPaymentAPI.getOrders({ page: 1, page_size: 30, order_type: 'plan_change' })
-      planChangeOrders.value = res.data.items ?? []
-    } finally {
-      changesLoading.value = false
-    }
+  if (tab === 'changes') {
+    await loadPlanChanges()
   }
 }
 

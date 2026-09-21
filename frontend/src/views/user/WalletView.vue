@@ -29,7 +29,24 @@
         <MucSectionHeader :title="t('wallet.historyTitle')" :description="t('wallet.historyDesc')" />
 
         <MucGlassCard class="muc-wallet__history">
-          <MucState :message="t('wallet.historyEmpty')" icon="inbox" />
+          <div v-if="ledgerLoading" class="muc-wallet__skeleton">
+            <MucSkeleton v-for="i in 3" :key="i" height="34px" />
+          </div>
+          <MucState v-else-if="ledger.length === 0" :message="t('wallet.historyEmpty')" icon="inbox" />
+          <ul v-else class="muc-wallet__list">
+            <li v-for="(entry, i) in ledger" :key="i" class="muc-wallet__row">
+              <div class="muc-wallet__entry">
+                <span class="muc-wallet__type">{{ t('wallet.ledgerType.' + entry.type) }}</span>
+                <span class="muc-wallet__ref">{{ entry.ref || ledgerDate(entry.created_at) }}</span>
+              </div>
+              <span
+                class="muc-wallet__amount"
+                :class="entry.amount >= 0 ? 'muc-wallet__amount--in' : 'muc-wallet__amount--out'"
+              >
+                {{ entry.amount >= 0 ? '+' : '' }}${{ entry.amount.toFixed(2) }}
+              </span>
+            </li>
+          </ul>
         </MucGlassCard>
 
         <!-- 奖励记录：学生认证奖励等（Reward → Wallet 自动入账）。
@@ -62,7 +79,7 @@ import MucButton from '@/components/muc/MucButton.vue'
 import MucSectionHeader from '@/components/muc/MucSectionHeader.vue'
 import MucState from '@/components/muc/MucState.vue'
 import MucRewardGiftCard from '@/components/muc/MucRewardGiftCard.vue'
-import { getAccountStatus } from '@/api/subscriptions'
+import { getAccountStatus, getWalletLedger, type WalletLedgerEntry } from '@/api/subscriptions'
 import { paymentAPI } from '@/api/payment'
 import type { PaymentConfig } from '@/types/payment'
 import {
@@ -85,6 +102,16 @@ const balance = ref<string | null>(null)
 const canonicalCurrency = ref('')
 const displayRate = ref(0)
 const showRewardSample = ref(true)
+const ledger = ref<WalletLedgerEntry[]>([])
+const ledgerLoading = ref(true)
+
+function ledgerDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString()
+  } catch {
+    return iso
+  }
+}
 
 const loc = computed(() => (typeof locale.value === 'string' ? locale.value : undefined))
 
@@ -107,14 +134,17 @@ const cnyApproxDisplay = computed(() => {
 
 onMounted(async () => {
   try {
-    const [status, config] = await Promise.all([
+    const [status, config, ledgerRes] = await Promise.all([
       getAccountStatus(),
-      paymentAPI.getConfig().catch(() => null)
+      paymentAPI.getConfig().catch(() => null),
+      getWalletLedger(50).catch(() => null)
     ])
     balance.value = status.wallet.balance
     canonicalCurrency.value = status.wallet.canonical_currency
     const cfg = config?.data as PaymentConfig | null
     displayRate.value = cfg?.usd_to_cny_display_rate ?? 0
+    ledger.value = ledgerRes?.entries ?? []
+    ledgerLoading.value = false
   } catch (err) {
     appStore.showError(
       err && typeof err === 'object' && 'message' in err
@@ -222,4 +252,61 @@ function goRecharge() {
   justify-content: center;
   padding: 20px;
 }
+
+.muc-wallet__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.muc-wallet__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muc-wallet__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--muc-glass-border);
+}
+
+.muc-wallet__row:last-child {
+  border-bottom: none;
+}
+
+.muc-wallet__entry {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.muc-wallet__type {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.muc-wallet__ref {
+  font-size: 11px;
+  color: var(--muc-text-muted);
+}
+
+.muc-wallet__amount {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.muc-wallet__amount--in {
+  color: #6fd598;
+}
+
+.muc-wallet__amount--out {
+  color: #ff8b96;
+}
+
 </style>

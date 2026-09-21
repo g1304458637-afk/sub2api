@@ -101,6 +101,65 @@ export interface ResetCardRow {
   campaign?: string
 }
 
+// ── Reward 发放审计 / 套餐变更审计（Final Frontend CLOSURE）──
+
+export interface RewardGrantView {
+  id: number
+  user_id: number
+  source_type: string
+  campaign: string
+  amount: number
+  granted_by?: number
+  created_at: string
+}
+
+export interface RewardStats {
+  today_count: number
+  today_sum: number
+  month_count: number
+  month_sum: number
+}
+
+export const rewardsAPI = {
+  list(params?: { user_id?: number; page?: number; page_size?: number }) {
+    return apiClient.get<{ items: RewardGrantView[]; total: number }>('/admin/rewards', { params })
+  },
+  stats(params?: { user_id?: number }) {
+    return apiClient.get<RewardStats>('/admin/rewards/stats', { params })
+  }
+}
+
+export interface AdminPlanChangeRow {
+  ID: number
+  UserID: number
+  SubscriptionID: number
+  ChangeType: 'upgrade' | 'scheduled_downgrade' | string
+  FromPlanID: number | null
+  ToPlanID: number
+  ToGroupID: number
+  FromTier: number
+  ToTier: number
+  NewPriceSnapshot: number
+  Currency: string
+  AmountDue: number
+  Status: string
+  OrderID: number | null
+  EffectiveAt: string | null
+  CreatedAt: string
+}
+
+export const planChangesAPI = {
+  list(params?: {
+    user_id?: number
+    subscription_id?: number
+    status?: string
+    page?: number
+    page_size?: number
+  }) {
+    return apiClient.get<{ items: AdminPlanChangeRow[]; total: number }>('/admin/plan-changes', { params })
+  }
+}
+
 export const resetCardsAPI = {
   grantPreview(request: Omit<GrantResetCardsRequest, 'idempotency_key'>) {
     return apiClient.post<{ unique_users: number; total_cards: number }>(

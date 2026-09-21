@@ -30,11 +30,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
-// 背景视频资产：同名替换 src/assets/muc/pricing-bg.mp4 即可。
-import pricingBgVideoUrl from '../../assets/muc/pricing-bg.mp4?url'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-const videoUrl = ref(pricingBgVideoUrl)
+// 背景视频：用户提供的 CDN 资产（避免 16.5MB 二进制长期占用 Git 历史）。
+// 加载失败（网络不可达/CSP）时回退到深色 CSS 极光背景，Pricing 功能不受影响。
+const PRICING_VIDEO_URL =
+  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260508_064122_c4750c0e-7476-4b44-94a2-a85a65c63bf2.mp4'
+
+const videoUrl = ref(PRICING_VIDEO_URL)
 const videoFailed = ref(false)
 const videoActive = computed(() => !!videoUrl.value && !videoFailed.value)
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -130,7 +133,36 @@ function onReady() {
   }
 }
 
+// ── 页面可见性：hidden 时停止 rAF/倒放等无效工作（后台标签 interval 也会被节流，
+// 与其慢速空转不如挂起）；恢复可见时按原方向/时间安全续播，不叠 seek ──
+function onVisibilityChange() {
+  const video = videoRef.value
+  if (!video) return
+  if (document.hidden) {
+    cancelSeekLoop()
+    video.pause()
+    return
+  }
+  if (window.matchMedia(REDUCED_MOTION_QUERY).matches) return
+  if (direction === -1) {
+    // 恢复倒放：从当前时间继续（direction 未变，startReverseSeek 内部有防重入）
+    if (video.currentTime <= 0.05) {
+      video.currentTime = 0
+      direction = 1
+      reachedEnd = false
+    }
+    startReverseSeek()
+  } else if (!reachedEnd) {
+    void video.play().catch(() => {})
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
 onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   cancelSeekLoop()
 })
 </script>

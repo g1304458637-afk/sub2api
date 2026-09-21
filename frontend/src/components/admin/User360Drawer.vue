@@ -81,7 +81,7 @@
             <p v-if="planChangeOrders.length === 0" class="text-sm text-gray-500 dark:text-dark-400">{{ t('user360.noChanges') }}</p>
             <ul v-else class="space-y-1.5 text-sm">
               <li v-for="o in planChangeOrders" :key="o.id" class="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 dark:border-dark-700">
-                <span>{{ t('payment.orders.type_plan_change') }} · ${{ o.pay_amount?.toFixed(2) }}</span>
+                <span>{{ o.label }} · {{ o.tier }} · {{ o.amount }}</span>
                 <span class="text-xs text-gray-500">{{ o.status }} · {{ fmtDate(o.created_at) }}</span>
               </li>
             </ul>
@@ -182,7 +182,7 @@ const subscriptions = ref<SubRow[]>([])
 const apiKeys = ref<ApiKey[]>([])
 const resetCardRows = ref<ResetCardRow[]>([])
 const balanceHistory = ref<Array<{ id?: number; code?: string; created_at?: string }>>([])
-const planChangeOrders = ref<Array<{ id: number; pay_amount: number; status: string; created_at: string }>>([])
+const planChangeOrders = ref<Array<{ id: number; label: string; tier: string; amount: string; status: string; created_at: string }>>([])
 const resetCardsAvailable = ref(0)
 const resetting = ref(false)
 const granting = ref(false)
@@ -216,9 +216,7 @@ watch(
       adminAPI.users.getUserApiKeys(id).catch(() => null),
       adminAPI.users.getUserBalanceHistory(id, 1, 10).catch(() => null),
       adminAPI.resetCards.list({ user_id: id, page: 1, page_size: 20 }).catch(() => null),
-      adminAPI.payment
-        .getOrders({ page: 1, page_size: 20, user_id: id, order_type: 'plan_change' })
-        .catch(() => null),
+      adminAPI.planChanges.list({ user_id: id, page: 1, page_size: 20 }).catch(() => null),
       adminAPI.resetCards.count(id).catch(() => null)
     ])
     subscriptions.value =
@@ -232,9 +230,18 @@ watch(
     const cardsPayload = cardsRaw ?? null
     resetCardRows.value = Array.isArray(cardsPayload) ? cardsPayload : (cardsPayload?.items ?? [])
     const ordersRaw = (ordersRes as unknown as {
-      data?: { items?: Array<{ id: number; pay_amount: number; status: string; created_at: string }> }
+      data?: { items?: Array<{ ID: number; ChangeType: string; FromTier: number; ToTier: number; AmountDue: number; Status: string; CreatedAt: string }> }
     } | null)?.data
-    planChangeOrders.value = (ordersRaw?.items ?? []).slice(0, 10)
+    planChangeOrders.value = (ordersRaw?.items ?? []).map((r) => ({
+      id: r.ID,
+      label: r.ChangeType === 'upgrade'
+        ? t('payment.orders.planChangeUpgrade')
+        : t('payment.orders.planChangeDowngrade'),
+      tier: `${r.FromTier}→${r.ToTier}`,
+      amount: r.ChangeType === 'upgrade' ? `$${r.AmountDue.toFixed(2)}` : '—',
+      status: r.Status,
+      created_at: r.CreatedAt
+    })).slice(0, 10)
     const countRaw = (countRes as unknown as { data?: { available?: number } } | null)?.data
     resetCardsAvailable.value = typeof countRaw === 'number' ? countRaw : (countRaw?.available ?? 0)
   },

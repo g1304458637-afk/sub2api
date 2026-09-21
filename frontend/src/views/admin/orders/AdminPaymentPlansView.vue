@@ -150,6 +150,7 @@ const planColumns = computed((): Column[] => [
   { key: 'validity_days', label: t('payment.admin.validity') },
   { key: 'for_sale', label: t('payment.admin.forSale') },
   { key: 'sort_order', label: t('payment.admin.sortOrder') },
+  { key: 'tier_rank', label: t('payment.admin.tierRank') },
   { key: 'actions', label: t('common.actions') },
 ])
 

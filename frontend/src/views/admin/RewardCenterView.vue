@@ -59,28 +59,53 @@
         </template>
       </div>
 
-      <!-- 奖励记录：当前后端无 reward 查询端点（BLOCKED #2），统计区空态 + 卡片样式预览 -->
+      <!-- 奖励发放记录（admin /admin/rewards + /stats，CLOSURE 已解锁） -->
       <div class="card space-y-3 p-5">
         <h3 class="text-sm font-semibold">{{ t('rewardCenter.recordsTitle') }}</h3>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div class="rounded-xl border border-gray-100 p-3 text-center dark:border-dark-700">
             <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('rewardCenter.todayUsers') }}</p>
-            <p class="text-lg font-bold">—</p>
+            <p class="text-lg font-bold">{{ stats.today_count }}</p>
           </div>
           <div class="rounded-xl border border-gray-100 p-3 text-center dark:border-dark-700">
             <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('rewardCenter.todayAmount') }}</p>
-            <p class="text-lg font-bold">—</p>
+            <p class="text-lg font-bold">${{ stats.today_sum.toFixed(2) }}</p>
           </div>
           <div class="rounded-xl border border-gray-100 p-3 text-center dark:border-dark-700">
             <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('rewardCenter.monthUsers') }}</p>
-            <p class="text-lg font-bold">—</p>
+            <p class="text-lg font-bold">{{ stats.month_count }}</p>
           </div>
           <div class="rounded-xl border border-gray-100 p-3 text-center dark:border-dark-700">
             <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('rewardCenter.monthAmount') }}</p>
-            <p class="text-lg font-bold">—</p>
+            <p class="text-lg font-bold">${{ stats.month_sum.toFixed(2) }}</p>
           </div>
         </div>
-        <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('rewardCenter.recordsBlockedNote') }}</p>
+
+        <div v-if="grants.length" class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 text-xs text-gray-500 dark:border-dark-700 dark:text-dark-400">
+                <th class="py-2 pr-4">ID</th>
+                <th class="py-2 pr-4">{{ t('rewardCenter.userId') }}</th>
+                <th class="py-2 pr-4">{{ t('rewardCenter.sourceType') }}</th>
+                <th class="py-2 pr-4">{{ t('rewardCenter.campaignCol') }}</th>
+                <th class="py-2 pr-4">{{ t('rewardCenter.amountCol') }}</th>
+                <th class="py-2 pr-4">{{ t('rewardCenter.grantedAt') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="g in grants" :key="g.id" class="border-b border-gray-50 dark:border-dark-700/50">
+                <td class="py-2 pr-4 font-mono text-xs">{{ g.id }}</td>
+                <td class="py-2 pr-4">{{ g.user_id }}</td>
+                <td class="py-2 pr-4">{{ t('rewardCenter.source.' + g.source_type, g.source_type) }}</td>
+                <td class="py-2 pr-4 text-xs">{{ g.campaign || '—' }}</td>
+                <td class="py-2 pr-4 font-medium text-amber-600 dark:text-[#d6b46a]">+${{ g.amount.toFixed(2) }}</td>
+                <td class="py-2 pr-4 text-xs text-gray-500">{{ fmtDate(g.created_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="text-sm text-gray-500 dark:text-dark-400">{{ t('rewardCenter.noGrants') }}</p>
 
         <!-- 用户端 Gift Card 样式预览（管理员预览学生会看到什么；无动画） -->
         <div class="flex justify-center rounded-xl bg-gradient-to-b from-[#070708] to-[#101012] p-8">
@@ -117,6 +142,17 @@ const appStore = useAppStore()
 const configLoading = ref(true)
 const saving = ref(false)
 const savedMessage = ref('')
+const stats = ref({ today_count: 0, today_sum: 0, month_count: 0, month_sum: 0 })
+const grants = ref<Array<{ id: number; user_id: number; source_type: string; campaign: string; amount: number; created_at: string }>>([])
+
+function fmtDate(iso: string): string {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleDateString()
+  } catch {
+    return iso
+  }
+}
 const form = ref({ enabled: false, amount: 0, campaign: '' })
 
 const previewAmount = computed(() => `+$${Number(form.value.amount || 0).toFixed(2)}`)
@@ -125,7 +161,13 @@ void loc
 
 onMounted(async () => {
   try {
-    const data = await adminAPI.settings.getSettings()
+    const [data, rewardsRes, statsRes] = await Promise.all([
+      adminAPI.settings.getSettings(),
+      adminAPI.rewards.list({ page: 1, page_size: 20 }).catch(() => null),
+      adminAPI.rewards.stats().catch(() => null)
+    ])
+    if (rewardsRes) grants.value = rewardsRes.data.items ?? []
+    if (statsRes) stats.value = statsRes.data
     form.value = {
       enabled: (data as unknown as Record<string, unknown>).student_verification_reward_enabled === true,
       amount: Number((data as unknown as Record<string, unknown>).student_verification_reward_amount ?? 0),
