@@ -52,11 +52,13 @@ func TestEveryGatewayPOSTRouteIsClassifiedForPromptAuditCoverage(t *testing.T) {
 		"/x_search":                 {"gateway_web_search.go"},
 	}
 	excluded := map[string]string{
-		"/muc/reset-with-card/:id":   "subscription control operation; no model request or prompt",
-		"/messages/count_tokens":     "tokenization only; it does not execute a model request",
-		"/images/batches/:id/cancel": "control-plane cancellation with no user prompt",
-		"/stt":                       "speech transcription is not a text-generation prompt",
-		"/custom-voices":             "voice profile management has no model prompt",
+		"/muc/reset-with-card/:id/prepare":   "durable reset-operation preparation; no model request or prompt",
+		"/muc/reset-with-card/:id/reconcile": "reset receipt reconciliation and cancellation fence; no model request or prompt",
+		"/muc/reset-with-card/:id":           "subscription control operation; no model request or prompt",
+		"/messages/count_tokens":             "tokenization only; it does not execute a model request",
+		"/images/batches/:id/cancel":         "control-plane cancellation with no user prompt",
+		"/stt":                               "speech transcription is not a text-generation prompt",
+		"/custom-voices":                     "voice profile management has no model prompt",
 	}
 
 	unclassified := make([]string, 0)
