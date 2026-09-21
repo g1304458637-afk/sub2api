@@ -54,5 +54,6 @@ func groupAudioPriceConfigFromAPIKey(apiKey *APIKey) *audioPriceConfig {
 		RealtimePerMin: g.AudioRealtimePricePerMin,
 		TTSPerMChars:   g.AudioTTSPricePerMillionChars,
 		STTPerHour:     g.AudioSTTPricePerHour,
+		MusicPerTrack:  g.MusicPricePerTrack,
 	}
 }

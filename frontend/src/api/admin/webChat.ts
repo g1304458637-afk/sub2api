@@ -23,8 +23,13 @@ export interface WebChatModelSetting {
   display_name: string;
   vendor: string;
   description: string;
-  type: "chat" | "image";
+  type: "chat" | "image" | "tts" | "music";
   api_only: boolean;
+}
+
+/** 条目类型收敛：仅接受四个合法值，其余一律回落 chat */
+export function coerceWebChatModelType(value: unknown): WebChatModelSetting["type"] {
+  return value === "image" || value === "tts" || value === "music" ? value : "chat";
 }
 
 /**
@@ -46,7 +51,7 @@ export function parseWebChatModels(raw: unknown): WebChatModelSetting[] {
         display_name: typeof item.display_name === "string" ? item.display_name : "",
         vendor: typeof item.vendor === "string" ? item.vendor : "",
         description: typeof item.description === "string" ? item.description : "",
-        type: item.type === "image" ? ("image" as const) : ("chat" as const),
+        type: coerceWebChatModelType(item.type),
         api_only: item.api_only === true,
       }));
   } catch {
@@ -66,7 +71,7 @@ export function serializeWebChatModels(models: WebChatModelSetting[]): string {
       display_name: typeof m.display_name === "string" ? m.display_name : "",
       vendor: typeof m.vendor === "string" ? m.vendor : "",
       description: typeof m.description === "string" ? m.description : "",
-      type: m.type === "image" ? ("image" as const) : ("chat" as const),
+      type: coerceWebChatModelType(m.type),
       api_only: m.api_only === true,
     })),
   );

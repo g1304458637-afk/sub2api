@@ -215,6 +215,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		AudioRealtimePricePerMin:        g.AudioRealtimePricePerMin,
 		AudioTtsPricePerMillionChars:    g.AudioTTSPricePerMillionChars,
 		AudioSttPricePerHour:            g.AudioSTTPricePerHour,
+		MusicPricePerTrack:              g.MusicPricePerTrack,
 		ClaudeCodeOnly:                  g.ClaudeCodeOnly,
 		FallbackGroupID:                 g.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: g.FallbackGroupIDOnInvalidRequest,

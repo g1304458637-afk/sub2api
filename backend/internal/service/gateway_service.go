@@ -604,8 +604,8 @@ type ClaudeUsage struct {
 
 // ForwardResult 转发结果
 type AudioUsage struct {
-	Mode            string  // realtime | tts | stt
-	DurationOrUnits float64 // minutes / million-chars / hours
+	Mode            string  // realtime | tts | stt | music
+	DurationOrUnits float64 // minutes / million-chars / hours / tracks
 }
 
 type ForwardResult struct {

@@ -815,6 +815,33 @@ func (_u *GroupUpdate) ClearAudioSttPricePerHour() *GroupUpdate {
 	return _u
 }
 
+// SetMusicPricePerTrack sets the "music_price_per_track" field.
+func (_u *GroupUpdate) SetMusicPricePerTrack(v float64) *GroupUpdate {
+	_u.mutation.ResetMusicPricePerTrack()
+	_u.mutation.SetMusicPricePerTrack(v)
+	return _u
+}
+
+// SetNillableMusicPricePerTrack sets the "music_price_per_track" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableMusicPricePerTrack(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetMusicPricePerTrack(*v)
+	}
+	return _u
+}
+
+// AddMusicPricePerTrack adds value to the "music_price_per_track" field.
+func (_u *GroupUpdate) AddMusicPricePerTrack(v float64) *GroupUpdate {
+	_u.mutation.AddMusicPricePerTrack(v)
+	return _u
+}
+
+// ClearMusicPricePerTrack clears the value of the "music_price_per_track" field.
+func (_u *GroupUpdate) ClearMusicPricePerTrack() *GroupUpdate {
+	_u.mutation.ClearMusicPricePerTrack()
+	return _u
+}
+
 // SetLongContextPricingEnabled sets the "long_context_pricing_enabled" field.
 func (_u *GroupUpdate) SetLongContextPricingEnabled(v bool) *GroupUpdate {
 	_u.mutation.SetLongContextPricingEnabled(v)
@@ -1565,6 +1592,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "audio_stt_price_per_hour", err: fmt.Errorf(`ent: validator failed for field "Group.audio_stt_price_per_hour": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.MusicPricePerTrack(); ok {
+		if err := group.MusicPricePerTrackValidator(v); err != nil {
+			return &ValidationError{Name: "music_price_per_track", err: fmt.Errorf(`ent: validator failed for field "Group.music_price_per_track": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -1831,6 +1863,15 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.AudioSttPricePerHourCleared() {
 		_spec.ClearField(group.FieldAudioSttPricePerHour, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.MusicPricePerTrack(); ok {
+		_spec.SetField(group.FieldMusicPricePerTrack, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMusicPricePerTrack(); ok {
+		_spec.AddField(group.FieldMusicPricePerTrack, field.TypeFloat64, value)
+	}
+	if _u.mutation.MusicPricePerTrackCleared() {
+		_spec.ClearField(group.FieldMusicPricePerTrack, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.LongContextPricingEnabled(); ok {
 		_spec.SetField(group.FieldLongContextPricingEnabled, field.TypeBool, value)
@@ -3050,6 +3091,33 @@ func (_u *GroupUpdateOne) ClearAudioSttPricePerHour() *GroupUpdateOne {
 	return _u
 }
 
+// SetMusicPricePerTrack sets the "music_price_per_track" field.
+func (_u *GroupUpdateOne) SetMusicPricePerTrack(v float64) *GroupUpdateOne {
+	_u.mutation.ResetMusicPricePerTrack()
+	_u.mutation.SetMusicPricePerTrack(v)
+	return _u
+}
+
+// SetNillableMusicPricePerTrack sets the "music_price_per_track" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableMusicPricePerTrack(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetMusicPricePerTrack(*v)
+	}
+	return _u
+}
+
+// AddMusicPricePerTrack adds value to the "music_price_per_track" field.
+func (_u *GroupUpdateOne) AddMusicPricePerTrack(v float64) *GroupUpdateOne {
+	_u.mutation.AddMusicPricePerTrack(v)
+	return _u
+}
+
+// ClearMusicPricePerTrack clears the value of the "music_price_per_track" field.
+func (_u *GroupUpdateOne) ClearMusicPricePerTrack() *GroupUpdateOne {
+	_u.mutation.ClearMusicPricePerTrack()
+	return _u
+}
+
 // SetLongContextPricingEnabled sets the "long_context_pricing_enabled" field.
 func (_u *GroupUpdateOne) SetLongContextPricingEnabled(v bool) *GroupUpdateOne {
 	_u.mutation.SetLongContextPricingEnabled(v)
@@ -3813,6 +3881,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "audio_stt_price_per_hour", err: fmt.Errorf(`ent: validator failed for field "Group.audio_stt_price_per_hour": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.MusicPricePerTrack(); ok {
+		if err := group.MusicPricePerTrackValidator(v); err != nil {
+			return &ValidationError{Name: "music_price_per_track", err: fmt.Errorf(`ent: validator failed for field "Group.music_price_per_track": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -4096,6 +4169,15 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.AudioSttPricePerHourCleared() {
 		_spec.ClearField(group.FieldAudioSttPricePerHour, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.MusicPricePerTrack(); ok {
+		_spec.SetField(group.FieldMusicPricePerTrack, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMusicPricePerTrack(); ok {
+		_spec.AddField(group.FieldMusicPricePerTrack, field.TypeFloat64, value)
+	}
+	if _u.mutation.MusicPricePerTrackCleared() {
+		_spec.ClearField(group.FieldMusicPricePerTrack, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.LongContextPricingEnabled(); ok {
 		_spec.SetField(group.FieldLongContextPricingEnabled, field.TypeBool, value)

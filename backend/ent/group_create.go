@@ -574,6 +574,20 @@ func (_c *GroupCreate) SetNillableAudioSttPricePerHour(v *float64) *GroupCreate 
 	return _c
 }
 
+// SetMusicPricePerTrack sets the "music_price_per_track" field.
+func (_c *GroupCreate) SetMusicPricePerTrack(v float64) *GroupCreate {
+	_c.mutation.SetMusicPricePerTrack(v)
+	return _c
+}
+
+// SetNillableMusicPricePerTrack sets the "music_price_per_track" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableMusicPricePerTrack(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetMusicPricePerTrack(*v)
+	}
+	return _c
+}
+
 // SetLongContextPricingEnabled sets the "long_context_pricing_enabled" field.
 func (_c *GroupCreate) SetLongContextPricingEnabled(v bool) *GroupCreate {
 	_c.mutation.SetLongContextPricingEnabled(v)
@@ -1353,6 +1367,11 @@ func (_c *GroupCreate) check() error {
 			return &ValidationError{Name: "audio_stt_price_per_hour", err: fmt.Errorf(`ent: validator failed for field "Group.audio_stt_price_per_hour": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.MusicPricePerTrack(); ok {
+		if err := group.MusicPricePerTrackValidator(v); err != nil {
+			return &ValidationError{Name: "music_price_per_track", err: fmt.Errorf(`ent: validator failed for field "Group.music_price_per_track": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.LongContextPricingEnabled(); !ok {
 		return &ValidationError{Name: "long_context_pricing_enabled", err: errors.New(`ent: missing required field "Group.long_context_pricing_enabled"`)}
 	}
@@ -1623,6 +1642,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AudioSttPricePerHour(); ok {
 		_spec.SetField(group.FieldAudioSttPricePerHour, field.TypeFloat64, value)
 		_node.AudioSttPricePerHour = &value
+	}
+	if value, ok := _c.mutation.MusicPricePerTrack(); ok {
+		_spec.SetField(group.FieldMusicPricePerTrack, field.TypeFloat64, value)
+		_node.MusicPricePerTrack = &value
 	}
 	if value, ok := _c.mutation.LongContextPricingEnabled(); ok {
 		_spec.SetField(group.FieldLongContextPricingEnabled, field.TypeBool, value)
@@ -2581,6 +2604,30 @@ func (u *GroupUpsert) AddAudioSttPricePerHour(v float64) *GroupUpsert {
 // ClearAudioSttPricePerHour clears the value of the "audio_stt_price_per_hour" field.
 func (u *GroupUpsert) ClearAudioSttPricePerHour() *GroupUpsert {
 	u.SetNull(group.FieldAudioSttPricePerHour)
+	return u
+}
+
+// SetMusicPricePerTrack sets the "music_price_per_track" field.
+func (u *GroupUpsert) SetMusicPricePerTrack(v float64) *GroupUpsert {
+	u.Set(group.FieldMusicPricePerTrack, v)
+	return u
+}
+
+// UpdateMusicPricePerTrack sets the "music_price_per_track" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateMusicPricePerTrack() *GroupUpsert {
+	u.SetExcluded(group.FieldMusicPricePerTrack)
+	return u
+}
+
+// AddMusicPricePerTrack adds v to the "music_price_per_track" field.
+func (u *GroupUpsert) AddMusicPricePerTrack(v float64) *GroupUpsert {
+	u.Add(group.FieldMusicPricePerTrack, v)
+	return u
+}
+
+// ClearMusicPricePerTrack clears the value of the "music_price_per_track" field.
+func (u *GroupUpsert) ClearMusicPricePerTrack() *GroupUpsert {
+	u.SetNull(group.FieldMusicPricePerTrack)
 	return u
 }
 
@@ -3825,6 +3872,34 @@ func (u *GroupUpsertOne) UpdateAudioSttPricePerHour() *GroupUpsertOne {
 func (u *GroupUpsertOne) ClearAudioSttPricePerHour() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearAudioSttPricePerHour()
+	})
+}
+
+// SetMusicPricePerTrack sets the "music_price_per_track" field.
+func (u *GroupUpsertOne) SetMusicPricePerTrack(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetMusicPricePerTrack(v)
+	})
+}
+
+// AddMusicPricePerTrack adds v to the "music_price_per_track" field.
+func (u *GroupUpsertOne) AddMusicPricePerTrack(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddMusicPricePerTrack(v)
+	})
+}
+
+// UpdateMusicPricePerTrack sets the "music_price_per_track" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateMusicPricePerTrack() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateMusicPricePerTrack()
+	})
+}
+
+// ClearMusicPricePerTrack clears the value of the "music_price_per_track" field.
+func (u *GroupUpsertOne) ClearMusicPricePerTrack() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearMusicPricePerTrack()
 	})
 }
 
@@ -5299,6 +5374,34 @@ func (u *GroupUpsertBulk) UpdateAudioSttPricePerHour() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearAudioSttPricePerHour() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearAudioSttPricePerHour()
+	})
+}
+
+// SetMusicPricePerTrack sets the "music_price_per_track" field.
+func (u *GroupUpsertBulk) SetMusicPricePerTrack(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetMusicPricePerTrack(v)
+	})
+}
+
+// AddMusicPricePerTrack adds v to the "music_price_per_track" field.
+func (u *GroupUpsertBulk) AddMusicPricePerTrack(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddMusicPricePerTrack(v)
+	})
+}
+
+// UpdateMusicPricePerTrack sets the "music_price_per_track" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateMusicPricePerTrack() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateMusicPricePerTrack()
+	})
+}
+
+// ClearMusicPricePerTrack clears the value of the "music_price_per_track" field.
+func (u *GroupUpsertBulk) ClearMusicPricePerTrack() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearMusicPricePerTrack()
 	})
 }
 

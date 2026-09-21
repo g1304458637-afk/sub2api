@@ -223,6 +223,8 @@ export default {
     groupMine: '我的',
     chat: 'AI 对话',
     draw: '绘图',
+    tts: '语音合成',
+    music: '音乐合成',
     mucDownload: '下载 MUC',
   },
 

@@ -393,6 +393,7 @@ func TestAPIContracts(t *testing.T) {
 						"daily_limit_usd": null,
 						"weekly_limit_usd": null,
 						"monthly_limit_usd": null,
+						"music_price_per_track": null,
 						"long_context_pricing_enabled": false,
 						"image_price_1k": null,
 						"image_price_2k": null,

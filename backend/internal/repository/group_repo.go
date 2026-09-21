@@ -126,6 +126,7 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 		SetNillableAudioRealtimePricePerMin(groupIn.AudioRealtimePricePerMin).
 		SetNillableAudioTtsPricePerMillionChars(groupIn.AudioTTSPricePerMillionChars).
 		SetNillableAudioSttPricePerHour(groupIn.AudioSTTPricePerHour).
+		SetNillableMusicPricePerTrack(groupIn.MusicPricePerTrack).
 		SetLongContextPricingEnabled(groupIn.LongContextPricingEnabled).
 		SetModelPricing(modelPricing).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
@@ -406,6 +407,11 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		builder = builder.SetAudioSttPricePerHour(*groupIn.AudioSTTPricePerHour)
 	} else {
 		builder = builder.ClearAudioSttPricePerHour()
+	}
+	if groupIn.MusicPricePerTrack != nil {
+		builder = builder.SetMusicPricePerTrack(*groupIn.MusicPricePerTrack)
+	} else {
+		builder = builder.ClearMusicPricePerTrack()
 	}
 
 	// 处理 FallbackGroupID：nil 时清除，否则设置

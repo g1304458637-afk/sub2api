@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -50,12 +51,16 @@ const (
 	webChatUpstreamErrorBodyLimit = 1 << 20
 	// webChatSSEMaxLineSize SSE 单行上限（chunk 中可能携带较大 delta/base64）
 	webChatSSEMaxLineSize = 4 << 20
+	// webChatBinaryResponseLimit 语音/绘图等二进制或 JSON 响应的缓冲上限（32MB）
+	webChatBinaryResponseLimit = 32 << 20
 )
 
-// WebChatModelType 模型类型：网页聊天 / 网页绘图
+// WebChatModelType 模型类型：网页聊天 / 网页绘图 / 网页语音合成 / 网页音乐
 const (
 	WebChatModelTypeChat  = "chat"
 	WebChatModelTypeImage = "image"
+	WebChatModelTypeTTS   = "tts"
+	WebChatModelTypeMusic = "music"
 )
 
 // WebChatModel config 端点返回的单条模型描述（冻结契约字段）
@@ -64,7 +69,7 @@ type WebChatModel struct {
 	DisplayName string `json:"display_name"`
 	Vendor      string `json:"vendor"`
 	Description string `json:"description"`
-	Type        string `json:"type"`     // "chat" | "image"
+	Type        string `json:"type"`     // "chat" | "image" | "tts" | "music"
 	APIOnly     bool   `json:"api_only"` // true = 仅 API 使用，网页聊天不可选
 }
 
@@ -87,6 +92,32 @@ type WebChatImageGenerationRequest struct {
 	Prompt string `json:"prompt"`
 	Size   string `json:"size,omitempty"`
 	N      int    `json:"n,omitempty"`
+}
+
+// WebChatAudioSpeechRequest POST /api/v1/web-chat/audio/speech 请求体
+type WebChatAudioSpeechRequest struct {
+	Model string `json:"model"`
+	Input string `json:"input"`
+}
+
+// WebChatImageEditRequest POST /api/v1/web-chat/images/edits 请求体。
+// Image 为 data URL 数组，转发时逐条包装为网关 JSON 编辑形状
+// {"images":[{"image_url":"<data URL>"}]}（见 ParseOpenAIImagesRequest）。
+type WebChatImageEditRequest struct {
+	Model  string   `json:"model"`
+	Prompt string   `json:"prompt"`
+	Image  []string `json:"image"`
+	Size   string   `json:"size,omitempty"`
+	N      int      `json:"n,omitempty"`
+}
+
+// WebChatMusicGenerationRequest POST /api/v1/web-chat/music/generations 请求体
+type WebChatMusicGenerationRequest struct {
+	Model        string `json:"model"`
+	Prompt       string `json:"prompt"`
+	Lyrics       string `json:"lyrics,omitempty"`
+	Instrumental bool   `json:"instrumental,omitempty"`
+	Seconds      int    `json:"seconds,omitempty"`
 }
 
 // WebChatUserGroupReader 网页聊天依赖的用户/Key 能力（*APIKeyService 实现）
@@ -162,7 +193,7 @@ func parseWebChatModels(raw string) []WebChatModel {
 		if m.Model == "" {
 			continue
 		}
-		if m.Type != WebChatModelTypeChat && m.Type != WebChatModelTypeImage {
+		if !webChatModelTypeSupported(m.Type) {
 			continue
 		}
 		m.DisplayName = strings.TrimSpace(m.DisplayName)
@@ -177,6 +208,16 @@ func parseWebChatModels(raw string) []WebChatModel {
 		models = append(models, m)
 	}
 	return models
+}
+
+// webChatModelTypeSupported 判定模型类型是否被网页端支持（parse 阶段的准入集）
+func webChatModelTypeSupported(modelType string) bool {
+	switch modelType {
+	case WebChatModelTypeChat, WebChatModelTypeImage, WebChatModelTypeTTS, WebChatModelTypeMusic:
+		return true
+	default:
+		return false
+	}
 }
 
 // WebChatVendorForModel 按模型 ID 前缀推断厂商展示名（未命中返回空串）
@@ -613,6 +654,202 @@ func (s *WebChatService) ProxyImagesGenerations(c *gin.Context, userID int64, re
 	defer func() { _ = resp.Body.Close() }()
 
 	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 32<<20)) // 绘图响应缓冲上限 32MB
+	if readErr != nil {
+		return infraerrors.New(http.StatusBadGateway, "WEB_CHAT_UPSTREAM_READ_FAILED", "Failed to read upstream response")
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	c.Data(resp.StatusCode, contentType, body)
+	return nil
+}
+
+// ProxyImagesEdits 绘图编辑回环转发（非流式，缓冲响应原样回传，客户端超时 300s）。
+//
+// 网页端请求 {model, prompt, image: ["data:..."], size?, n?} 被改写为网关
+// /v1/images/edits 的 JSON 编辑形状：images 数组逐条包装为
+// {"image_url": "<data URL>"}（与 ParseOpenAIImagesRequest 的 JSON 解析字段一致，
+// data URL 原样透传）。
+func (s *WebChatService) ProxyImagesEdits(c *gin.Context, userID int64, reqBody WebChatImageEditRequest) error {
+	settings, err := s.GetWebChatSettings(c.Request.Context())
+	if err != nil {
+		return err
+	}
+	if err := s.checkModelAllowedWithSettings(c.Request.Context(), settings, userID, reqBody.Model, WebChatModelTypeImage); err != nil {
+		return err
+	}
+	apiKey, err := s.getOrCreateAPIKey(c.Request.Context(), userID, settings.WebChatDefaultModel)
+	if err != nil {
+		return err
+	}
+
+	images := make([]map[string]string, 0, len(reqBody.Image))
+	for _, img := range reqBody.Image {
+		img = strings.TrimSpace(img)
+		if img == "" {
+			continue
+		}
+		images = append(images, map[string]string{"image_url": img})
+	}
+	payloadMap := map[string]any{
+		"model":  reqBody.Model,
+		"prompt": reqBody.Prompt,
+		"images": images,
+	}
+	if strings.TrimSpace(reqBody.Size) != "" {
+		payloadMap["size"] = strings.TrimSpace(reqBody.Size)
+	}
+	if reqBody.N > 0 {
+		payloadMap["n"] = reqBody.N
+	}
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return fmt.Errorf("marshal web chat image edit request: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), WebChatImageTimeout)
+	defer cancel()
+	httpReq, err := s.newLoopbackRequest(ctx, "/v1/images/edits", payload, apiKey)
+	if err != nil {
+		return err
+	}
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return infraerrors.New(http.StatusBadGateway, "WEB_CHAT_UPSTREAM_UNAVAILABLE", "Web chat upstream is unavailable")
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, webChatBinaryResponseLimit))
+	if readErr != nil {
+		return infraerrors.New(http.StatusBadGateway, "WEB_CHAT_UPSTREAM_READ_FAILED", "Failed to read upstream response")
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	c.Data(resp.StatusCode, contentType, body)
+	return nil
+}
+
+// ProxyAudioSpeech 语音合成回环转发（非流式二进制，缓冲响应原样回传，客户端超时 300s）。
+// 上游响应（含错误状态）不做 JSON 解析，状态码 + Content-Type + 原始字节直接透传。
+func (s *WebChatService) ProxyAudioSpeech(c *gin.Context, userID int64, reqBody WebChatAudioSpeechRequest) error {
+	settings, err := s.GetWebChatSettings(c.Request.Context())
+	if err != nil {
+		return err
+	}
+	if err := s.checkModelAllowedWithSettings(c.Request.Context(), settings, userID, reqBody.Model, WebChatModelTypeTTS); err != nil {
+		return err
+	}
+	apiKey, err := s.getOrCreateAPIKey(c.Request.Context(), userID, settings.WebChatDefaultModel)
+	if err != nil {
+		return err
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"model": reqBody.Model,
+		"input": reqBody.Input,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal web chat speech request: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), WebChatImageTimeout)
+	defer cancel()
+	httpReq, err := s.newLoopbackRequest(ctx, "/v1/audio/speech", payload, apiKey)
+	if err != nil {
+		return err
+	}
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return infraerrors.New(http.StatusBadGateway, "WEB_CHAT_UPSTREAM_UNAVAILABLE", "Web chat upstream is unavailable")
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, webChatBinaryResponseLimit))
+	if readErr != nil {
+		return infraerrors.New(http.StatusBadGateway, "WEB_CHAT_UPSTREAM_READ_FAILED", "Failed to read upstream response")
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	c.Data(resp.StatusCode, contentType, body)
+	return nil
+}
+
+// ProxyMusicGenerations 音乐生成回环转发（异步任务提交，202 任务 JSON 原样回传，客户端超时 300s）。
+func (s *WebChatService) ProxyMusicGenerations(c *gin.Context, userID int64, reqBody WebChatMusicGenerationRequest) error {
+	settings, err := s.GetWebChatSettings(c.Request.Context())
+	if err != nil {
+		return err
+	}
+	if err := s.checkModelAllowedWithSettings(c.Request.Context(), settings, userID, reqBody.Model, WebChatModelTypeMusic); err != nil {
+		return err
+	}
+	apiKey, err := s.getOrCreateAPIKey(c.Request.Context(), userID, settings.WebChatDefaultModel)
+	if err != nil {
+		return err
+	}
+
+	payloadMap := map[string]any{
+		"model":  reqBody.Model,
+		"prompt": reqBody.Prompt,
+	}
+	if lyrics := strings.TrimSpace(reqBody.Lyrics); lyrics != "" {
+		payloadMap["lyrics"] = lyrics
+	}
+	if reqBody.Instrumental {
+		payloadMap["instrumental"] = true
+	}
+	if reqBody.Seconds > 0 {
+		payloadMap["seconds"] = reqBody.Seconds
+	}
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return fmt.Errorf("marshal web chat music request: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), WebChatImageTimeout)
+	defer cancel()
+	httpReq, err := s.newLoopbackRequest(ctx, "/v1/audio/music", payload, apiKey)
+	if err != nil {
+		return err
+	}
+	return webChatJSONPassthrough(c, s.httpClient, httpReq)
+}
+
+// ProxyMusicTaskGet 音乐任务轮询回环转发（GET，任务归属由网关按 API Key 双绑定校验）。
+func (s *WebChatService) ProxyMusicTaskGet(c *gin.Context, userID int64, taskID string) error {
+	settings, err := s.GetWebChatSettings(c.Request.Context())
+	if err != nil {
+		return err
+	}
+	apiKey, err := s.getOrCreateAPIKey(c.Request.Context(), userID, settings.WebChatDefaultModel)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), WebChatImageTimeout)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, s.webChatLoopbackBaseURL()+"/v1/audio/music/tasks/"+url.PathEscape(taskID), nil)
+	if err != nil {
+		return fmt.Errorf("build loopback request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+	return webChatJSONPassthrough(c, s.httpClient, httpReq)
+}
+
+// webChatJSONPassthrough 缓冲上游 JSON 响应并原样透传状态码与响应体。
+func webChatJSONPassthrough(c *gin.Context, client *http.Client, req *http.Request) error {
+	resp, err := client.Do(req)
+	if err != nil {
+		return infraerrors.New(http.StatusBadGateway, "WEB_CHAT_UPSTREAM_UNAVAILABLE", "Web chat upstream is unavailable")
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, webChatBinaryResponseLimit))
 	if readErr != nil {
 		return infraerrors.New(http.StatusBadGateway, "WEB_CHAT_UPSTREAM_READ_FAILED", "Failed to read upstream response")
 	}

@@ -51,3 +51,24 @@ export function toDrawImageItem(
   const url = result.url ?? ''
   return { id: `draw-${createdAt}-${index}`, src: url, kind: 'url', url, prompt, createdAt }
 }
+
+/** 一次提交的原始参数（失败重试时原样重发） */
+export interface DrawTurnRequest {
+  prompt: string
+  model: string
+  size: string
+  n: number
+  /** 基于此图编辑时参考的源图；null 表示全新生成 */
+  contextImage: DrawImageItem | null
+}
+
+/** 会话中的一轮：右对齐的用户提示词 + 一批结果图（或失败信息） */
+export interface DrawTurn {
+  id: string
+  prompt: string
+  images: DrawImageItem[]
+  /** 生成失败时的错误信息，轮内展示并提供重试 */
+  error?: string
+  /** 发起本轮时的请求参数，供重试 */
+  request?: DrawTurnRequest
+}

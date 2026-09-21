@@ -1965,6 +1965,9 @@ const (
 	defaultAudioRealtimePricePerMin     = 0.05
 	defaultAudioTTSPricePerMillionChars = 15.0
 	defaultAudioSTTPricePerHour         = 0.10
+
+	// 音乐生成按首计费（async music tasks）；分组可显式覆盖，0 = 免费。
+	defaultMusicPricePerTrack = 0.5
 )
 
 // CalculateWebSearchCost 计算 Codex alpha/search 网页搜索按次费用。
@@ -2024,10 +2027,11 @@ type audioPriceConfig struct {
 	RealtimePerMin *float64
 	TTSPerMChars   *float64
 	STTPerHour     *float64
+	MusicPerTrack  *float64
 }
 
-// CalculateAudioCost supports realtime (per min), tts (per M chars), stt (per hr).
-// Missing group prices use defaults; explicit 0 means free for that mode.
+// CalculateAudioCost supports realtime (per min), tts (per M chars), stt (per hr),
+// music (per track). Missing group prices use defaults; explicit 0 means free for that mode.
 func (s *BillingService) CalculateAudioCost(mode string, durationOrUnits float64, groupConfig *audioPriceConfig, rateMultiplier float64) *CostBreakdown {
 	if durationOrUnits <= 0 {
 		return &CostBreakdown{}
@@ -2048,6 +2052,12 @@ func (s *BillingService) CalculateAudioCost(mode string, durationOrUnits float64
 		unitPrice = defaultAudioSTTPricePerHour
 		if groupConfig != nil && groupConfig.STTPerHour != nil {
 			unitPrice = *groupConfig.STTPerHour
+		}
+	case "music":
+		// durationOrUnits carries the track count (always 1 per music task).
+		unitPrice = defaultMusicPricePerTrack
+		if groupConfig != nil && groupConfig.MusicPerTrack != nil {
+			unitPrice = *groupConfig.MusicPerTrack
 		}
 	default:
 		return &CostBreakdown{}

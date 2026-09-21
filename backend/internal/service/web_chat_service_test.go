@@ -4,11 +4,18 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -457,4 +464,212 @@ func TestWebChatAdminAvailableModels(t *testing.T) {
 	models, err := svc.AdminAvailableModels(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, []string{"claude-sonnet-5", "glm-4.6", "gpt-4o"}, models)
+}
+
+// ─────────────────────────── tts / music 类型 ───────────────────────────
+
+func TestWebChatModelsParseAcceptsTTSAndMusic(t *testing.T) {
+	raw := `[
+		{"model":"tts-1","type":"tts","api_only":false},
+		{"model":"music-large","type":"music","api_only":true},
+		{"model":"TTS-Pro","type":"  TTS  "},
+		{"model":"music-free","type":"music"},
+		{"model":"video-x","type":"video"}
+	]`
+	models := parseWebChatModels(raw)
+	require.Len(t, models, 4)
+	require.Equal(t, "tts-1", models[0].Model)
+	require.Equal(t, WebChatModelTypeTTS, models[0].Type)
+	require.False(t, models[0].APIOnly)
+	require.Equal(t, "music-large", models[1].Model)
+	require.Equal(t, WebChatModelTypeMusic, models[1].Type)
+	require.True(t, models[1].APIOnly)
+	// type 大小写/空白归一
+	require.Equal(t, "TTS-Pro", models[2].Model)
+	require.Equal(t, WebChatModelTypeTTS, models[2].Type)
+	require.Equal(t, "music-free", models[3].Model)
+	require.Equal(t, WebChatModelTypeMusic, models[3].Type)
+
+	// 白名单判定对新类型泛化成立（type 匹配 + api_only 排除 + 跨类型拒绝）
+	require.True(t, WebChatModelAllowed(models, WebChatModelTypeTTS, "tts-1"))
+	require.True(t, WebChatModelAllowed(models, WebChatModelTypeTTS, "TTS-Pro"))
+	require.True(t, WebChatModelAllowed(models, WebChatModelTypeMusic, "music-free"))
+	require.False(t, WebChatModelAllowed(models, WebChatModelTypeTTS, "music-large")) // api_only
+	require.False(t, WebChatModelAllowed(models, WebChatModelTypeMusic, "music-large"))
+	require.False(t, WebChatModelAllowed(models, WebChatModelTypeMusic, "tts-1"))
+	require.False(t, WebChatModelAllowed(models, WebChatModelTypeImage, "tts-1"))
+	require.False(t, WebChatModelAllowed(models, WebChatModelTypeChat, "tts-1"))
+}
+
+func TestWebChatCheckModelAllowedTTSAndMusic(t *testing.T) {
+	svc := newWebChatTestService(map[string]string{
+		SettingKeyWebChatEnabled: "true",
+		SettingKeyWebChatModels:  `[{"model":"tts-1","type":"tts"},{"model":"music-x","type":"music"}]`,
+	}, nil, nil, nil)
+
+	require.NoError(t, svc.checkModelAllowed(context.Background(), 42, "tts-1", WebChatModelTypeTTS))
+	require.NoError(t, svc.checkModelAllowed(context.Background(), 42, "music-x", WebChatModelTypeMusic))
+
+	// speech 入口用 chat 模型 → 400
+	err := svc.checkModelAllowed(context.Background(), 42, "music-x", WebChatModelTypeTTS)
+	require.Error(t, err)
+	require.Equal(t, 400, errors.Code(err))
+}
+
+// ─────────────────────────── 回环代理（httptest loopback） ───────────────────────────
+
+// newLoopbackTestService 组装指向 httptest 回环目标的被测服务
+func newLoopbackTestService(t *testing.T, srv *httptest.Server, modelsJSON, defaultModel string) *WebChatService {
+	t.Helper()
+	u, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+	port, err := strconv.Atoi(u.Port())
+	require.NoError(t, err)
+	return &WebChatService{
+		settingService: NewSettingService(&webChatSettingRepoStub{values: map[string]string{
+			SettingKeyWebChatEnabled:      "true",
+			SettingKeyWebChatModels:       modelsJSON,
+			SettingKeyWebChatDefaultModel: defaultModel,
+		}}, &config.Config{}),
+		apiKeyService: &webChatAPIKeyServiceStub{
+			visibility:   map[int64]struct{}{1: {}},
+			existingKeys: []APIKey{{Key: "sk-web-chat", Name: WebChatAPIKeyName, Status: StatusActive}},
+		},
+		gatewayService: &webChatGatewayStub{byGroup: map[int64][]string{1: {"glm-4.6", "gpt-image-2", "tts-1"}}},
+		groupService:   &webChatGroupListerStub{groups: []Group{{ID: 1, IsExclusive: false}}},
+		cfg:            &config.Config{Server: config.ServerConfig{Port: port}},
+		httpClient:     &http.Client{},
+	}
+}
+
+func newLoopbackTestContext() (*gin.Context, *httptest.ResponseRecorder) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/web-chat/loopback", nil)
+	return c, w
+}
+
+func TestWebChatProxyImagesEditsBuildsGatewayEditBody(t *testing.T) {
+	var gotPath, gotAuth, gotContentType string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
+		gotContentType = r.Header.Get("Content-Type")
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"url":"https://example.com/out.png"}]}`))
+	}))
+	defer srv.Close()
+
+	svc := newLoopbackTestService(t, srv, `[{"model":"gpt-image-2","type":"image"}]`, "")
+	c, w := newLoopbackTestContext()
+
+	err := svc.ProxyImagesEdits(c, 42, WebChatImageEditRequest{
+		Model:  "gpt-image-2",
+		Prompt: "a cat",
+		Image:  []string{"data:image/png;base64,AAAA", "  "},
+		N:      2,
+	})
+	require.NoError(t, err)
+
+	// 回环目标与鉴权
+	require.Equal(t, "/v1/images/edits", gotPath)
+	require.Equal(t, "Bearer sk-web-chat", gotAuth)
+	require.Equal(t, "application/json", gotContentType)
+	// 网关 JSON 编辑形状：images 数组逐条 {"image_url": "<data URL>"}（空串条目丢弃）
+	require.Equal(t, "gpt-image-2", gotBody["model"])
+	require.Equal(t, "a cat", gotBody["prompt"])
+	require.Equal(t, float64(2), gotBody["n"])
+	images, ok := gotBody["images"].([]any)
+	require.True(t, ok)
+	require.Len(t, images, 1)
+	first, ok := images[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "data:image/png;base64,AAAA", first["image_url"])
+	// 响应原样透传
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Contains(t, w.Header().Get("Content-Type"), "application/json")
+	require.JSONEq(t, `{"data":[{"url":"https://example.com/out.png"}]}`, w.Body.String())
+}
+
+func TestWebChatProxyImagesEditsPassthroughUpstreamError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"type":"invalid_request_error","message":"bad image"}}`))
+	}))
+	defer srv.Close()
+
+	svc := newLoopbackTestService(t, srv, `[{"model":"gpt-image-2","type":"image"}]`, "")
+	c, w := newLoopbackTestContext()
+
+	err := svc.ProxyImagesEdits(c, 42, WebChatImageEditRequest{
+		Model:  "gpt-image-2",
+		Prompt: "a cat",
+		Image:  []string{"data:image/png;base64,AAAA"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Contains(t, w.Body.String(), "bad image")
+}
+
+func TestWebChatProxyAudioSpeechPassthroughBinary(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v1/audio/speech", r.URL.Path)
+		require.Equal(t, "Bearer sk-web-chat", r.Header.Get("Authorization"))
+		var body map[string]any
+		b, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(b, &body)
+		require.Equal(t, "tts-1", body["model"])
+		require.Equal(t, "hello", body["input"])
+		w.Header().Set("Content-Type", "audio/mpeg")
+		_, _ = w.Write([]byte{0xff, 0xf3, 0x00, 0x01})
+	}))
+	defer srv.Close()
+
+	svc := newLoopbackTestService(t, srv, `[{"model":"tts-1","type":"tts"}]`, "")
+	c, w := newLoopbackTestContext()
+
+	err := svc.ProxyAudioSpeech(c, 42, WebChatAudioSpeechRequest{Model: "tts-1", Input: "hello"})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "audio/mpeg", w.Header().Get("Content-Type"))
+	require.Equal(t, []byte{0xff, 0xf3, 0x00, 0x01}, w.Body.Bytes())
+}
+
+func TestWebChatProxyAudioSpeechPassthroughUpstreamErrorStatus(t *testing.T) {
+	// 错误状态同样不做 JSON 解析，状态码 + Content-Type + 原始字节透传
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"error":{"message":"rate limited"}}`))
+	}))
+	defer srv.Close()
+
+	svc := newLoopbackTestService(t, srv, `[{"model":"tts-1","type":"tts"}]`, "")
+	c, w := newLoopbackTestContext()
+
+	err := svc.ProxyAudioSpeech(c, 42, WebChatAudioSpeechRequest{Model: "tts-1", Input: "hello"})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusTooManyRequests, w.Code)
+	require.Contains(t, w.Body.String(), "rate limited")
+}
+
+func TestWebChatProxyAudioSpeechRejectsNonTTSModel(t *testing.T) {
+	svc := newWebChatTestService(map[string]string{
+		SettingKeyWebChatEnabled: "true",
+		SettingKeyWebChatModels:  `[{"model":"glm-4.6","type":"chat"},{"model":"music-x","type":"music"}]`,
+	}, nil, nil, nil)
+	c, _ := newLoopbackTestContext()
+
+	// chat 模型不可用于 speech；music 模型也不可（speech 白名单只认 type=tts）
+	err := svc.ProxyAudioSpeech(c, 42, WebChatAudioSpeechRequest{Model: "glm-4.6", Input: "hi"})
+	require.Error(t, err)
+	require.Equal(t, 400, errors.Code(err))
+
+	err = svc.ProxyAudioSpeech(c, 42, WebChatAudioSpeechRequest{Model: "music-x", Input: "hi"})
+	require.Error(t, err)
+	require.Equal(t, 400, errors.Code(err))
 }

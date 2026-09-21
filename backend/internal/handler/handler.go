@@ -69,6 +69,7 @@ type Handlers struct {
 	ModelPlaza       *ModelPlazaHandler
 	WebChat          *WebChatHandler
 	AsyncImage       *AsyncImageHandler
+	MusicTask        *AsyncMusicHandler
 	BatchImage       *BatchImageHandler
 	MucConnect       *MucConnectHandler
 	Research         *ResearchApplicationHandler

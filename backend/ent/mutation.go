@@ -22153,6 +22153,8 @@ type GroupMutation struct {
 	addaudio_tts_price_per_million_chars    *float64
 	audio_stt_price_per_hour                *float64
 	addaudio_stt_price_per_hour             *float64
+	music_price_per_track                   *float64
+	addmusic_price_per_track                *float64
 	long_context_pricing_enabled            *bool
 	model_pricing                           *jsontext.Value
 	appendmodel_pricing                     jsontext.Value
@@ -24453,6 +24455,76 @@ func (m *GroupMutation) ResetAudioSttPricePerHour() {
 	delete(m.clearedFields, group.FieldAudioSttPricePerHour)
 }
 
+// SetMusicPricePerTrack sets the "music_price_per_track" field.
+func (m *GroupMutation) SetMusicPricePerTrack(f float64) {
+	m.music_price_per_track = &f
+	m.addmusic_price_per_track = nil
+}
+
+// MusicPricePerTrack returns the value of the "music_price_per_track" field in the mutation.
+func (m *GroupMutation) MusicPricePerTrack() (r float64, exists bool) {
+	v := m.music_price_per_track
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMusicPricePerTrack returns the old "music_price_per_track" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldMusicPricePerTrack(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMusicPricePerTrack is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMusicPricePerTrack requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMusicPricePerTrack: %w", err)
+	}
+	return oldValue.MusicPricePerTrack, nil
+}
+
+// AddMusicPricePerTrack adds f to the "music_price_per_track" field.
+func (m *GroupMutation) AddMusicPricePerTrack(f float64) {
+	if m.addmusic_price_per_track != nil {
+		*m.addmusic_price_per_track += f
+	} else {
+		m.addmusic_price_per_track = &f
+	}
+}
+
+// AddedMusicPricePerTrack returns the value that was added to the "music_price_per_track" field in this mutation.
+func (m *GroupMutation) AddedMusicPricePerTrack() (r float64, exists bool) {
+	v := m.addmusic_price_per_track
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMusicPricePerTrack clears the value of the "music_price_per_track" field.
+func (m *GroupMutation) ClearMusicPricePerTrack() {
+	m.music_price_per_track = nil
+	m.addmusic_price_per_track = nil
+	m.clearedFields[group.FieldMusicPricePerTrack] = struct{}{}
+}
+
+// MusicPricePerTrackCleared returns if the "music_price_per_track" field was cleared in this mutation.
+func (m *GroupMutation) MusicPricePerTrackCleared() bool {
+	_, ok := m.clearedFields[group.FieldMusicPricePerTrack]
+	return ok
+}
+
+// ResetMusicPricePerTrack resets all changes to the "music_price_per_track" field.
+func (m *GroupMutation) ResetMusicPricePerTrack() {
+	m.music_price_per_track = nil
+	m.addmusic_price_per_track = nil
+	delete(m.clearedFields, group.FieldMusicPricePerTrack)
+}
+
 // SetLongContextPricingEnabled sets the "long_context_pricing_enabled" field.
 func (m *GroupMutation) SetLongContextPricingEnabled(b bool) {
 	m.long_context_pricing_enabled = &b
@@ -26003,7 +26075,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 67)
+	fields := make([]string, 0, 68)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26123,6 +26195,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.audio_stt_price_per_hour != nil {
 		fields = append(fields, group.FieldAudioSttPricePerHour)
+	}
+	if m.music_price_per_track != nil {
+		fields = append(fields, group.FieldMusicPricePerTrack)
 	}
 	if m.long_context_pricing_enabled != nil {
 		fields = append(fields, group.FieldLongContextPricingEnabled)
@@ -26293,6 +26368,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.AudioTtsPricePerMillionChars()
 	case group.FieldAudioSttPricePerHour:
 		return m.AudioSttPricePerHour()
+	case group.FieldMusicPricePerTrack:
+		return m.MusicPricePerTrack()
 	case group.FieldLongContextPricingEnabled:
 		return m.LongContextPricingEnabled()
 	case group.FieldModelPricing:
@@ -26436,6 +26513,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldAudioTtsPricePerMillionChars(ctx)
 	case group.FieldAudioSttPricePerHour:
 		return m.OldAudioSttPricePerHour(ctx)
+	case group.FieldMusicPricePerTrack:
+		return m.OldMusicPricePerTrack(ctx)
 	case group.FieldLongContextPricingEnabled:
 		return m.OldLongContextPricingEnabled(ctx)
 	case group.FieldModelPricing:
@@ -26779,6 +26858,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAudioSttPricePerHour(v)
 		return nil
+	case group.FieldMusicPricePerTrack:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMusicPricePerTrack(v)
+		return nil
 	case group.FieldLongContextPricingEnabled:
 		v, ok := value.(bool)
 		if !ok {
@@ -27042,6 +27128,9 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addaudio_stt_price_per_hour != nil {
 		fields = append(fields, group.FieldAudioSttPricePerHour)
 	}
+	if m.addmusic_price_per_track != nil {
+		fields = append(fields, group.FieldMusicPricePerTrack)
+	}
 	if m.addfallback_group_id != nil {
 		fields = append(fields, group.FieldFallbackGroupID)
 	}
@@ -27112,6 +27201,8 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAudioTtsPricePerMillionChars()
 	case group.FieldAudioSttPricePerHour:
 		return m.AddedAudioSttPricePerHour()
+	case group.FieldMusicPricePerTrack:
+		return m.AddedMusicPricePerTrack()
 	case group.FieldFallbackGroupID:
 		return m.AddedFallbackGroupID()
 	case group.FieldFallbackGroupIDOnInvalidRequest:
@@ -27287,6 +27378,13 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddAudioSttPricePerHour(v)
 		return nil
+	case group.FieldMusicPricePerTrack:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMusicPricePerTrack(v)
+		return nil
 	case group.FieldFallbackGroupID:
 		v, ok := value.(int64)
 		if !ok {
@@ -27394,6 +27492,9 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldAudioSttPricePerHour) {
 		fields = append(fields, group.FieldAudioSttPricePerHour)
 	}
+	if m.FieldCleared(group.FieldMusicPricePerTrack) {
+		fields = append(fields, group.FieldMusicPricePerTrack)
+	}
 	if m.FieldCleared(group.FieldModelPricing) {
 		fields = append(fields, group.FieldModelPricing)
 	}
@@ -27476,6 +27577,9 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldAudioSttPricePerHour:
 		m.ClearAudioSttPricePerHour()
+		return nil
+	case group.FieldMusicPricePerTrack:
+		m.ClearMusicPricePerTrack()
 		return nil
 	case group.FieldModelPricing:
 		m.ClearModelPricing()
@@ -27616,6 +27720,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldAudioSttPricePerHour:
 		m.ResetAudioSttPricePerHour()
+		return nil
+	case group.FieldMusicPricePerTrack:
+		m.ResetMusicPricePerTrack()
 		return nil
 	case group.FieldLongContextPricingEnabled:
 		m.ResetLongContextPricingEnabled()

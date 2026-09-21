@@ -126,7 +126,7 @@
                       :model-value="row.type"
                       class="w-28"
                       :options="typeOptions"
-                      @update:model-value="row.type = $event === 'image' ? 'image' : 'chat'"
+                      @update:model-value="row.type = coerceWebChatModelType($event)"
                     />
                   </td>
                   <td class="py-1.5 pr-3 text-center">
@@ -168,6 +168,7 @@ import Toggle from '@/components/common/Toggle.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import {
+  coerceWebChatModelType,
   getWebChatAvailableModels,
   parseWebChatModels,
   serializeWebChatModels,
@@ -235,6 +236,8 @@ const availableModelOptions = computed(() =>
 const typeOptions = computed(() => [
   { value: 'chat' as const, label: t('admin.settings.features.webChat.typeChat') },
   { value: 'image' as const, label: t('admin.settings.features.webChat.typeImage') },
+  { value: 'tts' as const, label: t('admin.settings.features.webChat.typeTts') },
+  { value: 'music' as const, label: t('admin.settings.features.webChat.typeMusic') },
 ])
 
 /** 默认模型选项 = 模型表中 type=chat 且未勾选“仅限 API”的行 */

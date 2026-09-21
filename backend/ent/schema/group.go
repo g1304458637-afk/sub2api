@@ -200,6 +200,12 @@ func (Group) Fields() []ent.Field {
 			Min(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Comment("STT 每小时价格（USD）"),
+		field.Float("music_price_per_track").
+			Optional().
+			Nillable().
+			Min(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Comment("音乐生成每首价格（USD）；nil 表示使用默认价 0.5，显式 0 表示免费"),
 		field.Bool("long_context_pricing_enabled").
 			Default(true).
 			Comment("是否按上下文长度应用模型阶梯价格；默认开启以保持官方/渠道长上下文价"),

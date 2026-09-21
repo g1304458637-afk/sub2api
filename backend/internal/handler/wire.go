@@ -210,6 +210,7 @@ func ProvideHandlers(
 	modelPlazaHandler *ModelPlazaHandler,
 	webChatHandler *WebChatHandler,
 	asyncImageHandler *AsyncImageHandler,
+	musicTaskHandler *AsyncMusicHandler,
 	batchImageHandler *BatchImageHandler,
 	mucConnectHandler *MucConnectHandler,
 	researchHandler *ResearchApplicationHandler,
@@ -239,6 +240,7 @@ func ProvideHandlers(
 		ModelPlaza:       modelPlazaHandler,
 		WebChat:          webChatHandler,
 		AsyncImage:       asyncImageHandler,
+		MusicTask:        musicTaskHandler,
 		BatchImage:       batchImageHandler,
 		MucConnect:       mucConnectHandler,
 		Research:         researchHandler,
@@ -268,6 +270,7 @@ var ProviderSet = wire.NewSet(
 	NewModelPlazaHandler,
 	NewWebChatHandler,
 	NewAsyncImageHandler,
+	NewAsyncMusicHandler,
 	ProvideBatchImageHandler,
 	NewMucConnectHandler,
 	// 科研优惠登记：DATA_DIR 在 handler 装配层解析（见 ProvideResearchApplicationService）

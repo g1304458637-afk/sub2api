@@ -250,6 +250,11 @@ func AudioSttPricePerHour(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldAudioSttPricePerHour, v))
 }
 
+// MusicPricePerTrack applies equality check predicate on the "music_price_per_track" field. It's identical to MusicPricePerTrackEQ.
+func MusicPricePerTrack(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldMusicPricePerTrack, v))
+}
+
 // LongContextPricingEnabled applies equality check predicate on the "long_context_pricing_enabled" field. It's identical to LongContextPricingEnabledEQ.
 func LongContextPricingEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldLongContextPricingEnabled, v))
@@ -2118,6 +2123,56 @@ func AudioSttPricePerHourIsNil() predicate.Group {
 // AudioSttPricePerHourNotNil applies the NotNil predicate on the "audio_stt_price_per_hour" field.
 func AudioSttPricePerHourNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldAudioSttPricePerHour))
+}
+
+// MusicPricePerTrackEQ applies the EQ predicate on the "music_price_per_track" field.
+func MusicPricePerTrackEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldMusicPricePerTrack, v))
+}
+
+// MusicPricePerTrackNEQ applies the NEQ predicate on the "music_price_per_track" field.
+func MusicPricePerTrackNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldMusicPricePerTrack, v))
+}
+
+// MusicPricePerTrackIn applies the In predicate on the "music_price_per_track" field.
+func MusicPricePerTrackIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldMusicPricePerTrack, vs...))
+}
+
+// MusicPricePerTrackNotIn applies the NotIn predicate on the "music_price_per_track" field.
+func MusicPricePerTrackNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldMusicPricePerTrack, vs...))
+}
+
+// MusicPricePerTrackGT applies the GT predicate on the "music_price_per_track" field.
+func MusicPricePerTrackGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldMusicPricePerTrack, v))
+}
+
+// MusicPricePerTrackGTE applies the GTE predicate on the "music_price_per_track" field.
+func MusicPricePerTrackGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldMusicPricePerTrack, v))
+}
+
+// MusicPricePerTrackLT applies the LT predicate on the "music_price_per_track" field.
+func MusicPricePerTrackLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldMusicPricePerTrack, v))
+}
+
+// MusicPricePerTrackLTE applies the LTE predicate on the "music_price_per_track" field.
+func MusicPricePerTrackLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldMusicPricePerTrack, v))
+}
+
+// MusicPricePerTrackIsNil applies the IsNil predicate on the "music_price_per_track" field.
+func MusicPricePerTrackIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldMusicPricePerTrack))
+}
+
+// MusicPricePerTrackNotNil applies the NotNil predicate on the "music_price_per_track" field.
+func MusicPricePerTrackNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldMusicPricePerTrack))
 }
 
 // LongContextPricingEnabledEQ applies the EQ predicate on the "long_context_pricing_enabled" field.
