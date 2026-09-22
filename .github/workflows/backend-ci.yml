@@ -2,7 +2,7 @@ name: Extended checks
 
 on:
   push:
-    branches: [muc-main, hubu-main]
+    branches: [muc-main, hubu-main, feat/dual-window-quota, feat/hubu-dual-window-quota]
   pull_request:
 
 permissions:
