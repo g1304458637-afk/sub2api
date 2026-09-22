@@ -22,6 +22,7 @@
             <Icon name="book" size="md" />
           </a>
           <button
+            v-if="!hasCampusScenes(currentBrand.id)"
             @click="toggleTheme"
             class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
             :title="isDark ? t('home.switchToLight') : t('home.switchToDark')"
@@ -412,6 +413,8 @@
 </template>
 
 <script setup lang="ts">
+import { hasCampusScenes } from '@/brand/scenes'
+import { currentBrand } from '@/brand'
 import { resolveSiteName } from '@/utils/branding'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -440,6 +443,7 @@ const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
 function toggleTheme() {
+  if (hasCampusScenes(currentBrand.id)) return
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
@@ -988,7 +992,7 @@ async function queryKey() {
 
 function initTheme() {
   const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+  if (hasCampusScenes(currentBrand.id) || savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     isDark.value = true
     document.documentElement.classList.add('dark')
   }

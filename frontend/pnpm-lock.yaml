@@ -17,6 +17,9 @@ importers:
       '@airwallex/components-sdk':
         specifier: ^1.30.2
         version: 1.30.2
+      '@fontsource/geist-sans':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@stripe/stripe-js':
         specifier: ^9.0.1
         version: 9.0.1
@@ -362,6 +365,9 @@ packages:
   '@eslint/js@8.57.1':
     resolution: {integrity: sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+
+  '@fontsource/geist-sans@5.3.0':
+    resolution: {integrity: sha512-AmG7cE1AvE4NHROPaOl1sN+a02cB5xy6pA/ZV76HXqWTCsJTV2SCBc9DTFHfJqnVOODm7HhXIYtUIb75NP5QXQ==}
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -2408,6 +2414,8 @@ snapshots:
       - supports-color
 
   '@eslint/js@8.57.1': {}
+
+  '@fontsource/geist-sans@5.3.0': {}
 
   '@humanwhocodes/config-array@0.13.0':
     dependencies:

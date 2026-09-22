@@ -1,6 +1,6 @@
 <template>
   <article
-    class="plan-card"
+    class="plan-card liquid-glass"
     :class="[`plan-card--${variant}`, { 'plan-card--current': isCurrent }]"
   >
     <!-- Pro：红边高光 Popular 徽标；Max：红 + 极少量暖金层级点缀 -->

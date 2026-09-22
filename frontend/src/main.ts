@@ -10,6 +10,12 @@ import { isIOSDevice } from '@/utils/device'
 import './style.css'
 // MUCODE 全站设计 tokens（--muc-*）随主样式一并加载，Shell 与功能页共用
 import './components/pricing/muc-tokens.css'
+import '@fontsource/geist-sans/400.css'
+import '@fontsource/geist-sans/500.css'
+import '@fontsource/geist-sans/600.css'
+import '@fontsource/geist-sans/700.css'
+import './styles/campus-scenes.css'
+import { usesDarkTheme } from '@/brand/scenes'
 
 function initIOSViewportZoomFix() {
   // iOS Safari 在输入框字号小于 16px 时聚焦会自动放大页面，且失焦后不会恢复。
@@ -26,10 +32,10 @@ function initIOSViewportZoomFix() {
 }
 
 function initThemeClass() {
-  // MUCODE 民大版默认 Dark Brand Theme：未做过明暗选择的用户直接进入深色；
-  // 显式保存过 light 的用户保持 light（旧开关保留，功能不破坏）。
+  // Both campus brands are dark-only, including browsers with a historical light preference.
   const savedTheme = localStorage.getItem('theme')
-  const shouldUseDark = savedTheme !== 'light'
+  const shouldUseDark = usesDarkTheme(currentBrand.id, savedTheme)
+  document.documentElement.dataset.campusBrand = currentBrand.id
   document.documentElement.classList.toggle('dark', shouldUseDark)
 }
 
