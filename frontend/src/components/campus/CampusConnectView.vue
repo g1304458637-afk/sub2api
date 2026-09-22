@@ -73,6 +73,8 @@
             v-for="opt in brand.downloads"
             :key="opt.file"
             :href="downloadUrl(opt.file)"
+            :aria-disabled="!downloadUrl(opt.file)"
+            :tabindex="downloadUrl(opt.file) ? 0 : -1"
             class="rounded-xl border p-4 transition"
             :class="opt.key === platform.key
               ? 'ring-1'
@@ -84,12 +86,12 @@
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ opt.label }}</span>
               <span
-                v-if="opt.key === platform.key"
+                v-if="opt.key === platform.key && downloadUrl(opt.file)"
                 class="rounded-full px-2 py-0.5 text-[10px] text-white"
                 :style="{ backgroundColor: brand.primary }"
               >推荐</span>
             </div>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ opt.file }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ downloadUrl(opt.file) ? `下载 ${latest?.version}` : '当前版本暂未提供此平台安装包' }}</p>
           </a>
         </div>
       </section>
@@ -145,12 +147,13 @@ const gatewayHint = `${location.origin}/v1`
 const state = ref<'idle' | 'issuing' | 'opening' | 'fallback'>('idle')
 const latest = ref<MucodeManifest | null>(null)
 
-function downloadUrl(file: string): string {
+function downloadUrl(file: string): string | undefined {
   // 与网关同源；部署时将 dist/ 下的安装包挂载到 /downloads/ 路径
   const option = props.brand.downloads.find((item) => item.file === file)
   const target = option?.key === 'mac-arm' ? 'mac-arm64' : option?.key === 'mac-intel' ? 'mac-x64' : 'win-x64'
-  const artifact = latest.value?.downloads[target]?.file || file
-  return `${props.brand.downloadBase}/${encodeURIComponent(artifact)}`
+  const artifact = latest.value?.downloads[target]?.file
+  // Never fall back to a stale fixed-name installer under a newer version heading.
+  return artifact ? `${props.brand.downloadBase}/${encodeURIComponent(artifact)}` : undefined
 }
 
 function hexAlpha(hex: string, alpha: number): string {
