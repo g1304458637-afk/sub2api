@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { hasCampusScenes } from '@/brand/scenes'
 import { RouterView, useRouter, useRoute } from 'vue-router'
 import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import Toast from '@/components/common/Toast.vue'
+import CampusBackdrop from '@/components/layout/CampusBackdrop.vue'
+import { currentBrand } from '@/brand'
+import { campusScene } from '@/brand/scenes'
 import NavigationProgress from '@/components/common/NavigationProgress.vue'
 import AdminComplianceDialog from '@/components/admin/AdminComplianceDialog.vue'
 import { resolveRouteDocumentTitle } from '@/router/title'
@@ -14,6 +18,9 @@ import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 
 const router = useRouter()
 const route = useRoute()
+watch(() => route.path, (path) => {
+  if (hasCampusScenes(currentBrand.id)) document.documentElement.dataset.campusScene = campusScene(path)
+}, { immediate: true })
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const subscriptionStore = useSubscriptionStore()
@@ -162,6 +169,7 @@ onMounted(async () => {
 </script>
 
 <template>
+  <CampusBackdrop v-if="hasCampusScenes(currentBrand.id)" />
   <NavigationProgress />
   <RouterView />
   <Toast />

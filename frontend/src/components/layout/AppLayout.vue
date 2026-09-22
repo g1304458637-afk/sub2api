@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark-950">
+  <div class="campus-shell min-h-screen bg-gray-50 dark:bg-dark-950">
     <!-- Background Decoration：功能页低饱和民大红 radial（dark 下更明显） -->
     <div class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
 

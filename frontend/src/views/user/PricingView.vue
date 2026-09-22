@@ -1,7 +1,7 @@
 <template>
   <AppLayout>
     <div class="muc-scope muc-pricing">
-      <PricingBackground />
+      <PricingBackground v-if="!hasCampusScenes(currentBrand.id)" />
 
     <div class="muc-pricing__content">
       <!-- 品牌水印：大字民大红渐变 + 小字 MUCODE 暖白 -->
@@ -16,7 +16,7 @@
       </header>
 
       <!-- 账户状态条：钱包 + 生效中订阅（服务端合同：整数百分比 + usage_status） -->
-      <section class="muc-status" data-testid="pricing-status-strip">
+      <section class="muc-status liquid-glass" data-testid="pricing-status-strip">
         <div class="muc-status__wallet">
           <span class="muc-status__label">{{ t('pricing.statusStrip.wallet') }}</span>
           <span v-if="wallet" class="muc-status__wallet-value">
@@ -271,6 +271,7 @@
 </template>
 
 <script setup lang="ts">
+import { hasCampusScenes } from '@/brand/scenes'
 import { currentBrand } from '@/brand'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

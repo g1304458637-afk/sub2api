@@ -3,7 +3,7 @@
     <div class="mx-auto max-w-2xl space-y-6">
       <!-- Introduction Card -->
       <div
-        class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
+        class="card campus-research-intro border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
       >
         <div class="p-6">
           <div class="flex items-start gap-4">

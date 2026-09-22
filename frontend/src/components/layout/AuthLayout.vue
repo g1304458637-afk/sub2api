@@ -1,11 +1,11 @@
 <template>
-  <div class="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+  <div class="campus-auth relative flex min-h-screen items-center justify-center overflow-hidden p-4">
     <!-- MUC Harness: 校门插画背景 + 浅色遮罩保证表单可读 -->
-    <img :src="currentBrand.authBg" alt="" class="absolute inset-0 h-full w-full object-cover" />
-    <div class="absolute inset-0 bg-gradient-to-br from-white/90 via-white/75 to-white/60 dark:from-dark-950/90 dark:via-dark-900/80 dark:to-dark-950/70"></div>
+    <img v-if="!hasCampusScenes(currentBrand.id)" :src="currentBrand.authBg" alt="" class="absolute inset-0 h-full w-full object-cover" />
+    <div v-if="!hasCampusScenes(currentBrand.id)" class="absolute inset-0 bg-gradient-to-br from-white/90 via-white/75 to-white/60 dark:from-dark-950/90 dark:via-dark-900/80 dark:to-dark-950/70"></div>
 
     <!-- Decorative Elements -->
-    <div class="pointer-events-none absolute inset-0 overflow-hidden">
+    <div v-if="!hasCampusScenes(currentBrand.id)" class="pointer-events-none absolute inset-0 overflow-hidden">
       <!-- Gradient Orbs -->
       <div
         class="absolute -right-40 -top-40 h-80 w-80 rounded-full bg-primary-400/20 blur-3xl"
@@ -32,7 +32,7 @@
           <div
             class="mb-4 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-primary-500/30"
           >
-            <img :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
+            <img :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" @error="useDefaultLogo" />
           </div>
           <h1 class="text-gradient mb-2 text-3xl font-bold">
             {{ siteName }}
@@ -63,7 +63,9 @@
 </template>
 
 <script setup lang="ts">
+import { hasCampusScenes } from '@/brand/scenes'
 import { currentBrand } from '@/brand'
+import { useDefaultLogo } from '@/utils/imageFallback'
 import { resolveSiteName, resolveSiteSubtitle } from '@/utils/branding'
 
 import { computed, onMounted } from 'vue'
