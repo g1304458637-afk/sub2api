@@ -42,20 +42,30 @@ func (h *OpsHandler) GetImageQuota(c *gin.Context) {
 		return
 	}
 
-	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, strings.TrimRight(bridgeURL, "/")+"/stats", nil)
+	endpoint, err := url.Parse(strings.TrimRight(bridgeURL, "/") + "/stats")
+	if err != nil || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.Hostname() == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" {
+		response.Success(c, gin.H{"enabled": true, "reachable": false, "error": "invalid bridge url"})
+		return
+	}
+	// The destination is operator-controlled process configuration, never request input.
+	// Private addresses are intentional: the bridge runs on the deployment network.
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, endpoint.String(), nil) // #nosec G704 -- trusted operator-only endpoint; redirects disabled below
 	if err != nil {
 		response.Success(c, gin.H{"enabled": true, "reachable": false, "error": "invalid bridge url"})
 		return
 	}
 	req.Header.Set("Authorization", "Bearer "+bridgeKey)
 
-	client := &http.Client{Timeout: mediaImageBridgeTimeout}
-	resp, err := client.Do(req)
+	client := &http.Client{
+		Timeout:       mediaImageBridgeTimeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	resp, err := client.Do(req) // #nosec G704 -- validated operator-only endpoint; redirects disabled
 	if err != nil {
 		response.Success(c, gin.H{"enabled": true, "reachable": false, "error": mediaBridgeFetchErrorReason(err)})
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, mediaImageBridgeMaxBody))
 	if err != nil {
