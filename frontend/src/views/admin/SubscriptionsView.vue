@@ -247,8 +247,12 @@
 
           <template #cell-usage="{ row }">
             <div class="min-w-[280px] space-y-2">
+              <div v-if="row.group?.quota_policy === 'dual_window_v1'" class="usage-row">
+                <div class="flex justify-between"><span>5 小时用量</span><span>{{ row.short_usage_usd?.toFixed(2) ?? '0.00' }} / {{ row.group.short_limit_usd }}</span></div>
+                <p class="text-xs opacity-60">{{ row.short_window_start ? new Date(new Date(row.short_window_start).getTime() + 5 * 3600000).toLocaleString() : '首次使用后开始' }}</p>
+              </div>
               <!-- Daily Usage -->
-              <div v-if="row.group?.daily_limit_usd" class="usage-row">
+              <div v-if="row.group?.quota_policy !== 'dual_window_v1' && row.group?.daily_limit_usd" class="usage-row">
                 <div class="flex items-center gap-2">
                   <span class="usage-label">{{ t('admin.subscriptions.daily') }}</span>
                   <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
@@ -322,7 +326,7 @@
               </div>
 
               <!-- Monthly Usage -->
-              <div v-if="row.group?.monthly_limit_usd" class="usage-row">
+              <div v-if="row.group?.quota_policy !== 'dual_window_v1' && row.group?.monthly_limit_usd" class="usage-row">
                 <div class="flex items-center gap-2">
                   <span class="usage-label">{{ t('admin.subscriptions.monthly') }}</span>
                   <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
@@ -751,7 +755,7 @@
     <ConfirmDialog
       :show="showResetQuotaConfirm"
       :title="t('admin.subscriptions.resetQuotaTitle')"
-      :message="t('admin.subscriptions.resetQuotaConfirm', { user: resettingSubscription?.user?.email })"
+      :message="resettingSubscription?.group?.quota_policy === 'dual_window_v1' ? '同时重置 5 小时与周额度并重新计时。保留日、月消费统计及钱包余额，不延长有效期。' : t('admin.subscriptions.resetQuotaConfirm', { user: resettingSubscription?.user?.email })"
       :confirm-text="t('admin.subscriptions.resetQuota')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmResetQuota"

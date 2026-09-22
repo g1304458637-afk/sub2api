@@ -17,6 +17,8 @@ type UserSubscription struct {
 	ExpiresAt time.Time
 	Status    string
 
+	ShortWindowStart   *time.Time
+	ShortUsageUSD      float64
 	DailyWindowStart   *time.Time
 	WeeklyWindowStart  *time.Time
 	MonthlyWindowStart *time.Time

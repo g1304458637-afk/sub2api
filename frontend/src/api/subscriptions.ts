@@ -82,7 +82,19 @@ export type AccountResetCardsStatus = {
 
 export type UsageStatus = 'unmetered' | 'normal' | 'high' | 'near_limit' | 'exhausted'
 
+export type QuotaWindow = {
+  remaining_percent: number
+  starts_at: string | null
+  resets_at: string | null
+  exhausted: boolean
+}
+
 export type AccountSubscriptionStatus = {
+  quota_policy?: string
+  short_window?: QuotaWindow
+  weekly_window?: QuotaWindow
+  blocking_windows?: string[]
+
   id: number
   group_id: number
   /** 权益展示身份 = Group 名（非购买 SKU 名） */
@@ -181,6 +193,9 @@ export type PlanChangeQuote = {
   /** decimal 字符串 */
   amount_due: string
   currency: string
+  short_remaining_percent_before?: number
+  short_remaining_percent_after?: number
+  weekly_remaining_percent_after?: number
   weekly_usage_percent_before: number | null
   weekly_usage_percent_after: number | null
   usage_status_after: UsageStatus
@@ -257,7 +272,7 @@ export async function createUpgrade(
   const response = await apiClient.post<PlanUpgradeOrder>(
     `/subscriptions/${subscriptionId}/upgrade`,
     { target_plan_id: targetPlanId, payment_type: paymentType },
-    { headers: { 'Idempotency-Key': idempotencyKey } }
+    { headers: { 'Idempotency-Key': idempotencyKey, 'X-Quota-Contract': '2' } }
   )
   return response.data
 }
@@ -270,7 +285,7 @@ export async function scheduleDowngrade(
   const response = await apiClient.post<PlanChangeRecordDto>(
     `/subscriptions/${subscriptionId}/schedule-downgrade`,
     { target_plan_id: targetPlanId },
-    { headers: { 'Idempotency-Key': idempotencyKey } }
+    { headers: { 'Idempotency-Key': idempotencyKey, 'X-Quota-Contract': '2' } }
   )
   return response.data
 }
@@ -294,7 +309,7 @@ export async function resetWithCard(
   const response = await apiClient.post<{ subscription_id: number; weekly_period_ends_at: string }>(
     `/subscriptions/${subscriptionId}/reset-with-card`,
     {},
-    { headers: { 'Idempotency-Key': idempotencyKey } }
+    { headers: { 'Idempotency-Key': idempotencyKey, 'X-Quota-Contract': '2' } }
   )
   return response.data
 }

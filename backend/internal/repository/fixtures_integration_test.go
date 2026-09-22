@@ -97,6 +97,10 @@ func mustCreateGroup(t *testing.T, client *dbent.Client, g *service.Group) *serv
 		SetProfitControlEnabled(g.ProfitControlEnabled).
 		SetProfitMinMargin(g.ProfitMinMargin).
 		SetProfitSafetyBuffer(g.ProfitSafetyBuffer)
+	if g.QuotaPolicy != "" {
+		create.SetQuotaPolicy(g.QuotaPolicy)
+	}
+	create.SetNillableShortLimitUsd(g.ShortLimitUSD)
 	if g.Description != "" {
 		create.SetDescription(g.Description)
 	}

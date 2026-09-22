@@ -103,6 +103,8 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 		SetIsExclusive(groupIn.IsExclusive).
 		SetStatus(groupIn.Status).
 		SetSubscriptionType(groupIn.SubscriptionType).
+		SetQuotaPolicy(normalizeQuotaPolicy(groupIn.QuotaPolicy)).
+		SetNillableShortLimitUsd(groupIn.ShortLimitUSD).
 		SetNillableDailyLimitUsd(groupIn.DailyLimitUSD).
 		SetNillableWeeklyLimitUsd(groupIn.WeeklyLimitUSD).
 		SetNillableMonthlyLimitUsd(groupIn.MonthlyLimitUSD).
@@ -291,6 +293,8 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetIsExclusive(groupIn.IsExclusive).
 		SetStatus(groupIn.Status).
 		SetSubscriptionType(groupIn.SubscriptionType).
+		SetQuotaPolicy(normalizeQuotaPolicy(groupIn.QuotaPolicy)).
+		SetNillableShortLimitUsd(groupIn.ShortLimitUSD).
 		SetNillableDailyLimitUsd(groupIn.DailyLimitUSD).
 		SetNillableWeeklyLimitUsd(groupIn.WeeklyLimitUSD).
 		SetNillableMonthlyLimitUsd(groupIn.MonthlyLimitUSD).
@@ -1197,4 +1201,11 @@ func (r *groupRepository) UpdateSortOrders(ctx context.Context, updates []servic
 		}
 	}
 	return nil
+}
+
+func normalizeQuotaPolicy(policy string) string {
+	if policy == "" {
+		return "legacy"
+	}
+	return policy
 }

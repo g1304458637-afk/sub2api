@@ -470,6 +470,10 @@ func renewedSubscriptionTerm(existingSub *UserSubscription, notes string, starts
 	renewed.StartsAt = startsAt
 	renewed.ExpiresAt = expiresAt
 	renewed.Status = SubscriptionStatusActive
+	if existingSub.Group.UsesDualWindows() {
+		renewed.ShortWindowStart = &periodicWindowStart
+		renewed.ShortUsageUSD = 0
+	}
 	renewed.DailyWindowStart = &dailyWindowStart
 	renewed.WeeklyWindowStart = &periodicWindowStart
 	renewed.MonthlyWindowStart = &periodicWindowStart
@@ -934,6 +938,9 @@ func normalizeExpiredWindows(subs []UserSubscription) {
 func normalizeExpiredWindowsAt(subs []UserSubscription, now time.Time) {
 	for i := range subs {
 		sub := &subs[i]
+		if sub.Group.UsesDualWindows() {
+			projectDualWindows(sub, now)
+		}
 		// 日窗口过期：清零展示数据
 		if sub.canAutomaticallyResetDailyAt(now) {
 			sub.DailyWindowStart = nil
@@ -975,6 +982,15 @@ func (s *SubscriptionService) CheckAndActivateWindow(ctx context.Context, sub *U
 }
 
 func (s *SubscriptionService) checkAndActivateWindowAt(ctx context.Context, sub *UserSubscription, now time.Time) error {
+	group, err := s.subscriptionGroup(ctx, sub)
+	if err != nil {
+		return err
+	}
+	if group.UsesDualWindows() {
+		_, err := maintainDualWindows(ctx, s.userSubRepo, sub.ID, now, true)
+		return err
+	}
+
 	if sub.IsWindowActivated() {
 		return nil
 	}
@@ -995,6 +1011,25 @@ func (s *SubscriptionService) checkAndActivateWindowAt(ctx context.Context, sub 
 //   - 极端场景下 core 的 stale 守卫（anchor >= now）只会跳过一次本来就不会
 //     改变任何值的重复重置（usage 已为 0、anchor 已等于 now），终态一致。
 func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool) (*UserSubscription, error) {
+	current, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil {
+		return nil, err
+	}
+	group, err := s.subscriptionGroup(ctx, current)
+	if err != nil {
+		return nil, err
+	}
+	if group.UsesDualWindows() {
+		if !resetDaily && !resetWeekly && !resetMonthly {
+			return nil, ErrInvalidInput
+		}
+		_, err := s.ResetSubscriptionWeeklyPeriod(ctx, &WeeklyResetInput{UserSubscriptionID: subscriptionID, EffectiveAt: s.now(), Source: domain.WeeklyResetSourceAdminDirect, DualWindows: true})
+		if err != nil {
+			return nil, err
+		}
+		return s.userSubRepo.GetByID(ctx, subscriptionID)
+	}
+
 	if !resetDaily && !resetWeekly && !resetMonthly {
 		return nil, ErrInvalidInput
 	}
@@ -1036,6 +1071,17 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 // CheckAndResetWindows 检查并重置过期的窗口
 func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *UserSubscription) error {
 	now := s.now()
+	group, err := s.subscriptionGroup(ctx, sub)
+	if err != nil {
+		return err
+	}
+	if group.UsesDualWindows() {
+		fresh, err := maintainDualWindows(ctx, s.userSubRepo, sub.ID, now, false)
+		if err == nil {
+			*sub = *fresh
+		}
+		return err
+	}
 	needsInvalidateCache := false
 
 	// 日窗口重置（每天 0 点刷新，按日历日对齐）
@@ -1086,6 +1132,16 @@ func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *Use
 // allowed to proceed. It returns a fresh database snapshot because a competing
 // request may have won one of the conditional resets.
 func (s *SubscriptionService) EnsureWindowMaintenance(ctx context.Context, sub *UserSubscription) (*UserSubscription, error) {
+	if sub != nil {
+		group, err := s.subscriptionGroup(ctx, sub)
+		if err != nil {
+			return nil, err
+		}
+		if group.UsesDualWindows() {
+			return maintainDualWindows(ctx, s.userSubRepo, sub.ID, s.now(), true)
+		}
+	}
+
 	if sub == nil {
 		return nil, ErrSubscriptionNilInput
 	}
@@ -1111,6 +1167,9 @@ func (s *SubscriptionService) EnsureWindowMaintenance(ctx context.Context, sub *
 // CheckUsageLimits 检查使用限额（返回错误如果超限）
 // 用于中间件的快速预检查，additionalCost 通常为 0
 func (s *SubscriptionService) CheckUsageLimits(ctx context.Context, sub *UserSubscription, group *Group, additionalCost float64) error {
+	if group.UsesDualWindows() {
+		return sub.checkDualLimits(group, s.now(), additionalCost)
+	}
 	if !sub.CheckDailyLimit(group, additionalCost) {
 		return ErrDailyLimitExceeded
 	}
@@ -1131,6 +1190,10 @@ func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, grou
 		return false, ErrSubscriptionInvalid
 	}
 	now := s.now()
+	if group.UsesDualWindows() {
+		needs := sub.ShortWindowStart == nil || sub.WeeklyWindowStart == nil || !now.Before(sub.ShortWindowStart.Add(5*time.Hour)) || !now.Before(sub.WeeklyWindowStart.Add(7*24*time.Hour))
+		return needs, sub.checkDualLimits(group, now, 0)
+	}
 	// 1. 验证订阅状态
 	if sub.Status == SubscriptionStatusExpired {
 		return false, ErrSubscriptionExpired
@@ -1223,13 +1286,14 @@ func (s *SubscriptionService) RecordUsage(ctx context.Context, subscriptionID in
 
 // SubscriptionProgress 订阅进度
 type SubscriptionProgress struct {
-	ID            int64                `json:"id"`
-	GroupName     string               `json:"group_name"`
-	ExpiresAt     time.Time            `json:"expires_at"`
-	ExpiresInDays int                  `json:"expires_in_days"`
-	Daily         *UsageWindowProgress `json:"daily,omitempty"`
-	Weekly        *UsageWindowProgress `json:"weekly,omitempty"`
-	Monthly       *UsageWindowProgress `json:"monthly,omitempty"`
+	ID            int64                    `json:"id"`
+	GroupName     string                   `json:"group_name"`
+	ExpiresAt     time.Time                `json:"expires_at"`
+	ExpiresInDays int                      `json:"expires_in_days"`
+	Short         *SubscriptionQuotaWindow `json:"short,omitempty"`
+	Daily         *UsageWindowProgress     `json:"daily,omitempty"`
+	Weekly        *UsageWindowProgress     `json:"weekly,omitempty"`
+	Monthly       *UsageWindowProgress     `json:"monthly,omitempty"`
 }
 
 // UsageWindowProgress 使用窗口进度
@@ -1270,8 +1334,14 @@ func (s *SubscriptionService) calculateProgress(sub *UserSubscription, group *Gr
 		ExpiresInDays: sub.DaysRemaining(),
 	}
 
+	if group.ValidDualLimits() {
+		copy := *sub
+		sub = &copy
+		projectDualWindows(sub, s.now())
+		progress.Short = quotaWindow(sub.ShortUsageUSD, *group.ShortLimitUSD, sub.ShortWindowStart, 5*time.Hour, sub.ExpiresAt)
+	}
 	// 日进度
-	if group.HasDailyLimit() && sub.DailyWindowStart != nil {
+	if !group.UsesDualWindows() && group.HasDailyLimit() && sub.DailyWindowStart != nil {
 		limit := *group.DailyLimitUSD
 		resetsAt := sub.DailyWindowStart.Add(24 * time.Hour)
 		if dailyResetTime := sub.DailyResetTime(); dailyResetTime != nil {
@@ -1325,7 +1395,7 @@ func (s *SubscriptionService) calculateProgress(sub *UserSubscription, group *Gr
 	}
 
 	// 月进度
-	if group.HasMonthlyLimit() && sub.MonthlyWindowStart != nil {
+	if !group.UsesDualWindows() && group.HasMonthlyLimit() && sub.MonthlyWindowStart != nil {
 		limit := *group.MonthlyLimitUSD
 		resetsAt := sub.MonthlyWindowStart.Add(30 * 24 * time.Hour)
 		if monthlyResetTime := sub.MonthlyResetTime(); monthlyResetTime != nil {

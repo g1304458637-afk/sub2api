@@ -39,6 +39,8 @@ var (
 
 // WeeklyResetInput 统一 Reset 的输入。
 type WeeklyResetInput struct {
+	AuditEventID       *int64 // event already claimed by batch executor
+	DualWindows        bool   // explicit scope; historical events remain weekly-only
 	UserSubscriptionID int64
 
 	// EffectiveAt 由调用方显式传入（必填）：

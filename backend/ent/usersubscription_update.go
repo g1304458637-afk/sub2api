@@ -130,6 +130,47 @@ func (_u *UserSubscriptionUpdate) SetNillableStatus(v *string) *UserSubscription
 	return _u
 }
 
+// SetShortWindowStart sets the "short_window_start" field.
+func (_u *UserSubscriptionUpdate) SetShortWindowStart(v time.Time) *UserSubscriptionUpdate {
+	_u.mutation.SetShortWindowStart(v)
+	return _u
+}
+
+// SetNillableShortWindowStart sets the "short_window_start" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableShortWindowStart(v *time.Time) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetShortWindowStart(*v)
+	}
+	return _u
+}
+
+// ClearShortWindowStart clears the value of the "short_window_start" field.
+func (_u *UserSubscriptionUpdate) ClearShortWindowStart() *UserSubscriptionUpdate {
+	_u.mutation.ClearShortWindowStart()
+	return _u
+}
+
+// SetShortUsageUsd sets the "short_usage_usd" field.
+func (_u *UserSubscriptionUpdate) SetShortUsageUsd(v float64) *UserSubscriptionUpdate {
+	_u.mutation.ResetShortUsageUsd()
+	_u.mutation.SetShortUsageUsd(v)
+	return _u
+}
+
+// SetNillableShortUsageUsd sets the "short_usage_usd" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableShortUsageUsd(v *float64) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetShortUsageUsd(*v)
+	}
+	return _u
+}
+
+// AddShortUsageUsd adds value to the "short_usage_usd" field.
+func (_u *UserSubscriptionUpdate) AddShortUsageUsd(v float64) *UserSubscriptionUpdate {
+	_u.mutation.AddShortUsageUsd(v)
+	return _u
+}
+
 // SetDailyWindowStart sets the "daily_window_start" field.
 func (_u *UserSubscriptionUpdate) SetDailyWindowStart(v time.Time) *UserSubscriptionUpdate {
 	_u.mutation.SetDailyWindowStart(v)
@@ -659,6 +700,18 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(usersubscription.FieldStatus, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ShortWindowStart(); ok {
+		_spec.SetField(usersubscription.FieldShortWindowStart, field.TypeTime, value)
+	}
+	if _u.mutation.ShortWindowStartCleared() {
+		_spec.ClearField(usersubscription.FieldShortWindowStart, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ShortUsageUsd(); ok {
+		_spec.SetField(usersubscription.FieldShortUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedShortUsageUsd(); ok {
+		_spec.AddField(usersubscription.FieldShortUsageUsd, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.DailyWindowStart(); ok {
 		_spec.SetField(usersubscription.FieldDailyWindowStart, field.TypeTime, value)
 	}
@@ -1105,6 +1158,47 @@ func (_u *UserSubscriptionUpdateOne) SetNillableStatus(v *string) *UserSubscript
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetShortWindowStart sets the "short_window_start" field.
+func (_u *UserSubscriptionUpdateOne) SetShortWindowStart(v time.Time) *UserSubscriptionUpdateOne {
+	_u.mutation.SetShortWindowStart(v)
+	return _u
+}
+
+// SetNillableShortWindowStart sets the "short_window_start" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableShortWindowStart(v *time.Time) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetShortWindowStart(*v)
+	}
+	return _u
+}
+
+// ClearShortWindowStart clears the value of the "short_window_start" field.
+func (_u *UserSubscriptionUpdateOne) ClearShortWindowStart() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearShortWindowStart()
+	return _u
+}
+
+// SetShortUsageUsd sets the "short_usage_usd" field.
+func (_u *UserSubscriptionUpdateOne) SetShortUsageUsd(v float64) *UserSubscriptionUpdateOne {
+	_u.mutation.ResetShortUsageUsd()
+	_u.mutation.SetShortUsageUsd(v)
+	return _u
+}
+
+// SetNillableShortUsageUsd sets the "short_usage_usd" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableShortUsageUsd(v *float64) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetShortUsageUsd(*v)
+	}
+	return _u
+}
+
+// AddShortUsageUsd adds value to the "short_usage_usd" field.
+func (_u *UserSubscriptionUpdateOne) AddShortUsageUsd(v float64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddShortUsageUsd(v)
 	return _u
 }
 
@@ -1666,6 +1760,18 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(usersubscription.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ShortWindowStart(); ok {
+		_spec.SetField(usersubscription.FieldShortWindowStart, field.TypeTime, value)
+	}
+	if _u.mutation.ShortWindowStartCleared() {
+		_spec.ClearField(usersubscription.FieldShortWindowStart, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ShortUsageUsd(); ok {
+		_spec.SetField(usersubscription.FieldShortUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedShortUsageUsd(); ok {
+		_spec.AddField(usersubscription.FieldShortUsageUsd, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.DailyWindowStart(); ok {
 		_spec.SetField(usersubscription.FieldDailyWindowStart, field.TypeTime, value)

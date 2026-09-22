@@ -85,22 +85,7 @@
                 {{ statusLabel(primarySub.usage_status) }}
               </span>
             </div>
-            <div class="muc-status__sub-bar-row">
-              <div class="muc-status__sub-bar">
-                <div
-                  class="muc-status__sub-bar-fill"
-                  :class="statusBarClass(primarySub.usage_status)"
-                  :style="{ width: `${Math.min(Math.max(primarySub.weekly_usage_percent ?? 0, 0), 100)}%` }"
-                ></div>
-              </div>
-              <span class="muc-status__sub-percent">
-                {{
-                  primarySub.weekly_usage_percent === null
-                    ? t('pricing.usageStatus.unmetered')
-                    : `${primarySub.weekly_usage_percent}%`
-                }}
-              </span>
-            </div>
+            <QuotaRemaining :subscription="primarySub" />
             <div class="muc-status__sub-meta">
               <span v-if="primarySub.expires_at">
                 {{ t('pricing.statusStrip.expires') }} {{ formatDate(primarySub.expires_at) }}
@@ -271,6 +256,7 @@
 </template>
 
 <script setup lang="ts">
+import QuotaRemaining from '@/components/subscription/QuotaRemaining.vue'
 import { hasCampusScenes } from '@/brand/scenes'
 import { currentBrand } from '@/brand'
 import { computed, onMounted, ref } from 'vue'
@@ -946,20 +932,7 @@ function statusChipClass(status: UsageStatus): string {
   }
 }
 
-function statusBarClass(status: UsageStatus): string {
-  switch (status) {
-    case 'exhausted':
-      return 'muc-bar--exhausted'
-    case 'near_limit':
-      return 'muc-bar--near-limit'
-    case 'high':
-      return 'muc-bar--high'
-    case 'unmetered':
-      return 'muc-bar--unmetered'
-    default:
-      return 'muc-bar--normal'
-  }
-}
+
 </script>
 
 <style scoped>

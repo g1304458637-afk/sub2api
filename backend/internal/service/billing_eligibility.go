@@ -29,5 +29,5 @@ func (e BillingEligibility) SubscriptionForBilling(subscription *UserSubscriptio
 // IsSubscriptionLimitError distinguishes exhausted entitlements from invalid,
 // expired or suspended subscriptions, which must never enable PAYG fallback.
 func IsSubscriptionLimitError(err error) bool {
-	return errors.Is(err, ErrDailyLimitExceeded) || errors.Is(err, ErrWeeklyLimitExceeded) || errors.Is(err, ErrMonthlyLimitExceeded)
+	return errors.Is(err, ErrShortLimitExceeded) || errors.Is(err, ErrDailyLimitExceeded) || errors.Is(err, ErrWeeklyLimitExceeded) || errors.Is(err, ErrMonthlyLimitExceeded)
 }

@@ -130,6 +130,16 @@ func SubscriptionType(v string) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSubscriptionType, v))
 }
 
+// QuotaPolicy applies equality check predicate on the "quota_policy" field. It's identical to QuotaPolicyEQ.
+func QuotaPolicy(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldQuotaPolicy, v))
+}
+
+// ShortLimitUsd applies equality check predicate on the "short_limit_usd" field. It's identical to ShortLimitUsdEQ.
+func ShortLimitUsd(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldShortLimitUsd, v))
+}
+
 // DailyLimitUsd applies equality check predicate on the "daily_limit_usd" field. It's identical to DailyLimitUsdEQ.
 func DailyLimitUsd(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldDailyLimitUsd, v))
@@ -1123,6 +1133,121 @@ func SubscriptionTypeEqualFold(v string) predicate.Group {
 // SubscriptionTypeContainsFold applies the ContainsFold predicate on the "subscription_type" field.
 func SubscriptionTypeContainsFold(v string) predicate.Group {
 	return predicate.Group(sql.FieldContainsFold(FieldSubscriptionType, v))
+}
+
+// QuotaPolicyEQ applies the EQ predicate on the "quota_policy" field.
+func QuotaPolicyEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyNEQ applies the NEQ predicate on the "quota_policy" field.
+func QuotaPolicyNEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyIn applies the In predicate on the "quota_policy" field.
+func QuotaPolicyIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldQuotaPolicy, vs...))
+}
+
+// QuotaPolicyNotIn applies the NotIn predicate on the "quota_policy" field.
+func QuotaPolicyNotIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldQuotaPolicy, vs...))
+}
+
+// QuotaPolicyGT applies the GT predicate on the "quota_policy" field.
+func QuotaPolicyGT(v string) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyGTE applies the GTE predicate on the "quota_policy" field.
+func QuotaPolicyGTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyLT applies the LT predicate on the "quota_policy" field.
+func QuotaPolicyLT(v string) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyLTE applies the LTE predicate on the "quota_policy" field.
+func QuotaPolicyLTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyContains applies the Contains predicate on the "quota_policy" field.
+func QuotaPolicyContains(v string) predicate.Group {
+	return predicate.Group(sql.FieldContains(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyHasPrefix applies the HasPrefix predicate on the "quota_policy" field.
+func QuotaPolicyHasPrefix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasPrefix(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyHasSuffix applies the HasSuffix predicate on the "quota_policy" field.
+func QuotaPolicyHasSuffix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasSuffix(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyEqualFold applies the EqualFold predicate on the "quota_policy" field.
+func QuotaPolicyEqualFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldEqualFold(FieldQuotaPolicy, v))
+}
+
+// QuotaPolicyContainsFold applies the ContainsFold predicate on the "quota_policy" field.
+func QuotaPolicyContainsFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldContainsFold(FieldQuotaPolicy, v))
+}
+
+// ShortLimitUsdEQ applies the EQ predicate on the "short_limit_usd" field.
+func ShortLimitUsdEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldShortLimitUsd, v))
+}
+
+// ShortLimitUsdNEQ applies the NEQ predicate on the "short_limit_usd" field.
+func ShortLimitUsdNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldShortLimitUsd, v))
+}
+
+// ShortLimitUsdIn applies the In predicate on the "short_limit_usd" field.
+func ShortLimitUsdIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldShortLimitUsd, vs...))
+}
+
+// ShortLimitUsdNotIn applies the NotIn predicate on the "short_limit_usd" field.
+func ShortLimitUsdNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldShortLimitUsd, vs...))
+}
+
+// ShortLimitUsdGT applies the GT predicate on the "short_limit_usd" field.
+func ShortLimitUsdGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldShortLimitUsd, v))
+}
+
+// ShortLimitUsdGTE applies the GTE predicate on the "short_limit_usd" field.
+func ShortLimitUsdGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldShortLimitUsd, v))
+}
+
+// ShortLimitUsdLT applies the LT predicate on the "short_limit_usd" field.
+func ShortLimitUsdLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldShortLimitUsd, v))
+}
+
+// ShortLimitUsdLTE applies the LTE predicate on the "short_limit_usd" field.
+func ShortLimitUsdLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldShortLimitUsd, v))
+}
+
+// ShortLimitUsdIsNil applies the IsNil predicate on the "short_limit_usd" field.
+func ShortLimitUsdIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldShortLimitUsd))
+}
+
+// ShortLimitUsdNotNil applies the NotNil predicate on the "short_limit_usd" field.
+func ShortLimitUsdNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldShortLimitUsd))
 }
 
 // DailyLimitUsdEQ applies the EQ predicate on the "daily_limit_usd" field.

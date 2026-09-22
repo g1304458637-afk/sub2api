@@ -34,6 +34,8 @@ type Group struct {
 	// an already committed one-click copy. It must never be mapped to API DTOs.
 	DuplicateOperationID string
 
+	QuotaPolicy      string
+	ShortLimitUSD    *float64
 	SubscriptionType string
 	DailyLimitUSD    *float64
 	WeeklyLimitUSD   *float64
@@ -479,4 +481,11 @@ func (g *Group) GetSearchPricePer1k() *float64 {
 		return nil
 	}
 	return g.SearchPricePer1k
+}
+
+const QuotaPolicyDualWindow = "dual_window_v1"
+
+func (g *Group) UsesDualWindows() bool { return g != nil && g.QuotaPolicy == QuotaPolicyDualWindow }
+func (g *Group) ValidDualLimits() bool {
+	return g.UsesDualWindows() && g.ShortLimitUSD != nil && *g.ShortLimitUSD > 0 && g.WeeklyLimitUSD != nil && *g.WeeklyLimitUSD > 0 && !math.IsInf(*g.ShortLimitUSD, 0) && !math.IsInf(*g.WeeklyLimitUSD, 0)
 }

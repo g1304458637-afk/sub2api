@@ -95,6 +95,16 @@ func Status(v string) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldStatus, v))
 }
 
+// ShortWindowStart applies equality check predicate on the "short_window_start" field. It's identical to ShortWindowStartEQ.
+func ShortWindowStart(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldShortWindowStart, v))
+}
+
+// ShortUsageUsd applies equality check predicate on the "short_usage_usd" field. It's identical to ShortUsageUsdEQ.
+func ShortUsageUsd(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldShortUsageUsd, v))
+}
+
 // DailyWindowStart applies equality check predicate on the "daily_window_start" field. It's identical to DailyWindowStartEQ.
 func DailyWindowStart(v time.Time) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldDailyWindowStart, v))
@@ -468,6 +478,96 @@ func StatusEqualFold(v string) predicate.UserSubscription {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// ShortWindowStartEQ applies the EQ predicate on the "short_window_start" field.
+func ShortWindowStartEQ(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldShortWindowStart, v))
+}
+
+// ShortWindowStartNEQ applies the NEQ predicate on the "short_window_start" field.
+func ShortWindowStartNEQ(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldShortWindowStart, v))
+}
+
+// ShortWindowStartIn applies the In predicate on the "short_window_start" field.
+func ShortWindowStartIn(vs ...time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldShortWindowStart, vs...))
+}
+
+// ShortWindowStartNotIn applies the NotIn predicate on the "short_window_start" field.
+func ShortWindowStartNotIn(vs ...time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldShortWindowStart, vs...))
+}
+
+// ShortWindowStartGT applies the GT predicate on the "short_window_start" field.
+func ShortWindowStartGT(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldShortWindowStart, v))
+}
+
+// ShortWindowStartGTE applies the GTE predicate on the "short_window_start" field.
+func ShortWindowStartGTE(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldShortWindowStart, v))
+}
+
+// ShortWindowStartLT applies the LT predicate on the "short_window_start" field.
+func ShortWindowStartLT(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldShortWindowStart, v))
+}
+
+// ShortWindowStartLTE applies the LTE predicate on the "short_window_start" field.
+func ShortWindowStartLTE(v time.Time) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldShortWindowStart, v))
+}
+
+// ShortWindowStartIsNil applies the IsNil predicate on the "short_window_start" field.
+func ShortWindowStartIsNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIsNull(FieldShortWindowStart))
+}
+
+// ShortWindowStartNotNil applies the NotNil predicate on the "short_window_start" field.
+func ShortWindowStartNotNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotNull(FieldShortWindowStart))
+}
+
+// ShortUsageUsdEQ applies the EQ predicate on the "short_usage_usd" field.
+func ShortUsageUsdEQ(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldShortUsageUsd, v))
+}
+
+// ShortUsageUsdNEQ applies the NEQ predicate on the "short_usage_usd" field.
+func ShortUsageUsdNEQ(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldShortUsageUsd, v))
+}
+
+// ShortUsageUsdIn applies the In predicate on the "short_usage_usd" field.
+func ShortUsageUsdIn(vs ...float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldShortUsageUsd, vs...))
+}
+
+// ShortUsageUsdNotIn applies the NotIn predicate on the "short_usage_usd" field.
+func ShortUsageUsdNotIn(vs ...float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldShortUsageUsd, vs...))
+}
+
+// ShortUsageUsdGT applies the GT predicate on the "short_usage_usd" field.
+func ShortUsageUsdGT(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldShortUsageUsd, v))
+}
+
+// ShortUsageUsdGTE applies the GTE predicate on the "short_usage_usd" field.
+func ShortUsageUsdGTE(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldShortUsageUsd, v))
+}
+
+// ShortUsageUsdLT applies the LT predicate on the "short_usage_usd" field.
+func ShortUsageUsdLT(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldShortUsageUsd, v))
+}
+
+// ShortUsageUsdLTE applies the LTE predicate on the "short_usage_usd" field.
+func ShortUsageUsdLTE(v float64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldShortUsageUsd, v))
 }
 
 // DailyWindowStartEQ applies the EQ predicate on the "daily_window_start" field.

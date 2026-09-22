@@ -232,6 +232,34 @@ func (_c *GroupCreate) SetNillableSubscriptionType(v *string) *GroupCreate {
 	return _c
 }
 
+// SetQuotaPolicy sets the "quota_policy" field.
+func (_c *GroupCreate) SetQuotaPolicy(v string) *GroupCreate {
+	_c.mutation.SetQuotaPolicy(v)
+	return _c
+}
+
+// SetNillableQuotaPolicy sets the "quota_policy" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableQuotaPolicy(v *string) *GroupCreate {
+	if v != nil {
+		_c.SetQuotaPolicy(*v)
+	}
+	return _c
+}
+
+// SetShortLimitUsd sets the "short_limit_usd" field.
+func (_c *GroupCreate) SetShortLimitUsd(v float64) *GroupCreate {
+	_c.mutation.SetShortLimitUsd(v)
+	return _c
+}
+
+// SetNillableShortLimitUsd sets the "short_limit_usd" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableShortLimitUsd(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetShortLimitUsd(*v)
+	}
+	return _c
+}
+
 // SetDailyLimitUsd sets the "daily_limit_usd" field.
 func (_c *GroupCreate) SetDailyLimitUsd(v float64) *GroupCreate {
 	_c.mutation.SetDailyLimitUsd(v)
@@ -1111,6 +1139,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultSubscriptionType
 		_c.mutation.SetSubscriptionType(v)
 	}
+	if _, ok := _c.mutation.QuotaPolicy(); !ok {
+		v := group.DefaultQuotaPolicy
+		_c.mutation.SetQuotaPolicy(v)
+	}
 	if _, ok := _c.mutation.DefaultValidityDays(); !ok {
 		v := group.DefaultDefaultValidityDays
 		_c.mutation.SetDefaultValidityDays(v)
@@ -1314,6 +1346,9 @@ func (_c *GroupCreate) check() error {
 		if err := group.SubscriptionTypeValidator(v); err != nil {
 			return &ValidationError{Name: "subscription_type", err: fmt.Errorf(`ent: validator failed for field "Group.subscription_type": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.QuotaPolicy(); !ok {
+		return &ValidationError{Name: "quota_policy", err: errors.New(`ent: missing required field "Group.quota_policy"`)}
 	}
 	if _, ok := _c.mutation.DefaultValidityDays(); !ok {
 		return &ValidationError{Name: "default_validity_days", err: errors.New(`ent: missing required field "Group.default_validity_days"`)}
@@ -1542,6 +1577,14 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.SubscriptionType(); ok {
 		_spec.SetField(group.FieldSubscriptionType, field.TypeString, value)
 		_node.SubscriptionType = value
+	}
+	if value, ok := _c.mutation.QuotaPolicy(); ok {
+		_spec.SetField(group.FieldQuotaPolicy, field.TypeString, value)
+		_node.QuotaPolicy = value
+	}
+	if value, ok := _c.mutation.ShortLimitUsd(); ok {
+		_spec.SetField(group.FieldShortLimitUsd, field.TypeFloat64, value)
+		_node.ShortLimitUsd = &value
 	}
 	if value, ok := _c.mutation.DailyLimitUsd(); ok {
 		_spec.SetField(group.FieldDailyLimitUsd, field.TypeFloat64, value)
@@ -2088,6 +2131,42 @@ func (u *GroupUpsert) SetSubscriptionType(v string) *GroupUpsert {
 // UpdateSubscriptionType sets the "subscription_type" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateSubscriptionType() *GroupUpsert {
 	u.SetExcluded(group.FieldSubscriptionType)
+	return u
+}
+
+// SetQuotaPolicy sets the "quota_policy" field.
+func (u *GroupUpsert) SetQuotaPolicy(v string) *GroupUpsert {
+	u.Set(group.FieldQuotaPolicy, v)
+	return u
+}
+
+// UpdateQuotaPolicy sets the "quota_policy" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateQuotaPolicy() *GroupUpsert {
+	u.SetExcluded(group.FieldQuotaPolicy)
+	return u
+}
+
+// SetShortLimitUsd sets the "short_limit_usd" field.
+func (u *GroupUpsert) SetShortLimitUsd(v float64) *GroupUpsert {
+	u.Set(group.FieldShortLimitUsd, v)
+	return u
+}
+
+// UpdateShortLimitUsd sets the "short_limit_usd" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateShortLimitUsd() *GroupUpsert {
+	u.SetExcluded(group.FieldShortLimitUsd)
+	return u
+}
+
+// AddShortLimitUsd adds v to the "short_limit_usd" field.
+func (u *GroupUpsert) AddShortLimitUsd(v float64) *GroupUpsert {
+	u.Add(group.FieldShortLimitUsd, v)
+	return u
+}
+
+// ClearShortLimitUsd clears the value of the "short_limit_usd" field.
+func (u *GroupUpsert) ClearShortLimitUsd() *GroupUpsert {
+	u.SetNull(group.FieldShortLimitUsd)
 	return u
 }
 
@@ -3270,6 +3349,48 @@ func (u *GroupUpsertOne) SetSubscriptionType(v string) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateSubscriptionType() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateSubscriptionType()
+	})
+}
+
+// SetQuotaPolicy sets the "quota_policy" field.
+func (u *GroupUpsertOne) SetQuotaPolicy(v string) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetQuotaPolicy(v)
+	})
+}
+
+// UpdateQuotaPolicy sets the "quota_policy" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateQuotaPolicy() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateQuotaPolicy()
+	})
+}
+
+// SetShortLimitUsd sets the "short_limit_usd" field.
+func (u *GroupUpsertOne) SetShortLimitUsd(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetShortLimitUsd(v)
+	})
+}
+
+// AddShortLimitUsd adds v to the "short_limit_usd" field.
+func (u *GroupUpsertOne) AddShortLimitUsd(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddShortLimitUsd(v)
+	})
+}
+
+// UpdateShortLimitUsd sets the "short_limit_usd" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateShortLimitUsd() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateShortLimitUsd()
+	})
+}
+
+// ClearShortLimitUsd clears the value of the "short_limit_usd" field.
+func (u *GroupUpsertOne) ClearShortLimitUsd() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearShortLimitUsd()
 	})
 }
 
@@ -4772,6 +4893,48 @@ func (u *GroupUpsertBulk) SetSubscriptionType(v string) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateSubscriptionType() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateSubscriptionType()
+	})
+}
+
+// SetQuotaPolicy sets the "quota_policy" field.
+func (u *GroupUpsertBulk) SetQuotaPolicy(v string) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetQuotaPolicy(v)
+	})
+}
+
+// UpdateQuotaPolicy sets the "quota_policy" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateQuotaPolicy() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateQuotaPolicy()
+	})
+}
+
+// SetShortLimitUsd sets the "short_limit_usd" field.
+func (u *GroupUpsertBulk) SetShortLimitUsd(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetShortLimitUsd(v)
+	})
+}
+
+// AddShortLimitUsd adds v to the "short_limit_usd" field.
+func (u *GroupUpsertBulk) AddShortLimitUsd(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddShortLimitUsd(v)
+	})
+}
+
+// UpdateShortLimitUsd sets the "short_limit_usd" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateShortLimitUsd() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateShortLimitUsd()
+	})
+}
+
+// ClearShortLimitUsd clears the value of the "short_limit_usd" field.
+func (u *GroupUpsertBulk) ClearShortLimitUsd() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearShortLimitUsd()
 	})
 }
 

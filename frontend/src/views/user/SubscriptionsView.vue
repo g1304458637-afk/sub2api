@@ -63,22 +63,10 @@
             </MucBadge>
           </div>
 
-          <div class="muc-subs__usage">
-            <div class="muc-subs__usage-head">
-              <span class="muc-subs__usage-label">{{ t('mySub.weeklyUsage') }}</span>
-              <span class="muc-subs__usage-percent">
-                {{ sub.weekly_usage_percent === null ? t('mySub.unmetered') : `${sub.weekly_usage_percent}%` }}
-              </span>
-            </div>
-            <MucProgress
-              :value="sub.weekly_usage_percent"
-              :tone="progressTone(sub.usage_status)"
-              :aria-label="t('mySub.weeklyUsage')"
-            />
-          </div>
+          <QuotaRemaining :subscription="sub" />
 
           <dl class="muc-subs__meta">
-            <div class="muc-subs__meta-item">
+            <div v-if="sub.quota_policy !== 'dual_window_v1'" class="muc-subs__meta-item">
               <dt>{{ t('mySub.nextReset') }}</dt>
               <dd>{{ formatDate(sub.weekly_period_ends_at) }}</dd>
             </div>
@@ -208,6 +196,7 @@
 </template>
 
 <script setup lang="ts">
+import QuotaRemaining from '@/components/subscription/QuotaRemaining.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -217,7 +206,6 @@ import MucGlassCard from '@/components/muc/MucGlassCard.vue'
 import MucButton from '@/components/muc/MucButton.vue'
 import MucBadge from '@/components/muc/MucBadge.vue'
 import type { MucBadgeTone } from '@/components/muc/MucBadge.vue'
-import MucProgress from '@/components/muc/MucProgress.vue'
 import MucSkeleton from '@/components/muc/MucSkeleton.vue'
 import MucState from '@/components/muc/MucState.vue'
 import MucConfirmDialog from '@/components/muc/MucConfirmDialog.vue'
@@ -283,7 +271,9 @@ const walletDisplay = computed(() => {
 
 const paygConfirmBody = computed(() => t('mySub.paygConfirmBody', { wallet: walletDisplay.value }))
 
-const resetConfirmBody = computed(() => t('mySub.resetConfirmBody', { count: resetCards.value }))
+const resetConfirmBody = computed(() => resetPending.value?.quota_policy === 'dual_window_v1'
+  ? '消耗一张重置卡，同时恢复 5 小时和周额度并重新计时。未用额度不叠加，不延长订阅；尚未结算的请求将消耗恢复后的额度。'
+  : t('mySub.resetConfirmBody', { count: resetCards.value }))
 
 const cancelBody = computed(() => {
   const sub = cancelPending.value
@@ -342,22 +332,7 @@ function badgeTone(statusValue: UsageStatus): MucBadgeTone {
   }
 }
 
-function progressTone(
-  statusValue: UsageStatus
-): 'normal' | 'high' | 'near_limit' | 'exhausted' | 'unmetered' {
-  switch (statusValue) {
-    case 'exhausted':
-      return 'exhausted'
-    case 'near_limit':
-      return 'near_limit'
-    case 'high':
-      return 'high'
-    case 'unmetered':
-      return 'unmetered'
-    default:
-      return 'normal'
-  }
-}
+
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
@@ -479,7 +454,7 @@ async function confirmUseResetCard() {
     // 重新拉取账户状态（0% + 剩余卡数），随后进入动画收尾
     await load()
     resetRemaining.value = resetCards.value
-    resetOverlayOpen.value = true
+    if (sub.quota_policy === 'dual_window_v1') { appStore.showSuccess('额度已重置，当前剩余以刷新结果为准') } else { resetOverlayOpen.value = true }
   } catch (err) {
     appStore.showError(extractErrorMessage(err, t('mySub.resetError')))
   } finally {

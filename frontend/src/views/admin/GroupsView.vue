@@ -726,6 +726,12 @@
             v-if="createForm.subscription_type === 'subscription'"
             class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800"
           >
+            <div class="col-span-full">
+              <label class="input-label">额度规则</label>
+              <select v-model="createForm.quota_policy" class="input"><option value="legacy">原日／周／月规则</option><option value="dual_window_v1">5 小时＋周额度</option></select>
+              <label v-if="createForm.quota_policy === 'dual_window_v1'" class="input-label mt-2">5 小时额度（内部计费单位）<input v-model.number="createForm.short_limit_usd" type="number" min="0.01" step="0.01" class="input" /></label>
+              <p v-if="createForm.quota_policy === 'dual_window_v1'" class="text-xs text-gray-500">日、月字段只保留统计兼容，不参与套餐拦截；重置同时恢复两个窗口。</p>
+            </div>
             <div>
               <label class="input-label">{{
                 t("admin.groups.subscription.dailyLimit")
@@ -2366,6 +2372,12 @@
             v-if="editForm.subscription_type === 'subscription'"
             class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800"
           >
+            <div class="col-span-full">
+              <label class="input-label">额度规则</label>
+              <select v-model="editForm.quota_policy" class="input"><option value="legacy">原日／周／月规则</option><option value="dual_window_v1">5 小时＋周额度</option></select>
+              <label v-if="editForm.quota_policy === 'dual_window_v1'" class="input-label mt-2">5 小时额度（内部计费单位）<input v-model.number="editForm.short_limit_usd" type="number" min="0.01" step="0.01" class="input" /></label>
+              <p v-if="editForm.quota_policy === 'dual_window_v1'" class="text-xs text-gray-500">日、月字段只保留统计兼容，不参与套餐拦截；重置同时恢复两个窗口。</p>
+            </div>
             <div>
               <label class="input-label">{{
                 t("admin.groups.subscription.dailyLimit")
@@ -4935,6 +4947,8 @@ const createForm = reactive({
   rate_multiplier: 1.0,
   is_exclusive: false,
   subscription_type: "standard" as SubscriptionType,
+  quota_policy: "legacy" as "legacy" | "dual_window_v1",
+  short_limit_usd: null as number | null,
   daily_limit_usd: null as number | null,
   weekly_limit_usd: null as number | null,
   monthly_limit_usd: null as number | null,
@@ -5300,6 +5314,8 @@ const editForm = reactive({
   is_exclusive: false,
   status: "active" as "active" | "inactive",
   subscription_type: "standard" as SubscriptionType,
+  quota_policy: "legacy" as "legacy" | "dual_window_v1",
+  short_limit_usd: null as number | null,
   daily_limit_usd: null as number | null,
   weekly_limit_usd: null as number | null,
   monthly_limit_usd: null as number | null,
@@ -5762,6 +5778,8 @@ const closeCreateModal = () => {
   createForm.rate_multiplier = 1.0;
   createForm.is_exclusive = false;
   createForm.subscription_type = "standard";
+  createForm.quota_policy = "legacy";
+  createForm.short_limit_usd = null;
   createForm.daily_limit_usd = null;
   createForm.weekly_limit_usd = null;
   createForm.monthly_limit_usd = null;
@@ -6032,6 +6050,8 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.is_exclusive = group.is_exclusive;
   editForm.status = group.status;
   editForm.subscription_type = group.subscription_type || "standard";
+  editForm.quota_policy = group.quota_policy ?? "legacy";
+  editForm.short_limit_usd = group.short_limit_usd ?? null;
   editForm.daily_limit_usd = group.daily_limit_usd;
   editForm.weekly_limit_usd = group.weekly_limit_usd;
   editForm.monthly_limit_usd = group.monthly_limit_usd;

@@ -413,6 +413,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatRemainingPercent as quotaPercent } from '@/utils/quotaDisplay'
 import { hasCampusScenes } from '@/brand/scenes'
 import { currentBrand } from '@/brand'
 import { resolveSiteName } from '@/utils/branding'
@@ -654,7 +655,12 @@ const ringItems = computed<RingItem[]>(() => {
     const walletAmount = walletBalanceFromData(data)
     if (data.subscription_status) {
       const ss = data.subscription_status
-      if (ss.usage_status !== 'unmetered' && ss.weekly_usage_percent != null) {
+      if (ss.quota_policy === 'dual_window_v1') {
+        for (const [label, w] of [['5 小时剩余', ss.short_window], ['本周剩余', ss.weekly_window]] as const) {
+          items.push({ title: label, pct: w?.remaining_percent ?? 0,
+            amount: quotaPercent(w?.remaining_percent), iconType: 'calendar', resetAt: w?.resets_at ?? undefined })
+        }
+      } else if (ss.usage_status !== 'unmetered' && ss.weekly_usage_percent != null) {
         items.push({
           title: t('keyUsage.weeklyUsage'),
           pct: ss.weekly_usage_percent,
@@ -771,7 +777,13 @@ const detailRows = computed<DetailRow[]>(() => {
 
     if (data.subscription_status) {
       const ss = data.subscription_status
-      if (ss.usage_status !== 'unmetered' && ss.weekly_usage_percent != null) {
+      if (ss.quota_policy === 'dual_window_v1') {
+        for (const [label, w] of [['5 小时剩余', ss.short_window], ['本周剩余', ss.weekly_window]] as const) {
+          rows.push({ iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-500', iconSvg: ICON_CALENDAR,
+            label, value: `${quotaPercent(w?.remaining_percent)} · ${w?.resets_at ? formatDate(w.resets_at) + ' 恢复' : w?.starts_at ? '到期前不再恢复' : w ? '首次使用后开始计时' : '状态暂不可用'}`,
+            valueClass: getUsageColor(100 - (w?.remaining_percent ?? 0)) })
+        }
+      } else if (ss.usage_status !== 'unmetered' && ss.weekly_usage_percent != null) {
         const statusMap: Record<string, string> = {
           normal: t('keyUsage.statusNormal'),
           high: t('keyUsage.statusHigh'),
@@ -786,7 +798,7 @@ const detailRows = computed<DetailRow[]>(() => {
           valueClass: getUsageColor(ss.weekly_usage_percent),
         })
       }
-      if (ss.weekly_period_ends_at) {
+      if (ss.quota_policy !== 'dual_window_v1' && ss.weekly_period_ends_at) {
         rows.push({
           iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', iconSvg: ICON_CALENDAR,
           label: t('keyUsage.weeklyResets'), value: formatDate(ss.weekly_period_ends_at), valueClass: '',

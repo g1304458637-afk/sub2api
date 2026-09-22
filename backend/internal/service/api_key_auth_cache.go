@@ -57,6 +57,8 @@ type APIKeyAuthUserSnapshot struct {
 
 // APIKeyAuthGroupSnapshot 分组快照
 type APIKeyAuthGroupSnapshot struct {
+	QuotaPolicy                     string                        `json:"quota_policy"`
+	ShortLimitUSD                   *float64                      `json:"short_limit_usd,omitempty"`
 	ID                              int64                         `json:"id"`
 	Name                            string                        `json:"name"`
 	Platform                        string                        `json:"platform"`

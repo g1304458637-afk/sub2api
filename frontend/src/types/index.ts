@@ -582,6 +582,8 @@ export interface Group {
   is_exclusive: boolean
   status: 'active' | 'inactive'
   subscription_type: SubscriptionType
+  quota_policy?: 'legacy' | 'dual_window_v1'
+  short_limit_usd?: number | null
   daily_limit_usd: number | null
   weekly_limit_usd: number | null
   monthly_limit_usd: number | null
@@ -802,6 +804,8 @@ export interface CreateGroupRequest {
   rate_multiplier?: number
   is_exclusive?: boolean
   subscription_type?: SubscriptionType
+  quota_policy?: 'legacy' | 'dual_window_v1'
+  short_limit_usd?: number | null
   daily_limit_usd?: number | null
   weekly_limit_usd?: number | null
   monthly_limit_usd?: number | null
@@ -868,6 +872,8 @@ export interface UpdateGroupRequest {
   is_exclusive?: boolean
   status?: 'active' | 'inactive'
   subscription_type?: SubscriptionType
+  quota_policy?: 'legacy' | 'dual_window_v1'
+  short_limit_usd?: number | null
   daily_limit_usd?: number | null
   weekly_limit_usd?: number | null
   monthly_limit_usd?: number | null
@@ -2062,6 +2068,8 @@ export interface UserSubscription {
   group_id: number
   status: 'active' | 'expired' | 'revoked' | 'suspended'
   starts_at: string
+  short_usage_usd?: number
+  short_window_start?: string | null
   daily_usage_usd: number
   weekly_usage_usd: number
   monthly_usage_usd: number

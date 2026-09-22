@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"strings"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -213,9 +215,15 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 }
 
 func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscriptionID int64, costUSD float64) error {
+	now := time.Now()
+	if _, err := tx.ExecContext(ctx, "SELECT campus_advance_dual_windows($1,$2,true,$3)", subscriptionID, now, timezone.StartOfDay(now)); err != nil {
+		return err
+	}
+
 	const updateSQL = `
 		UPDATE user_subscriptions us
 		SET
+			short_usage_usd = us.short_usage_usd + CASE WHEN g.quota_policy = 'dual_window_v1' THEN $1::numeric ELSE 0::numeric END,
 			daily_usage_usd = us.daily_usage_usd + $1,
 			weekly_usage_usd = us.weekly_usage_usd + $1,
 			monthly_usage_usd = us.monthly_usage_usd + $1,

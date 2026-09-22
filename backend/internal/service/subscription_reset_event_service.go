@@ -264,12 +264,14 @@ func (s *ResetEventService) createOnce(ctx context.Context, in *CreateResetEvent
 	if len(subIDs) == 0 {
 		return nil, ErrResetTargetEmpty
 	}
+	scope := directScopeJSON(in.Selector)
+	scope["quota_contract"] = "2"
 	eventID, err := s.store.CreateEventWithApplications(ctx, &ResetEventRecord{
 		EventType:     domain.ResetEventTypeGlobalReset,
 		Status:        domain.ResetEventStatusPending,
 		EffectiveAt:   effectiveAt,
 		ScopeType:     directScopeTypeFor(in.Selector.TargetMode),
-		Scope:         directScopeJSON(in.Selector),
+		Scope:         scope,
 		Reason:        in.Reason,
 		TotalTargeted: int64(len(subIDs)),
 	}, subIDs)
@@ -455,7 +457,17 @@ func (s *ResetEventService) applyOne(ctx context.Context, eventID int64, effecti
 			domain.ResetApplicationStatusSkipped)
 	}
 
+	event, err := s.store.GetEvent(txCtx, eventID)
+	if err != nil {
+		return err
+	}
+	fresh, err := s.subRepo.GetByID(txCtx, sub.ID)
+	if err != nil {
+		return err
+	}
 	result, err := s.resetCore.ResetSubscriptionWeeklyPeriod(txCtx, &WeeklyResetInput{
+		AuditEventID:       &eventID,
+		DualWindows:        event.Scope["quota_contract"] == "2" && fresh.Group.UsesDualWindows(),
 		UserSubscriptionID: claim.UserSubscriptionID,
 		EffectiveAt:        effectiveAt,
 		Source:             domain.WeeklyResetSourceBatchDirect,

@@ -67,7 +67,10 @@
                 <Icon name="checkCircle" size="sm" class="muc-modal__fact-icon" />
                 <span>{{ t('pricing.upgradeModal.effectiveNow', { date: formatDate(quote.current_expiry) }) }}</span>
               </li>
-              <li v-if="quote.weekly_usage_percent_before !== null">
+              <li v-if="quote.short_remaining_percent_after !== undefined">
+                <span>升级后预计剩余：5 小时 {{ formatRemainingPercent(quote.short_remaining_percent_after) }} · 本周 {{ formatRemainingPercent(quote.weekly_remaining_percent_after) }}。已用量与恢复时间不变，实际以付款履约时用量为准。</span>
+              </li>
+              <li v-else-if="quote.weekly_usage_percent_before !== null">
                 <Icon name="chart" size="sm" class="muc-modal__fact-icon" />
                 <span>{{
                   t('pricing.upgradeModal.usageShift', {
@@ -139,6 +142,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatRemainingPercent } from '@/utils/quotaDisplay'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import '@/components/pricing/muc-tokens.css'
