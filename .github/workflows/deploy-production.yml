@@ -216,8 +216,8 @@ jobs:
         run: |
           ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "mkdir -p /tmp/sub2api-deploy"
           for f in production-deploy.sh production-healthcheck.sh production-rollback.sh; do
-            cat "scripts/$f" | ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
-              "cat > /tmp/sub2api-deploy/$f && chmod 700 /tmp/sub2api-deploy/$f"
+            ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+              "cat > /tmp/sub2api-deploy/$f && chmod 700 /tmp/sub2api-deploy/$f" < "scripts/$f"
           done
 
       - name: Stage GHCR pull token (temp file, 600, server-side auto-delete)
