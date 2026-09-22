@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Read or atomically update only the backend image in the HUBU compose file."""
 
-from __future__ import annotations
-
 import os
 import re
 import stat
@@ -10,8 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-
-def backend_image_line(lines: list[str]) -> tuple[int, re.Match[str]]:
+def backend_image_line(lines):
     services = next((i for i, line in enumerate(lines) if line.strip() == "services:"), None)
     if services is None:
         raise ValueError("compose services section is missing")
@@ -28,14 +25,12 @@ def backend_image_line(lines: list[str]) -> tuple[int, re.Match[str]]:
         raise ValueError("compose backend must contain exactly one image entry")
     return matches[0]
 
-
-def get_image(path: Path) -> str:
+def get_image(path):
     lines = path.read_text(encoding="utf-8").splitlines()
     _, match = backend_image_line(lines)
     return match.group(2)
 
-
-def set_image(path: Path, expected: str, replacement: str) -> None:
+def set_image(path, expected, replacement):
     lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
     index, match = backend_image_line(lines)
     if match.group(2) != expected:
@@ -57,8 +52,7 @@ def set_image(path: Path, expected: str, replacement: str) -> None:
             pass
         raise
 
-
-def main(argv: list[str]) -> int:
+def main(argv):
     if len(argv) not in (2, 4):
         raise SystemExit("usage: hubu-compose-image.py get <compose-file> | set <compose-file> <expected> <replacement>")
     mode, filename = argv[:2]
@@ -70,7 +64,6 @@ def main(argv: list[str]) -> int:
         set_image(path, argv[2], argv[3])
         return 0
     raise SystemExit("invalid mode or arguments")
-
 
 if __name__ == "__main__":
     try:
