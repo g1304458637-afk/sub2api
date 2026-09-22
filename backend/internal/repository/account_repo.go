@@ -65,6 +65,8 @@ var schedulerNeutralExtraKeyPrefixes = []string{
 
 var schedulerNeutralExtraKeys = map[string]struct{}{
 	"codex_usage_updated_at":     {},
+	"codex_credits_snapshot":     {},
+	"codex_referral_snapshot":    {},
 	"grok_billing_snapshot":      {},
 	"session_window_utilization": {},
 }
@@ -1211,11 +1213,20 @@ func (r *accountRepository) ListOAuthRefreshCandidatePage(ctx context.Context, o
 	// NOT (a AND b) 在 PG 三值逻辑下会把 a 或 b 为 NULL 的行（即绝大多数
 	// 健康账号：temp_unschedulable_until=NULL）也排除，导致后台 token
 	// 刷新工作器漏掉所有正常账号 → access_token 到期后请求开始 401。
+	//
+	// Deliberately NO `schedulable = TRUE` filter here: paused accounts
+	// (schedulable=false, status=active) still hold valid refresh tokens and
+	// their stored access_token must keep working for the admin usage-window
+	// probe. Excluding them lets the token silently expire, after which the
+	// dashboard reports a false "needs re-auth" even though Test Connection
+	// (which refreshes on demand) succeeds. Permanent rejection is already
+	// covered by the status = 'active' filter (error accounts drop out), and
+	// accounts whose refresh actually fails are rate-limited by the
+	// ExcludeRetryCooldown clause below.
 	query := `
 		SELECT id
 		FROM accounts
 		WHERE deleted_at IS NULL
-			AND schedulable = TRUE
 			AND platform = ANY($1)
 			AND id > $2`
 	if options.ActiveOnly {
@@ -3876,8 +3887,12 @@ func (r *accountRepository) ResetQuotaUsedAndClearRateLimitCooldown(ctx context.
 // 仅当 proxy_fallback_origin_id IS NOT NULL 时执行更新；
 // 若影响行数为 0，则返回 ErrAccountNotInFallback（账号存在但不在 fallback 状态）。
 func (r *accountRepository) RevertProxyFallback(ctx context.Context, accountID int64) error {
+	// Probe snapshots belong to the network identity; invalidate only on a real proxy change.
 	res, err := r.sql.ExecContext(ctx, `
-		UPDATE accounts SET proxy_id=proxy_fallback_origin_id, proxy_fallback_origin_id=NULL, updated_at=NOW()
+		UPDATE accounts SET
+			extra=CASE WHEN type='apikey' AND proxy_id IS DISTINCT FROM proxy_fallback_origin_id
+				THEN extra - 'upstream_billing_probe' ELSE extra END,
+			proxy_id=proxy_fallback_origin_id, proxy_fallback_origin_id=NULL, updated_at=NOW()
 		WHERE id=$1 AND proxy_fallback_origin_id IS NOT NULL AND deleted_at IS NULL`, accountID)
 	if err != nil {
 		return err
