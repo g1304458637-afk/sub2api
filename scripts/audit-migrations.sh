@@ -15,7 +15,11 @@ HEAD=${2:?用法: audit-migrations.sh <BASE_SHA> <HEAD_SHA>}
 
 cd "$(git rev-parse --show-toplevel)"
 
-new_migrations=$(git diff --name-only --diff-filter=A "$BASE" "$HEAD" -- 'backend/migrations/*.sql' || true)
+git cat-file -e "$BASE^{commit}"
+git cat-file -e "$HEAD^{commit}"
+removed=$(git diff --name-only --diff-filter=D "$BASE" "$HEAD" -- 'backend/migrations/*.sql')
+[ -z "$removed" ] || { echo "MIGRATION AUDIT FAIL: removed migration files: $removed" >&2; exit 1; }
+new_migrations=$(git diff --name-only --diff-filter=AM "$BASE" "$HEAD" -- 'backend/migrations/*.sql')
 if [ -z "$new_migrations" ]; then
   echo "MIGRATION AUDIT PASS: 本次无新增 migration 文件"
   exit 0
@@ -29,8 +33,8 @@ pattern='DROP[[:space:]]+(TABLE|COLUMN|INDEX|CONSTRAINT|SCHEMA|DATABASE)|RENAME|
 
 violation=0
 while IFS= read -r f; do
-  [ -f "$f" ] || continue
-  hits=$(grep -inE "$pattern" "$f" || true)
+  content=$(git show "$HEAD:$f")
+  hits=$(printf '%s\n' "$content" | grep -inE "$pattern" || true)
   if [ -n "$hits" ]; then
     violation=1
     echo "::error::发现潜在不可逆 migration: $f"

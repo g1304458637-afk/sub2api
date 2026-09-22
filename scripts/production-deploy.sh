@@ -26,6 +26,7 @@ COMPOSE=(docker compose -f "$COMPOSE_DIR/docker-compose.yml" --env-file "$COMPOS
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 NEW_IMAGE="" NEW_COMMIT="" NEW_VERSION="" BUILD_TIMESTAMP="" MIGRATION_BASELINE="" BRAND="" TOKEN_FILE="" GHCR_USER="" ROLLBACK_MODE=0
+EXPECTED_LEGACY_IMAGE="" EXPECTED_LEGACY_LEDGER=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --image)        NEW_IMAGE="${2:?}"; shift 2 ;;
@@ -34,6 +35,8 @@ while [ $# -gt 0 ]; do
     --build-timestamp) BUILD_TIMESTAMP="${2:?}"; shift 2 ;;
     --migration-baseline) MIGRATION_BASELINE="${2:?}"; shift 2 ;;
     --brand)        BRAND="${2:?}"; shift 2 ;;
+    --expected-legacy-image) EXPECTED_LEGACY_IMAGE="${2-}"; shift 2 ;;
+    --expected-legacy-ledger) EXPECTED_LEGACY_LEDGER="${2-}"; shift 2 ;;
     --token-file)   TOKEN_FILE="${2:?}"; shift 2 ;;
     --ghcr-user)    GHCR_USER="${2:?}"; shift 2 ;;
     --rollback-only) ROLLBACK_MODE=1; NEW_IMAGE="${2:?}"; shift 2 ;;
@@ -111,6 +114,29 @@ fi
 [ -n "$PREVIOUS_IMAGE" ] || PREVIOUS_IMAGE="weishaw/sub2api:latest"
 echo "回滚点 PREVIOUS_IMAGE=$PREVIOUS_IMAGE (commit ${PREVIOUS_COMMIT:-unknown})"
 echo "目标镜像 NEW_IMAGE=$NEW_IMAGE (commit ${NEW_COMMIT:-n/a})"
+
+if [ -n "$EXPECTED_LEGACY_IMAGE" ] || [ -n "$EXPECTED_LEGACY_LEDGER" ]; then
+  printf '%s' "$EXPECTED_LEGACY_IMAGE" | grep -Eq '^sha256:[0-9a-f]{64}$' || fail_preflight "invalid legacy image identity"
+  printf '%s' "$EXPECTED_LEGACY_LEDGER" | grep -Eq '^[0-9a-f]{64}$' || fail_preflight "invalid legacy ledger identity"
+  [ "$(docker inspect sub2api --format '{{.Image}}')" = "$EXPECTED_LEGACY_IMAGE" ] || fail_preflight "legacy image changed since audit"
+  ledger_sha=$(bash "$SCRIPT_DIR/production-migration-ledger.sh" | sha256sum | cut -d' ' -f1)
+  [ "$ledger_sha" = "$EXPECTED_LEGACY_LEDGER" ] || fail_preflight "migration ledger changed since audit"
+  # Record the real rollback image; a migration-only SHA is not the legacy app SHA.
+  PREVIOUS_IMAGE="$EXPECTED_LEGACY_IMAGE"
+  PREVIOUS_COMMIT=unknown
+fi
+
+# A fresh remote recovery point precedes changes to deployment state or the app.
+umask 077
+BACKUP_DIR="/srv/backups/sub2api-predeploy-$(date -u +%Y%m%dT%H%M%SZ)-${NEW_COMMIT:0:12}"
+mkdir -m 700 "$BACKUP_DIR"
+docker exec sub2api-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl -Fc' > "$BACKUP_DIR/database.dump"
+docker exec -i sub2api-postgres pg_restore --list < "$BACKUP_DIR/database.dump" > "$BACKUP_DIR/database.list"
+cp -p "$COMPOSE_DIR/docker-compose.yml" "$COMPOSE_DIR/.env" "$BACKUP_DIR/"
+[ ! -f "$ENV_DEPLOY" ] || cp -p "$ENV_DEPLOY" "$BACKUP_DIR/"
+printf '%s\n' "$PREVIOUS_IMAGE" > "$BACKUP_DIR/rollback-image.txt"
+sha256sum "$BACKUP_DIR/database.dump" > "$BACKUP_DIR/SHA256SUMS"
+echo "Verified readable database recovery archive: $BACKUP_DIR"
 
 GHCR_CONFIG_TMP=""
 login_ghcr() {

@@ -16,6 +16,10 @@ on:
         description: '部署原因（写入审计日志）'
         required: false
         default: 'manual deploy'
+      legacy_migration_baseline:
+        description: 'Legacy app SHA unknown: explicit migration-only SHA, verified against live DB checksums'
+        required: false
+        default: ''
 
 concurrency:
   group: production
@@ -98,8 +102,12 @@ jobs:
     needs: [canonical-source, test, test-backend]
     outputs:
       previous_commit: ${{ steps.state.outputs.previous_commit }}
+      legacy_image: ${{ steps.state.outputs.legacy_image }}
+      legacy_ledger: ${{ steps.state.outputs.legacy_ledger }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup SSH
         env:
@@ -119,20 +127,34 @@ jobs:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
+          LEGACY_BASELINE: ${{ inputs.legacy_migration_baseline }}
         run: |
+          set -euo pipefail
           prev=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
-            "sudo grep '^DEPLOY_COMMIT=' /srv/sub2api/.env.deploy 2>/dev/null | head -1 | cut -d= -f2-" || true)
-          printf '%s' "$prev" | grep -Eq '^[0-9a-f]{40}$' || {
-            echo "部署门禁失败：服务器 DEPLOY_COMMIT 缺失、unknown 或不是完整 Git SHA" >&2
-            exit 1
-          }
-          git fetch --no-tags origin muc-main
-          git cat-file -e "$prev^{commit}"
-          echo "上次部署 commit: $prev"
+            "sudo sh -c 'if test -f /srv/sub2api/.env.deploy; then sed -n \"s/^DEPLOY_COMMIT=//p\" /srv/sub2api/.env.deploy; fi'")
+          if printf '%s' "$prev" | grep -Eq '^[0-9a-f]{40}$'; then
+            git cat-file -e "$prev^{commit}"
+          else
+            test -z "$prev" || test "$prev" = unknown || { echo 'Invalid legacy state'; exit 1; }
+            printf '%s' "$LEGACY_BASELINE" | grep -Eq '^[0-9a-f]{40}$' || {
+              echo 'Unknown deployed app SHA: supply an explicit migration-only baseline'; exit 1;
+            }
+            ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "sudo bash -s" \
+              < scripts/production-migration-ledger.sh > migration-ledger.tsv
+            python3 scripts/verify-migration-ledger.py "$LEGACY_BASELINE" migration-ledger.tsv
+            image=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "sudo docker inspect sub2api --format '{{.Image}}'")
+            printf '%s' "$image" | grep -Eq '^sha256:[0-9a-f]{64}$'
+            echo "legacy_image=$image" >> "$GITHUB_OUTPUT"
+            echo "legacy_ledger=$(sha256sum migration-ledger.tsv | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+            prev="$LEGACY_BASELINE"
+          fi
+          echo "Migration baseline: $prev (does not replace unknown legacy app provenance)"
           echo "previous_commit=$prev" >> "$GITHUB_OUTPUT"
 
       - name: Migration audit
-        run: bash scripts/audit-migrations.sh "${{ steps.state.outputs.previous_commit }}" "${{ github.sha }}"
+        run: |
+          python3 -m unittest discover -s scripts -p test_verify_migration_ledger.py
+          bash scripts/audit-migrations.sh "${{ steps.state.outputs.previous_commit }}" "${{ github.sha }}"
 
   # ---------------------------------------------------------------------------
   build-push:
@@ -215,7 +237,7 @@ jobs:
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
           ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "mkdir -p /tmp/sub2api-deploy"
-          for f in production-deploy.sh production-healthcheck.sh production-rollback.sh; do
+          for f in production-deploy.sh production-healthcheck.sh production-rollback.sh production-migration-ledger.sh; do
             cat "scripts/$f" | ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
               "cat > /tmp/sub2api-deploy/$f && chmod 700 /tmp/sub2api-deploy/$f"
           done
@@ -250,6 +272,8 @@ jobs:
                --build-timestamp '${{ needs.build-push.outputs.build_timestamp }}' \
                --migration-baseline '${{ needs.preflight.outputs.previous_commit }}' \
                --brand 'muc' \
+               --expected-legacy-image '${{ needs.preflight.outputs.legacy_image }}' \
+               --expected-legacy-ledger '${{ needs.preflight.outputs.legacy_ledger }}' \
                --token-file /tmp/sub2api-deploy/.ghcr-token \
                --ghcr-user '${{ github.repository_owner }}'"
           code=$?
