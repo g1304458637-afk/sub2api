@@ -120,14 +120,20 @@ func validateJitter(jitterSec, intervalSec int) error {
 	return nil
 }
 
-// validateEndpoint 校验 endpoint：
+// validateEndpoint = 格式校验（纯静态）+ 可达性探活（真实 DNS 解析）。
+// 两段拆开的原因见 validateCreateParams：探活结果依赖部署环境的网络，
+// 必须排在所有用户可自行修复的静态校验之后。
+func validateEndpoint(ep string) error {
+	if err := validateEndpointFormat(ep); err != nil {
+		return err
+	}
+	return validateEndpointReachability(ep)
+}
+
+// validateEndpointFormat 校验 endpoint 静态格式（无网络 IO）：
 //   - scheme 强制 https（拒绝 http，避免明文凭证 + 部分 SSRF 利用面）
 //   - 允许上游路径前缀（如 /anthropic），不允许 query/fragment
-//   - hostname 不能是 localhost/metadata 等已知元数据 hostname
-//   - 解析所有 IP，任一落在 loopback/RFC1918/link-local/ULA 段即拒绝（防 SSRF）
-//
-// 错误信息不暴露具体 IP / hostname，避免泄露内网拓扑。
-func validateEndpoint(ep string) error {
+func validateEndpointFormat(ep string) error {
 	ep = strings.TrimSpace(ep)
 	if ep == "" {
 		return ErrChannelMonitorInvalidEndpoint
@@ -145,7 +151,19 @@ func validateEndpoint(ep string) error {
 	if u.RawQuery != "" || u.Fragment != "" {
 		return ErrChannelMonitorEndpointPath
 	}
+	return nil
+}
 
+// validateEndpointReachability 真实解析 hostname：
+//   - hostname 不能是 localhost/metadata 等已知元数据 hostname
+//   - 解析所有 IP，任一落在 loopback/RFC1918/link-local/ULA 段即拒绝（防 SSRF）
+//
+// 错误信息不暴露具体 IP / hostname，避免泄露内网拓扑。
+func validateEndpointReachability(ep string) error {
+	u, err := url.Parse(strings.TrimSpace(ep))
+	if err != nil {
+		return ErrChannelMonitorInvalidEndpoint
+	}
 	hostname := u.Hostname()
 	ctx, cancel := context.WithTimeout(context.Background(), monitorEndpointResolveTimeout)
 	defer cancel()
