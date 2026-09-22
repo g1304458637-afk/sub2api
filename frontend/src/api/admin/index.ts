@@ -38,6 +38,7 @@ import auditAPI from './audit'
 import pluginsAPI from './plugins'
 import researchAPI from './research'
 import rewardGrantsAPI from './rewardGrants'
+import mediaQuotaAPI from './mediaQuota'
 
 /**
  * Unified admin API object for convenient access
@@ -77,7 +78,8 @@ export const adminAPI = {
   audit: auditAPI,
   plugins: pluginsAPI,
   research: researchAPI,
-  rewardGrants: rewardGrantsAPI
+  rewardGrants: rewardGrantsAPI,
+  mediaQuota: mediaQuotaAPI
 }
 
 export {
@@ -114,7 +116,8 @@ export {
   adminComplianceAPI,
   auditAPI,
   pluginsAPI,
-  rewardGrantsAPI
+  rewardGrantsAPI,
+  mediaQuotaAPI
 }
 
 export default adminAPI
@@ -137,3 +140,11 @@ export type {
   RewardGrantQuery,
   RewardGrantListResponse
 } from './rewardGrants'
+export type {
+  MediaImageQuotaResponse,
+  MediaImageQuotaBudget,
+  MediaImageQuotaRecentItem,
+  MediaModelStat,
+  MediaUsageSummary,
+  MediaPricing
+} from './mediaQuota'

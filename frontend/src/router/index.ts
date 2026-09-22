@@ -742,6 +742,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/media-quota',
+    name: 'AdminMediaQuota',
+    component: () => import('@/views/admin/MediaQuotaView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Media Quota',
+      titleKey: 'admin.mediaQuota.title',
+      descriptionKey: 'admin.mediaQuota.description'
+    }
+  },
+  {
     path: '/admin/affiliates',
     redirect: '/admin/affiliates/invites'
   },
