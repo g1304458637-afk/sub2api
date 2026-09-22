@@ -33,7 +33,7 @@ func TestDualQuotaSettlementResetAndDedup(t *testing.T) {
 	require.Equal(t, 8.0, phase0QueryFloat(t, "SELECT short_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
 	require.Equal(t, 8.0, phase0QueryFloat(t, "SELECT weekly_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
 	core, _ := phase2NewCoreService(t, client, nil)
-	at := time.Now().Add(time.Millisecond)
+	at := time.Now().Add(time.Millisecond).Truncate(time.Microsecond) // PostgreSQL TIMESTAMPTZ stores microsecond precision.
 	time.Sleep(2 * time.Millisecond)
 	res, err := core.ResetSubscriptionWeeklyPeriod(ctx, &service.WeeklyResetInput{UserSubscriptionID: sub.ID, EffectiveAt: at, Source: domain.WeeklyResetSourceAdminDirect, DualWindows: true})
 	require.NoError(t, err)
