@@ -1751,6 +1751,7 @@ func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, 
 		resp["model_stats"] = modelStats
 	}
 
+	h.attachRewardArrivals(ctx, apiKey.UserID, resp)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -1807,6 +1808,7 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		if modelStats != nil {
 			resp["model_stats"] = modelStats
 		}
+		h.attachRewardArrivals(ctx, apiKey.UserID, resp)
 		c.JSON(http.StatusOK, resp)
 		return
 	}
@@ -1839,6 +1841,7 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 	if modelStats != nil {
 		resp["model_stats"] = modelStats
 	}
+	h.attachRewardArrivals(ctx, apiKey.UserID, resp)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -2633,4 +2636,14 @@ func (h *GatewayHandler) getUserMsgQueueMode(account *service.Account, parsed *s
 		mode = h.cfg.Gateway.UserMessageQueue.GetEffectiveMode()
 	}
 	return mode
+}
+
+// attachRewardArrivals is additive and best-effort; ledger failures never hide quota data.
+func (h *GatewayHandler) attachRewardArrivals(ctx context.Context, userID int64, response gin.H) {
+	if h.accountStatus == nil {
+		return
+	}
+	if feed, err := h.accountStatus.GetRewardArrivals(ctx, userID); err == nil && feed != nil {
+		response["reward_arrivals"] = feed
+	}
 }
