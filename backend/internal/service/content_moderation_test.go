@@ -293,6 +293,14 @@ func (r *contentModerationTestUserRepo) UnbindUserAuthProvider(ctx context.Conte
 	panic("unexpected UnbindUserAuthProvider call")
 }
 
+func (r *contentModerationTestUserRepo) RevokeUserEducationEmailIdentities(ctx context.Context, userID int64) (int64, error) {
+	panic("unexpected RevokeUserEducationEmailIdentities call")
+}
+
+func (r *contentModerationTestUserRepo) ListVerifiedEducationEmailsByUserIDs(ctx context.Context, userIDs []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func (r *contentModerationTestUserRepo) UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error {
 	panic("unexpected UpdateTotpSecret call")
 }

@@ -1,0 +1,62 @@
+/*
+ * MUCODE 民大版 Design Tokens（全站 Dark Brand Theme 单一来源）。
+ * :root 声明让任意组件（含全局 Shell/功能页）直接使用 var(--muc-*)；
+ * `.muc-scope` 兼容保留（Pricing/Teleport 浮层已挂该 class）。
+ * 集中声明一次，拿到学校官方 VI 色值后此处一键替换。
+ * 注意：这些是设计 token，不声称是学校官方 VI 精确色值。
+ */
+:root,
+.muc-scope {
+  --muc-red: #c82433;
+  --muc-red-bright: #e23848;
+  --muc-red-deep: #7f1622;
+  --muc-red-soft: rgba(200, 36, 51, 0.18);
+  --muc-red-border: rgba(238, 56, 72, 0.45);
+  --muc-red-border-hover: rgba(238, 56, 72, 0.68);
+  --muc-red-glow: rgba(238, 56, 72, 0.28);
+
+  --muc-gold: #d6b46a;
+
+  --muc-bg-primary: #070708;
+  --muc-bg-secondary: #101012;
+  --muc-bg-tertiary: #17171a;
+  --muc-glass: rgba(15, 15, 17, 0.58);
+  --muc-glass-strong: rgba(10, 10, 12, 0.76);
+  --muc-glass-border: rgba(255, 255, 255, 0.09);
+  --muc-glass-border-strong: rgba(255, 255, 255, 0.16);
+  --muc-border: rgba(255, 255, 255, 0.12);
+
+  --muc-text-primary: #ffffff;
+  --muc-text-secondary: rgba(255, 255, 255, 0.68);
+  --muc-text-muted: rgba(255, 255, 255, 0.42);
+
+  /* 业务警示红（区别于品牌红）：仅 exhausted/错误使用 */
+  --muc-danger: #ff4550;
+
+  --muc-watermark-gradient: linear-gradient(
+    to right,
+    #16080b 0%,
+    #5e101a 30%,
+    #c82433 67%,
+    #ff5967 100%
+  );
+
+  /* 全站容器节奏：用户页统一内容边界；Admin 可用更宽 max */
+  --muc-content-max: 1200px;
+  --muc-content-max-wide: 1400px;
+  --muc-page-padding: 24px;
+  --muc-section-gap: 24px;
+
+  /* 全站统一动效曲线（Pricing Hero 专属时长不在此列） */
+  --muc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Same shared components; the deployed brand replaces only presentation tokens. */
+:root[data-campus-brand="hubu"], :root[data-campus-brand="hubu"] .muc-scope {
+ --muc-red-deep-rgb: 15,68,51; --muc-red-rgb: 19,84,64; --muc-red-bright-rgb: 46,144,112; --muc-primary-rgb: 19,84,64;
+ --muc-red: #135440; --muc-red-bright: #2e9070; --muc-red-deep: #0f4433;
+ --muc-red-soft: rgba(19,84,64,.18); --muc-red-border: rgba(46,144,112,.45);
+ --muc-red-border-hover: rgba(46,144,112,.68); --muc-red-glow: rgba(46,144,112,.28);
+ --muc-gold: #bc9d53; --muc-bg-primary: #0b1f17; --muc-bg-secondary: #142b21;
+ --muc-watermark-gradient: linear-gradient(to right,#051711,#0f4433,#135440,#2e9070);
+}

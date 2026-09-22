@@ -1,0 +1,73 @@
+# Run with distinct Compose project names and private env files; local only.
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        BRAND: ${BRAND:?choose muc or hubu}
+    ports:
+      - "127.0.0.1:${CAMPUS_HTTP_PORT:?set brand port}:8080"
+    environment:
+      BRAND: ${BRAND}
+      AUTO_SETUP: "true"
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: "8080"
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USER: campus
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?generate a unique local password}
+      DATABASE_DBNAME: ${BRAND}_db
+      DATABASE_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      JWT_SECRET: ${JWT_SECRET:?generate a unique secret per brand}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set local admin email}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?generate a unique local password}
+      DATA_DIR: /app/data
+      DOWNLOADS_DIR: /app/downloads
+      CAMPUS_LOCAL_BUILD: "1"
+      CAMPUS_PAYG_GROUP_ID: ${CAMPUS_PAYG_GROUP_ID:-}
+      MUC_GATEWAY_URL: ${MUC_GATEWAY_URL:-}
+      MUC_PUBLIC_URL: ${MUC_PUBLIC_URL:-}
+      MUC_ADMIN_URL: ${MUC_ADMIN_URL:-}
+      MUC_DOWNLOAD_BASE_URL: ${MUC_DOWNLOAD_BASE_URL:-}
+      HUBU_GATEWAY_URL: ${HUBU_GATEWAY_URL:-}
+      HUBU_PUBLIC_URL: ${HUBU_PUBLIC_URL:-}
+      HUBU_ADMIN_URL: ${HUBU_ADMIN_URL:-}
+      HUBU_DOWNLOAD_BASE_URL: ${HUBU_DOWNLOAD_BASE_URL:-}
+      HUBU_EDUCATION_EMAIL_DOMAIN: ${HUBU_EDUCATION_EMAIL_DOMAIN:-}
+    volumes:
+      - backend-data:/app/data
+      - downloads:/app/downloads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: campus
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${BRAND}_db
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U campus -d $${POSTGRES_DB}"]
+      interval: 3s
+      retries: 30
+  redis:
+    image: redis:8-alpine
+    command: [redis-server, --appendonly, "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      retries: 30
+volumes:
+  backend-data:
+  downloads:
+  postgres-data:
+  redis-data:

@@ -7,7 +7,7 @@
     <!-- Welcome state (empty conversation) -->
     <div
       v-if="messages.length === 0"
-      class="flex h-full flex-col items-center justify-center px-4 py-10 text-center"
+      class="campus-chat-welcome flex h-full flex-col items-center justify-center px-4 py-10 text-center"
     >
       <!-- 校名标识行 -->
       <p

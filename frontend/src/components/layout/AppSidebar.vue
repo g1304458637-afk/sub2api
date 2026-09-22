@@ -12,9 +12,10 @@
       <router-link
         :to="homePath"
         class="sidebar-logo flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl shadow-glow transition-opacity hover:opacity-80"
+        :class="{ 'sidebar-logo-glow': true }"
         @click="handleMenuItemClick(homePath)"
       >
-        <img v-if="settingsLoaded" :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
+        <img v-if="settingsLoaded" :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" @error="useDefaultLogo" />
       </router-link>
       <div class="sidebar-brand" :class="{ 'sidebar-brand-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
         <router-link
@@ -271,9 +272,10 @@
     </nav>
 
     <!-- Bottom Section -->
-    <div class="mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
+    <div class="sidebar-bottom mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
       <!-- Theme Toggle -->
       <button
+        v-if="!hasCampusScenes(currentBrand.id)"
         @click="toggleTheme"
         class="sidebar-link mb-2 w-full"
         :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
@@ -311,7 +313,9 @@
 </template>
 
 <script setup lang="ts">
+import { hasCampusScenes } from '@/brand/scenes'
 import { currentBrand } from '@/brand'
+import { useDefaultLogo } from '@/utils/imageFallback'
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -694,6 +698,71 @@ const CreditCardIcon = {
     )
 }
 
+const MucWalletIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3'
+        })
+      ]
+    )
+}
+
+const RefreshIcon2 = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99'
+        })
+      ]
+    )
+}
+
+const GiftIcon2 = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H4.5a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z'
+        })
+      ]
+    )
+}
+
+const PricingTagIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z'
+        }),
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M6 6h.008v.008H6V6z'
+        })
+      ]
+    )
+}
+
 const RechargeSubscriptionIcon = {
   render: () =>
     h(
@@ -943,22 +1012,6 @@ const PriceTagIcon = {
     )
 }
 
-// 媒体额度：相框图形（heroicons photo），媒体（图片/音乐/语音）计费监控入口
-const MediaQuotaIcon = {
-  render: () =>
-    h(
-      'svg',
-      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
-      [
-        h('path', {
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          d: 'M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'
-        })
-      ]
-    )
-}
-
 const ChevronDownIcon = {
   render: () =>
     h(
@@ -982,17 +1035,9 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
 
-// 购买入口文案随站点计费模式切换：仅充值 → 「充值」，仅订阅 → 「订阅」，否则「充值/订阅」。
-const purchaseNavLabel = computed(() => {
-  switch (resolveSiteBillingMode(appStore.cachedPublicSettings)) {
-    case 'recharge_only':
-      return t('nav.recharge')
-    case 'subscription_only':
-      return t('nav.subscribe')
-    default:
-      return t('nav.buySubscription')
-  }
-})
+// 购买入口收敛：套餐浏览/购买/升降级统一在 /pricing；/purchase 仅保留余额充值。
+// 仅订阅站点（subscription_only）没有充值能力，隐藏充值入口，订阅入口即 /pricing。
+const isSubscriptionOnlySite = computed(() => resolveSiteBillingMode(appStore.cachedPublicSettings) === 'subscription_only')
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
@@ -1048,7 +1093,15 @@ function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
-    { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
+    { path: '/wallet', label: t('nav.wallet'), icon: MucWalletIcon, hideInSimpleMode: true, featureFlag: flagPayment },
+    { path: '/pricing', label: t('nav.pricing'), icon: PricingTagIcon, hideInSimpleMode: true, featureFlag: flagPayment },
+    ...(isSubscriptionOnlySite.value ? [] : [{
+      path: '/purchase',
+      label: t('nav.recharge'),
+      icon: RechargeSubscriptionIcon,
+      hideInSimpleMode: true,
+      featureFlag: flagPayment,
+    } as NavItem]),
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/research-discount', label: t('nav.researchDiscount'), icon: AcademicCapIcon, hideInSimpleMode: true },
@@ -1151,6 +1204,7 @@ const adminNavItems = computed((): NavItem[] => {
         { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon },
         // 「仅充值」站点连管理端的「订阅管理」入口也一并收起（路由本身不拦截）。
         { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
+        { path: '/admin/reset-center', label: t('nav.resetCenter'), icon: RefreshIcon2, hideInSimpleMode: true },
         { path: '/admin/orders/dashboard', label: t('nav.paymentDashboard'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagAdminPayment },
         { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon, hideInSimpleMode: true, featureFlag: flagAdminPayment },
         { path: '/admin/orders/plans', label: t('nav.paymentPlans'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagAdminPayment },
@@ -1168,9 +1222,9 @@ const adminNavItems = computed((): NavItem[] => {
         { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
         { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },
         { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon },
-        { path: '/admin/media-quota', label: t('nav.mediaQuota'), icon: MediaQuotaIcon },
       ],
     },
+
     {
       path: 'group-admin-growth',
       label: t('nav.groupAdminGrowth'),
@@ -1180,8 +1234,9 @@ const adminNavItems = computed((): NavItem[] => {
         { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
         { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
         { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
-        { path: '/admin/research', label: t('nav.adminResearch'), icon: AcademicCapIcon, hideInSimpleMode: true },
+        { path: '/admin/reward-center', label: t('nav.rewardCenter'), icon: GiftIcon2, hideInSimpleMode: true },
         { path: '/admin/reward-grants', label: t('nav.rewardGrants'), icon: BanknotesIcon, hideInSimpleMode: true },
+        { path: '/admin/research', label: t('nav.adminResearch'), icon: AcademicCapIcon, hideInSimpleMode: true },
         { path: '/admin/affiliates/invites', label: t('nav.affiliateInviteRecords'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
         { path: '/admin/affiliates/rebates', label: t('nav.affiliateRebateRecords'), icon: OrderIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
         { path: '/admin/affiliates/transfers', label: t('nav.affiliateTransferRecords'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
@@ -1228,6 +1283,7 @@ function toggleSidebar() {
 }
 
 function toggleTheme() {
+  if (hasCampusScenes(currentBrand.id)) return
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
@@ -1301,12 +1357,9 @@ function handleGroupClick(item: NavItem) {
   groupExpandOverrides.value.set(item.path, true)
 }
 
-// Initialize theme
+// Initialize theme（与 main.ts 同规则：默认 dark，显式 light 才回浅色）
 const savedTheme = localStorage.getItem('theme')
-if (
-  savedTheme === 'dark' ||
-  (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-) {
+if (hasCampusScenes(currentBrand.id) || savedTheme !== 'light') {
   isDark.value = true
   document.documentElement.classList.add('dark')
 }
@@ -1350,6 +1403,22 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* 品牌区：logo 轻民大红 glow（dark Shell 下） */
+.sidebar-logo-glow {
+  position: relative;
+}
+
+:global(.dark) .sidebar-logo-glow {
+  box-shadow:
+    0 0 18px rgba(var(--muc-red-rgb, 200, 36, 51), 0.28),
+    inset 0 0 0 1px rgba(var(--muc-red-bright-rgb, 238, 56, 72), 0.25);
+}
+
+/* 底部操作区发丝分隔线（dark Shell） */
+:global(.dark) .sidebar-bottom {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
 .sidebar-logo {
   flex: 0 0 2.25rem;
   min-width: 2.25rem;
@@ -1426,7 +1495,7 @@ onBeforeUnmount(() => {
 }
 
 .dark .sidebar-section-title::after {
-  background: rgb(55 65 81);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-section-title-text-collapsed {

@@ -151,6 +151,14 @@ func (s *emailSyncRepoStub) ListUserAuthIdentities(context.Context, int64) ([]Us
 
 func (s *emailSyncRepoStub) UnbindUserAuthProvider(context.Context, int64, string) error { return nil }
 
+func (s *emailSyncRepoStub) RevokeUserEducationEmailIdentities(context.Context, int64) (int64, error) {
+	return 0, nil
+}
+
+func (s *emailSyncRepoStub) ListVerifiedEducationEmailsByUserIDs(context.Context, []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func (s *emailSyncRepoStub) UpdateTotpSecret(context.Context, int64, *string) error { return nil }
 
 func (s *emailSyncRepoStub) EnableTotp(context.Context, int64) error { return nil }

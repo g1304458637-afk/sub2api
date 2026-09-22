@@ -148,6 +148,12 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
 	}
+	if req.TierRank != nil {
+		if *req.TierRank < 0 {
+			return nil, infraerrors.BadRequest("INVALID_TIER_RANK", "tier_rank must be >= 0")
+		}
+		b.SetTierRank(*req.TierRank)
+	}
 	return b.Save(ctx)
 }
 
@@ -198,6 +204,12 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 	}
 	if req.SortOrder != nil {
 		u.SetSortOrder(*req.SortOrder)
+	}
+	if req.TierRank != nil {
+		if *req.TierRank < 0 {
+			return nil, infraerrors.BadRequest("INVALID_TIER_RANK", "tier_rank must be >= 0")
+		}
+		u.SetTierRank(*req.TierRank)
 	}
 	return u.Save(ctx)
 }

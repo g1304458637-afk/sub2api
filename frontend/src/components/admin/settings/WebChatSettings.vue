@@ -208,6 +208,9 @@ interface WebChatSettingsFormState {
 }
 
 const props = defineProps<{ form: WebChatSettingsFormState }>()
+const emit = defineEmits<{
+  change: [patch: Partial<WebChatSettingsFormState>]
+}>()
 
 const { t } = useI18n()
 
@@ -215,7 +218,7 @@ const { t } = useI18n()
 const enabled = computed({
   get: () => props.form.web_chat_enabled === true,
   set: (value: boolean) => {
-    props.form.web_chat_enabled = value
+    emit('change', { web_chat_enabled: value })
   },
 })
 
@@ -224,7 +227,7 @@ const entranceModel = (key: 'web_chat_entrance_chat' | 'web_chat_entrance_draw' 
   computed({
     get: () => props.form[key] !== false,
     set: (value: boolean) => {
-      props.form[key] = value
+      emit('change', { [key]: value })
     },
   })
 
@@ -238,7 +241,7 @@ const entranceToggles = [
 const defaultModel = computed({
   get: () => props.form.web_chat_default_model ?? '',
   set: (value: string | number | boolean | null) => {
-    props.form.web_chat_default_model = value == null ? '' : String(value)
+    emit('change', { web_chat_default_model: value == null ? '' : String(value) })
   },
 })
 
@@ -253,7 +256,7 @@ watch(
   (value) => {
     const serialized = serializeWebChatModels(value)
     lastSerialized = serialized
-    props.form.web_chat_models = serialized
+    emit('change', { web_chat_models: serialized })
   },
   { deep: true },
 )

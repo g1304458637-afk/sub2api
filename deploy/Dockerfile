@@ -16,6 +16,7 @@ ARG GOSUMDB=sum.golang.google.cn
 # Stage 1: Frontend Builder
 # -----------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS frontend-builder
+ARG BRAND=muc
 
 WORKDIR /app/frontend
 ENV NODE_OPTIONS=--max-old-space-size=1536
@@ -47,6 +48,8 @@ FROM ${GOLANG_IMAGE} AS backend-builder
 ARG VERSION=
 ARG COMMIT=docker
 ARG DATE
+ARG BRAND=unknown
+ARG MIGRATION_BASELINE=unknown
 ARG GOPROXY
 ARG GOSUMDB
 
@@ -73,9 +76,9 @@ COPY --from=frontend-builder /app/backend/internal/web/dist ./internal/web/dist
 RUN VERSION_VALUE="${VERSION}" && \
     if [ -z "${VERSION_VALUE}" ]; then VERSION_VALUE="$(./scripts/resolve-version.sh)"; fi && \
     DATE_VALUE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" && \
-    CGO_ENABLED=0 GOOS=linux go build \
+    CGO_ENABLED=0 GOOS=linux go build -p 1 \
     -tags embed \
-    -ldflags="-s -w -X main.Version=${VERSION_VALUE} -X main.Commit=${COMMIT} -X main.Date=${DATE_VALUE} -X main.BuildType=release" \
+    -ldflags="-s -w -X main.Version=${VERSION_VALUE} -X main.Commit=${COMMIT} -X main.Date=${DATE_VALUE} -X main.Brand=${BRAND} -X main.MigrationBaseline=${MIGRATION_BASELINE} -X main.BuildType=release" \
     -o /app/sub2api \
     ./cmd/server
 
@@ -84,10 +87,21 @@ RUN VERSION_VALUE="${VERSION}" && \
 # -----------------------------------------------------------------------------
 FROM ${ALPINE_IMAGE}
 
+ARG VERSION=unknown
+ARG COMMIT=unknown
+ARG DATE=unknown
+ARG BRAND=unknown
+ARG MIGRATION_BASELINE=unknown
+
 # Labels
 LABEL maintainer="Wei-Shaw <github.com/Wei-Shaw>"
 LABEL description="Sub2API - AI API Gateway Platform"
 LABEL org.opencontainers.image.source="https://github.com/Wei-Shaw/sub2api"
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.revision="${COMMIT}"
+LABEL org.opencontainers.image.created="${DATE}"
+LABEL ai.campus.brand="${BRAND}"
+LABEL ai.campus.migration-baseline="${MIGRATION_BASELINE}"
 
 # Install runtime dependencies
 RUN apk add --no-cache \

@@ -22,7 +22,7 @@ type AdminService interface {
 	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
 	BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error)
 	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
-	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
+	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder, search string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
 	GetUserRPMStatus(ctx context.Context, userID int64) (*UserRPMStatus, error)
 	// GetUserBalanceHistory returns paginated balance/concurrency change records for a user.
@@ -30,6 +30,9 @@ type AdminService interface {
 	// Also returns totalRecharged (sum of all positive balance top-ups).
 	GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, codeType string) ([]RedeemCode, int64, float64, error)
 	BindUserAuthIdentity(ctx context.Context, userID int64, input AdminBindAuthIdentityInput) (*AdminBoundAuthIdentity, error)
+	// RevokeUserEducationEmail 撤销指定用户的全部校园邮箱认证记录，返回删除条数。
+	// 不做功能开关门控（功能关闭后管理员仍需清理历史记录）；用户不存在返回 ent NotFound。
+	RevokeUserEducationEmail(ctx context.Context, userID int64) (int64, error)
 
 	// Group management
 	ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool, sortBy, sortOrder string) ([]Group, int64, error)
@@ -66,6 +69,9 @@ type AdminService interface {
 	// API Key management (admin)
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
 	AdminResetAPIKeyRateLimitUsage(ctx context.Context, keyID int64) (*APIKey, error)
+	// AdminDeleteAPIKey 管理员删除任意用户的 API Key（软删+审计+认证缓存失效，
+	// 复用用户侧 APIKeyService.Delete 流程，不校验调用者是否为所有者）。
+	AdminDeleteAPIKey(ctx context.Context, keyID int64) error
 
 	// ReplaceUserGroup 替换用户的专属分组：授予新分组权限、迁移 Key、移除旧分组权限
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
@@ -160,16 +166,16 @@ func ValidateSimpleModeGroupOperation(cfg *config.Config, operation AdminGroupOp
 
 // CreateUserInput represents input for creating a new user via admin operations.
 type CreateUserInput struct {
-	Email                string
-	Password             string
-	Username             string
-	Notes                string
-	Role                 string // 空字符串表示使用默认角色(user);合法值 admin/user
-	Balance              *float64
+	Email    string
+	Password string
+	Username string
+	Notes    string
+	Role     string // 空字符串表示使用默认角色(user);合法值 admin/user
+	Balance  *float64
 	// Concurrency 为 nil（字段未提供）时使用 default_concurrency 设置；
 	// 显式 0 = 管理员明确要求不限并发（Runtime 语义：<=0 → unlimited）。
-	Concurrency *int
-	RPMLimit    int
+	Concurrency          *int
+	RPMLimit             int
 	AllowedGroups        []int64
 	RestrictPublicGroups bool
 	// ActorAdminID 执行本次操作的管理员ID(来自JWT)，仅用于权限敏感操作的审计日志。
@@ -244,6 +250,7 @@ type CreateGroupInput struct {
 	DailyLimitUSD             *float64 // 日限额 (USD)
 	WeeklyLimitUSD            *float64 // 周限额 (USD)
 	MonthlyLimitUSD           *float64 // 月限额 (USD)
+	ConcurrencyOverride       *int     // 并发权益覆盖（NULL/正整数）
 	LongContextPricingEnabled bool
 	ModelPricing              []ChannelModelPricing
 	// 图片生成计费配置（仅 antigravity 平台使用）
@@ -327,6 +334,7 @@ type UpdateGroupInput struct {
 	DailyLimitUSD             *float64 // 日限额 (USD)
 	WeeklyLimitUSD            *float64 // 周限额 (USD)
 	MonthlyLimitUSD           *float64 // 月限额 (USD)
+	ConcurrencyOverride       *int     // 并发权益覆盖（NULL/正整数）
 	LongContextPricingEnabled *bool
 	ModelPricing              *[]ChannelModelPricing
 	// 图片生成计费配置（仅 antigravity 平台使用）
@@ -699,6 +707,8 @@ type adminServiceImpl struct {
 	accountBillingRepo   AccountBillingSettingsRepository
 	proxyRepo            ProxyRepository
 	apiKeyRepo           APIKeyRepository
+	// apiKeyService 用于管理员删除 API Key 时复用用户侧删除流程（软删+审计+缓存失效）
+	apiKeyService        *APIKeyService
 	redeemCodeRepo       RedeemCodeRepository
 	userGroupRateRepo    UserGroupRateRepository
 	userRPMCache         UserRPMCache
@@ -741,6 +751,7 @@ func NewAdminService(
 	accountRepo AdminAccountRepository,
 	proxyRepo ProxyRepository,
 	apiKeyRepo APIKeyRepository,
+	apiKeyService *APIKeyService,
 	redeemCodeRepo RedeemCodeRepository,
 	userGroupRateRepo UserGroupRateRepository,
 	userRPMCache UserRPMCache,
@@ -770,6 +781,7 @@ func NewAdminService(
 		accountBillingRepo:   accountRepo,
 		proxyRepo:            proxyRepo,
 		apiKeyRepo:           apiKeyRepo,
+		apiKeyService:        apiKeyService,
 		redeemCodeRepo:       redeemCodeRepo,
 		userGroupRateRepo:    userGroupRateRepo,
 		userRPMCache:         userRPMCache,

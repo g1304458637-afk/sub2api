@@ -405,6 +405,33 @@ func (_u *PaymentOrderUpdate) ClearProviderKey() *PaymentOrderUpdate {
 	return _u
 }
 
+// SetPlanChangeID sets the "plan_change_id" field.
+func (_u *PaymentOrderUpdate) SetPlanChangeID(v int64) *PaymentOrderUpdate {
+	_u.mutation.ResetPlanChangeID()
+	_u.mutation.SetPlanChangeID(v)
+	return _u
+}
+
+// SetNillablePlanChangeID sets the "plan_change_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillablePlanChangeID(v *int64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetPlanChangeID(*v)
+	}
+	return _u
+}
+
+// AddPlanChangeID adds value to the "plan_change_id" field.
+func (_u *PaymentOrderUpdate) AddPlanChangeID(v int64) *PaymentOrderUpdate {
+	_u.mutation.AddPlanChangeID(v)
+	return _u
+}
+
+// ClearPlanChangeID clears the value of the "plan_change_id" field.
+func (_u *PaymentOrderUpdate) ClearPlanChangeID() *PaymentOrderUpdate {
+	_u.mutation.ClearPlanChangeID()
+	return _u
+}
+
 // SetProviderSnapshot sets the "provider_snapshot" field.
 func (_u *PaymentOrderUpdate) SetProviderSnapshot(v map[string]interface{}) *PaymentOrderUpdate {
 	_u.mutation.SetProviderSnapshot(v)
@@ -953,6 +980,15 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if _u.mutation.ProviderKeyCleared() {
 		_spec.ClearField(paymentorder.FieldProviderKey, field.TypeString)
 	}
+	if value, ok := _u.mutation.PlanChangeID(); ok {
+		_spec.SetField(paymentorder.FieldPlanChangeID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPlanChangeID(); ok {
+		_spec.AddField(paymentorder.FieldPlanChangeID, field.TypeInt64, value)
+	}
+	if _u.mutation.PlanChangeIDCleared() {
+		_spec.ClearField(paymentorder.FieldPlanChangeID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.ProviderSnapshot(); ok {
 		_spec.SetField(paymentorder.FieldProviderSnapshot, field.TypeJSON, value)
 	}
@@ -1465,6 +1501,33 @@ func (_u *PaymentOrderUpdateOne) SetNillableProviderKey(v *string) *PaymentOrder
 // ClearProviderKey clears the value of the "provider_key" field.
 func (_u *PaymentOrderUpdateOne) ClearProviderKey() *PaymentOrderUpdateOne {
 	_u.mutation.ClearProviderKey()
+	return _u
+}
+
+// SetPlanChangeID sets the "plan_change_id" field.
+func (_u *PaymentOrderUpdateOne) SetPlanChangeID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetPlanChangeID()
+	_u.mutation.SetPlanChangeID(v)
+	return _u
+}
+
+// SetNillablePlanChangeID sets the "plan_change_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillablePlanChangeID(v *int64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetPlanChangeID(*v)
+	}
+	return _u
+}
+
+// AddPlanChangeID adds value to the "plan_change_id" field.
+func (_u *PaymentOrderUpdateOne) AddPlanChangeID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.AddPlanChangeID(v)
+	return _u
+}
+
+// ClearPlanChangeID clears the value of the "plan_change_id" field.
+func (_u *PaymentOrderUpdateOne) ClearPlanChangeID() *PaymentOrderUpdateOne {
+	_u.mutation.ClearPlanChangeID()
 	return _u
 }
 
@@ -2045,6 +2108,15 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if _u.mutation.ProviderKeyCleared() {
 		_spec.ClearField(paymentorder.FieldProviderKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.PlanChangeID(); ok {
+		_spec.SetField(paymentorder.FieldPlanChangeID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPlanChangeID(); ok {
+		_spec.AddField(paymentorder.FieldPlanChangeID, field.TypeInt64, value)
+	}
+	if _u.mutation.PlanChangeIDCleared() {
+		_spec.ClearField(paymentorder.FieldPlanChangeID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.ProviderSnapshot(); ok {
 		_spec.SetField(paymentorder.FieldProviderSnapshot, field.TypeJSON, value)

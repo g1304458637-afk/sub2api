@@ -129,3 +129,25 @@ describe('reward grants view', () => {
     expect(wrapper.get('[data-test="rows"]').text()).toBe('7,9')
   })
 })
+
+it('ignores an older query response after changing the user filter', async () => {
+  let resolveOld!: (value: unknown) => void
+  listRewardGrants.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve }))
+    .mockResolvedValueOnce({ items: [{ id: 42 }], total: 1 })
+  wrapper = mountView()
+  const userId = wrapper.find('input[type="text"]')
+  await userId.setValue('42')
+  await userId.trigger('keyup.enter')
+  await flushPromises()
+  resolveOld({ items: [{ id: 1 }], total: 1 })
+  await flushPromises()
+  expect(wrapper.get('[data-test="rows"]').text()).toBe('42')
+})
+
+it('shows failure separately from an empty ledger', async () => {
+  listRewardGrants.mockRejectedValueOnce(new Error('load failed'))
+  wrapper = mountView()
+  await flushPromises()
+  expect(wrapper.get('[role="alert"]').text()).toBe('load failed')
+  expect(wrapper.find('[data-test="rows"]').exists()).toBe(false)
+})

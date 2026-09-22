@@ -143,6 +143,17 @@ func RegisterUserRoutes(
 			subscriptions.GET("", h.Subscription.List)
 			subscriptions.GET("/active", h.Subscription.GetActive)
 			subscriptions.GET("/progress", h.Subscription.GetProgress)
+			subscriptions.GET("/status", h.Subscription.GetStatus)
+			// Final Frontend CLOSURE：统一钱包流水（充值/兑换/奖励 + 按量日聚合，只读）
+			walletLedger := authenticated.Group("/wallet")
+			walletLedger.GET("/ledger", h.WalletLedger.UserLedger)
+			subscriptions.POST("/:id/reset-with-card", h.Subscription.ResetWithCard)
+			subscriptions.PATCH("/:id/payg-fallback", h.Subscription.UpdatePaygFallback)
+			subscriptions.POST("/:id/change/preview", h.PlanChange.PreviewUpgrade)
+			subscriptions.POST("/:id/upgrade", h.PlanChange.CreateUpgrade)
+			subscriptions.POST("/:id/schedule-downgrade", h.PlanChange.ScheduleDowngrade)
+			subscriptions.DELETE("/:id/schedule-downgrade", h.PlanChange.CancelScheduledDowngrade)
+			subscriptions.GET("/:id/changes", h.PlanChange.GetChanges)
 			subscriptions.GET("/summary", h.Subscription.GetSummary)
 		}
 

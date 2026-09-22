@@ -1525,8 +1525,9 @@ func newContractDeps(t *testing.T) *contractDeps {
 	usageRepo := newStubUsageLogRepo()
 	usageService := service.NewUsageService(usageRepo, userRepo, nil, nil)
 
+	accountStatusSvc := service.NewAccountStatusService(userRepo, userSubRepo, groupRepo, nil, nil, true)
 	subscriptionService := service.NewSubscriptionService(groupRepo, userSubRepo, nil, nil, cfg)
-	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService, accountStatusSvc, nil)
 
 	redeemService := service.NewRedeemService(redeemRepo, userRepo, subscriptionService, nil, nil, nil, nil, nil)
 	redeemHandler := handler.NewRedeemHandler(redeemService)
@@ -1534,7 +1535,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 
-	adminService := service.NewAdminService(nil, userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminService := service.NewAdminService(nil, userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, apiKeyService, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, nil, nil)
@@ -1743,6 +1744,14 @@ func (r *stubUserRepo) ListUserAuthIdentities(ctx context.Context, userID int64)
 
 func (r *stubUserRepo) UnbindUserAuthProvider(context.Context, int64, string) error {
 	return errors.New("not implemented")
+}
+
+func (r *stubUserRepo) RevokeUserEducationEmailIdentities(ctx context.Context, userID int64) (int64, error) {
+	return 0, nil
+}
+
+func (r *stubUserRepo) ListVerifiedEducationEmailsByUserIDs(ctx context.Context, userIDs []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
 }
 
 func (r *stubUserRepo) GetLatestUsedAtByUserIDs(ctx context.Context, userIDs []int64) (map[int64]*time.Time, error) {

@@ -402,6 +402,91 @@ func (r *userRepository) UnbindUserAuthProvider(ctx context.Context, userID int6
 	})
 }
 
+// RevokeUserEducationEmailIdentities 删除指定用户的全部校园邮箱认证身份
+// (provider_type=education_email, provider_key=muc.edu.cn) 及其关联行，
+// 事务模板与 UnbindUserAuthProvider 一致。返回删除的身份条数；
+// 无匹配行时返回 (0, nil)，撤销可重复执行（幂等）。
+func (r *userRepository) RevokeUserEducationEmailIdentities(ctx context.Context, userID int64) (int64, error) {
+	var deleted int64
+	err := r.WithUserProfileIdentityTx(ctx, func(txCtx context.Context) error {
+		client := clientFromContext(txCtx, r.client)
+		identityIDs, err := client.AuthIdentity.Query().
+			Where(
+				authidentity.UserIDEQ(userID),
+				authidentity.ProviderTypeEQ(service.EducationEmailProviderType),
+				authidentity.ProviderKeyEQ(service.EducationEmailProviderKey),
+			).
+			IDs(txCtx)
+		if err != nil {
+			return err
+		}
+		if len(identityIDs) == 0 {
+			return nil
+		}
+
+		if _, err := client.IdentityAdoptionDecision.Update().
+			Where(identityadoptiondecision.IdentityIDIn(identityIDs...)).
+			ClearIdentityID().
+			Save(txCtx); err != nil {
+			return err
+		}
+		if _, err := client.AuthIdentityChannel.Delete().
+			Where(authidentitychannel.IdentityIDIn(identityIDs...)).
+			Exec(txCtx); err != nil {
+			return err
+		}
+		n, err := client.AuthIdentity.Delete().
+			Where(
+				authidentity.UserIDEQ(userID),
+				authidentity.ProviderTypeEQ(service.EducationEmailProviderType),
+				authidentity.ProviderKeyEQ(service.EducationEmailProviderKey),
+			).
+			Exec(txCtx)
+		if err != nil {
+			return err
+		}
+		deleted = int64(n)
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return deleted, nil
+}
+
+// ListVerifiedEducationEmailsByUserIDs 批量返回每个用户已认证的校园邮箱地址
+// (provider_type=education_email, provider_key=muc.edu.cn, verified_at 非空)，
+// 供用户列表展示认证徽标，避免逐行 N+1 查询。
+func (r *userRepository) ListVerifiedEducationEmailsByUserIDs(ctx context.Context, userIDs []int64) (map[int64][]string, error) {
+	out := make(map[int64][]string, len(userIDs))
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+
+	identities, err := clientFromContext(ctx, r.client).AuthIdentity.Query().
+		Where(
+			authidentity.UserIDIn(userIDs...),
+			authidentity.ProviderTypeEQ(service.EducationEmailProviderType),
+			authidentity.ProviderKeyEQ(service.EducationEmailProviderKey),
+			authidentity.VerifiedAtNotNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, identity := range identities {
+		if identity == nil {
+			continue
+		}
+		email := strings.ToLower(strings.TrimSpace(identity.ProviderSubject))
+		if email == "" {
+			continue
+		}
+		out[identity.UserID] = append(out[identity.UserID], email)
+	}
+	return out, nil
+}
+
 func (r *userRepository) BindAuthIdentityToUser(ctx context.Context, input BindAuthIdentityInput) (*CreateAuthIdentityResult, error) {
 	if err := validateAuthIdentityChannelProviderMatch(input.Canonical, input.Channel); err != nil {
 		return nil, err

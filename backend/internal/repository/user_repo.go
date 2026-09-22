@@ -566,6 +566,21 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 		))
 	}
 
+	if filters.EducationEmailVerified != nil {
+		// 按校园邮箱认证状态过滤（EXISTS 语义）：仅认 muc.edu.cn 下 verified_at
+		// 非空的 education_email 身份；false 时取反（用户没有任何已认证记录）。
+		eduVerified := dbuser.HasAuthIdentitiesWith(
+			authidentity.ProviderTypeEQ(service.EducationEmailProviderType),
+			authidentity.ProviderKeyEQ(service.EducationEmailProviderKey),
+			authidentity.VerifiedAtNotNil(),
+		)
+		if *filters.EducationEmailVerified {
+			q = q.Where(eduVerified)
+		} else {
+			q = q.Where(dbuser.Not(eduVerified))
+		}
+	}
+
 	// If attribute filters are specified, we need to filter by user IDs first
 	var allowedUserIDs []int64
 	if len(filters.Attributes) > 0 {

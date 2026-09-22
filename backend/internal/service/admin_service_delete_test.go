@@ -34,6 +34,7 @@ type userRepoStub struct {
 	domainCountErr       error
 	domainLimitErr       error
 	domainLimitedCreates int
+	revokedCounts        map[int64]int64
 }
 
 func (s *userRepoStub) CountUsersByEmailDomain(_ context.Context, domain string) (int, error) {
@@ -225,6 +226,17 @@ func (s *userRepoStub) ListUserAuthIdentities(ctx context.Context, userID int64)
 
 func (s *userRepoStub) UnbindUserAuthProvider(context.Context, int64, string) error {
 	panic("unexpected UnbindUserAuthProvider call")
+}
+
+func (s *userRepoStub) RevokeUserEducationEmailIdentities(ctx context.Context, userID int64) (int64, error) {
+	// revokedCounts 模拟首次撤销 N 条、重复撤销 0 条的幂等行为。
+	n := s.revokedCounts[userID]
+	s.revokedCounts[userID] = 0
+	return n, nil
+}
+
+func (s *userRepoStub) ListVerifiedEducationEmailsByUserIDs(ctx context.Context, userIDs []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
 }
 
 func (s *userRepoStub) UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error {

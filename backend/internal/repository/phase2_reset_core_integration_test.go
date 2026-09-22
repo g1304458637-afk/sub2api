@@ -60,7 +60,7 @@ func TestPhase2ResetCoreEventRetryIntegration(t *testing.T) {
 		res, err := svc.ResetSubscriptionWeeklyPeriod(ctx, &service.WeeklyResetInput{
 			UserSubscriptionID: sub.ID,
 			EffectiveAt:        ev.EffectiveAt,
-			Source:             domain.WeeklyResetSourceGlobalReset,
+			Source:             domain.WeeklyResetSourceBatchDirect,
 			ResetEventID:       &eventID,
 		})
 		require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestPhase2ResetCoreVsSettlementConcurrentInvariant(t *testing.T) {
 			_, _ = svc.ResetSubscriptionWeeklyPeriod(ctx, &service.WeeklyResetInput{
 				UserSubscriptionID: sub.ID,
 				EffectiveAt:        effective,
-				Source:             domain.WeeklyResetSourceGlobalReset,
+				Source:             domain.WeeklyResetSourceBatchDirect,
 			})
 		}()
 		wg.Wait()
@@ -166,7 +166,7 @@ func TestPhase2ResetCoreInvalidatesSubscriptionCache(t *testing.T) {
 	res, err := svc.ResetSubscriptionWeeklyPeriod(ctx, &service.WeeklyResetInput{
 		UserSubscriptionID: sub.ID,
 		EffectiveAt:        effective,
-		Source:             domain.WeeklyResetSourceAdminManual,
+		Source:             domain.WeeklyResetSourceAdminDirect,
 	})
 	require.NoError(t, err)
 	require.Equal(t, service.WeeklyResetApplied, res.Status)

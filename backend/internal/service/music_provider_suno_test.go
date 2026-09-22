@@ -133,3 +133,26 @@ func TestSunoAdapterTimesOutWhenUpstreamKeepsPending(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "timed out")
 }
+
+func TestSunoAdapterDeadlineDuringHTTP(t *testing.T) {
+	for _, stage := range []string{"create", "poll"} {
+		t.Run(stage, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.Copy(io.Discard, r.Body)
+				if stage == "poll" && r.URL.Path == sunoGeneratePath {
+					_, _ = w.Write([]byte(`{"code":200,"data":{"taskId":"slow-task"}}`))
+					return
+				}
+				<-r.Context().Done()
+			}))
+			t.Cleanup(server.Close)
+			adapter := newTestSunoAdapter(server, time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+			defer cancel()
+			_, err := adapter.Generate(ctx, MusicGenerationRequest{Model: "suno-v4", Prompt: "test"})
+			require.ErrorContains(t, err, "music generation timed out")
+			var providerErr *MusicProviderError
+			require.ErrorAs(t, err, &providerErr)
+		})
+	}
+}

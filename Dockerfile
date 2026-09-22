@@ -22,6 +22,8 @@ ARG NPM_CONFIG_REGISTRY=
 # it on the native host arch instead of under QEMU emulation for the target.
 FROM --platform=${BUILDPLATFORM} ${NODE_IMAGE} AS frontend-builder
 ARG NPM_CONFIG_REGISTRY
+ARG BRAND=muc
+ENV BRAND=${BRAND}
 
 WORKDIR /app/frontend
 

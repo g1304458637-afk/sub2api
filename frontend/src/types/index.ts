@@ -113,6 +113,8 @@ export interface AdminUser extends User {
   // 为 true 时该用户仅可使用 allowed_groups 中列出的公开分组。
   // 管理侧权限开关，普通用户接口不返回。
   restrict_public_groups?: boolean
+  // 已认证的校园邮箱地址（muc.edu.cn），列表认证徽标展示用（仅管理员列表接口返回）
+  education_emails?: string[]
   // 当前并发数（仅管理员列表接口返回）
   current_concurrency?: number
 }
@@ -212,6 +214,7 @@ export interface LoginAgreementDocument {
 }
 
 export interface PublicSettings {
+  campus_brand?: { id: string; education_email_domain?: string; download_base_url?: string }
   registration_enabled: boolean
   email_verify_enabled: boolean
   force_email_on_third_party_signup: boolean

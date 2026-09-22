@@ -25,6 +25,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -96,12 +97,24 @@ func (s *SubscriptionService) ResetSubscriptionWeeklyPeriod(ctx context.Context,
 	}
 
 	// 已在调用方事务内（复用该事务）或无 entClient（单元测试）：
-	// 与存量 AdminResetQuota 行为一致，事务边界与缓存失效由本函数内联处理。
+	// 外层事务提交成功后才失效缓存；回滚不能广播未生效的重置。
 	res, err := s.resetWeeklyPeriodInTx(ctx, in, now)
 	if err != nil {
 		return nil, err
 	}
-	s.invalidateAfterWeeklyReset(ctx, res.Subscription)
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		tx.OnCommit(func(next dbent.Committer) dbent.Committer {
+			return dbent.CommitFunc(func(commitCtx context.Context, tx *dbent.Tx) error {
+				if err := next.Commit(commitCtx, tx); err != nil {
+					return err
+				}
+				s.invalidateAfterWeeklyReset(commitCtx, res.Subscription)
+				return nil
+			})
+		})
+	} else {
+		s.invalidateAfterWeeklyReset(ctx, res.Subscription)
+	}
 	return res, nil
 }
 
@@ -208,8 +221,7 @@ func (s *SubscriptionService) invalidateAfterWeeklyReset(ctx context.Context, su
 	if sub == nil {
 		return
 	}
-	s.InvalidateSubCacheSync(sub.UserID, sub.GroupID)
-	if s.billingCacheService != nil {
-		_ = s.billingCacheService.InvalidateSubscription(ctx, sub.UserID, sub.GroupID)
+	if err := s.invalidateSubscriptionCaches(sub.UserID, sub.GroupID); err != nil {
+		log.Printf("subscription reset cache invalidation failed: user=%d group=%d err=%v", sub.UserID, sub.GroupID, err)
 	}
 }

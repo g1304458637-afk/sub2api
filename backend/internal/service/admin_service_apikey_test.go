@@ -116,6 +116,14 @@ func (s *userRepoStubForGroupUpdate) UnbindUserAuthProvider(context.Context, int
 	panic("unexpected")
 }
 
+func (s *userRepoStubForGroupUpdate) RevokeUserEducationEmailIdentities(context.Context, int64) (int64, error) {
+	panic("unexpected")
+}
+
+func (s *userRepoStubForGroupUpdate) ListVerifiedEducationEmailsByUserIDs(context.Context, []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func (s *userRepoStubForGroupUpdate) GetLatestUsedAtByUserIDs(context.Context, []int64) (map[int64]*time.Time, error) {
 	panic("unexpected")
 }
@@ -135,6 +143,13 @@ type apiKeyRepoStubForGroupUpdate struct {
 	getErr    error
 	updateErr error
 	updated   *APIKey // captures what was passed to Update
+
+	// AdminDeleteAPIKey 相关
+	getKeyOwnerKey   string
+	getKeyOwnerID    int64
+	getKeyOwnerErr   error
+	deleteAuditErr   error
+	deleteAuditCalls []int64
 }
 
 func (s *apiKeyRepoStubForGroupUpdate) GetByID(_ context.Context, _ int64) (*APIKey, error) {
@@ -152,12 +167,22 @@ func (s *apiKeyRepoStubForGroupUpdate) Update(_ context.Context, key *APIKey, _ 
 	s.updated = &clone
 	return nil
 }
+func (s *apiKeyRepoStubForGroupUpdate) GetKeyAndOwnerID(_ context.Context, _ int64) (string, int64, error) {
+	if s.getKeyOwnerErr != nil {
+		return "", 0, s.getKeyOwnerErr
+	}
+	return s.getKeyOwnerKey, s.getKeyOwnerID, nil
+}
+func (s *apiKeyRepoStubForGroupUpdate) DeleteWithAudit(_ context.Context, id int64) error {
+	if s.deleteAuditErr != nil {
+		return s.deleteAuditErr
+	}
+	s.deleteAuditCalls = append(s.deleteAuditCalls, id)
+	return nil
+}
 
 // Unused methods – panic on unexpected call.
 func (s *apiKeyRepoStubForGroupUpdate) Create(context.Context, *APIKey) error { panic("unexpected") }
-func (s *apiKeyRepoStubForGroupUpdate) GetKeyAndOwnerID(context.Context, int64) (string, int64, error) {
-	panic("unexpected")
-}
 func (s *apiKeyRepoStubForGroupUpdate) GetByKey(context.Context, string) (*APIKey, error) {
 	panic("unexpected")
 }
@@ -165,9 +190,6 @@ func (s *apiKeyRepoStubForGroupUpdate) GetByKeyForAuth(context.Context, string) 
 	panic("unexpected")
 }
 func (s *apiKeyRepoStubForGroupUpdate) Delete(context.Context, int64) error { panic("unexpected") }
-func (s *apiKeyRepoStubForGroupUpdate) DeleteWithAudit(context.Context, int64) error {
-	panic("unexpected")
-}
 func (s *apiKeyRepoStubForGroupUpdate) ListByUserID(context.Context, int64, pagination.PaginationParams, APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
@@ -281,6 +303,11 @@ type userSubRepoStubForGroupUpdate struct {
 	called        bool
 	calledUserID  int64
 	calledGroupID int64
+}
+
+func (s *userSubRepoStubForGroupUpdate) GetMaxActiveGroupConcurrencyOverride(context.Context, int64) (int, error) {
+	return 0, nil
+
 }
 
 func (s *userSubRepoStubForGroupUpdate) GetActiveByUserIDAndGroupID(_ context.Context, userID, groupID int64) (*UserSubscription, error) {
@@ -564,4 +591,49 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_Unbind_NoAllowedGroupUpdate(t *te
 	// 解绑时不修改 allowed_groups
 	require.False(t, userRepo.addGroupCalled)
 	require.False(t, got.AutoGrantedGroupAccess)
+}
+
+// ---------------------------------------------------------------------------
+// Tests: AdminDeleteAPIKey
+// ---------------------------------------------------------------------------
+
+func TestAdminService_AdminDeleteAPIKey_Success(t *testing.T) {
+	repo := &apiKeyRepoStubForGroupUpdate{getKeyOwnerKey: "sk-test", getKeyOwnerID: 42}
+	apiKeySvc := NewAPIKeyService(repo, nil, nil, nil, nil, nil, nil)
+	svc := &adminServiceImpl{apiKeyRepo: repo, apiKeyService: apiKeySvc}
+
+	err := svc.AdminDeleteAPIKey(context.Background(), 1)
+	require.NoError(t, err)
+	// 软删+审计（DeleteWithAudit）确实被调用，且目标 Key 正确
+	require.Equal(t, []int64{1}, repo.deleteAuditCalls)
+}
+
+func TestAdminService_AdminDeleteAPIKey_KeyNotFound(t *testing.T) {
+	repo := &apiKeyRepoStubForGroupUpdate{getKeyOwnerErr: ErrAPIKeyNotFound}
+	apiKeySvc := NewAPIKeyService(repo, nil, nil, nil, nil, nil, nil)
+	svc := &adminServiceImpl{apiKeyRepo: repo, apiKeyService: apiKeySvc}
+
+	err := svc.AdminDeleteAPIKey(context.Background(), 999)
+	require.ErrorIs(t, err, ErrAPIKeyNotFound)
+	require.Empty(t, repo.deleteAuditCalls)
+}
+
+func TestAdminService_AdminDeleteAPIKey_DeleteWithAuditFails(t *testing.T) {
+	repo := &apiKeyRepoStubForGroupUpdate{getKeyOwnerKey: "sk-test", getKeyOwnerID: 42, deleteAuditErr: errors.New("db write error")}
+	apiKeySvc := NewAPIKeyService(repo, nil, nil, nil, nil, nil, nil)
+	svc := &adminServiceImpl{apiKeyRepo: repo, apiKeyService: apiKeySvc}
+
+	err := svc.AdminDeleteAPIKey(context.Background(), 1)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "delete api key")
+}
+
+func TestAdminService_AdminDeleteAPIKey_NilAPIKeyService(t *testing.T) {
+	repo := &apiKeyRepoStubForGroupUpdate{getKeyOwnerKey: "sk-test", getKeyOwnerID: 42}
+	svc := &adminServiceImpl{apiKeyRepo: repo}
+
+	err := svc.AdminDeleteAPIKey(context.Background(), 1)
+	require.Error(t, err)
+	require.Equal(t, "API_KEY_SERVICE_UNAVAILABLE", infraerrors.Reason(err))
+	require.Empty(t, repo.deleteAuditCalls)
 }

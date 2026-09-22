@@ -69,8 +69,9 @@ func (s *EmailCacheSuite) TestDeleteVerificationCode() {
 	require.NoError(s.T(), s.cache.DeleteVerificationCode(s.ctx, email), "DeleteVerificationCode")
 
 	// Verify it's gone
-	_, err = s.cache.GetVerificationCode(s.ctx, email)
-	require.True(s.T(), errors.Is(err, redis.Nil), "expected redis.Nil after delete")
+	got, err := s.cache.GetVerificationCode(s.ctx, email)
+	require.NoError(s.T(), err)
+	require.Nil(s.T(), got, "deleted code must be absent")
 }
 
 func (s *EmailCacheSuite) TestDeleteVerificationCode_NonExistent() {
@@ -86,6 +87,7 @@ func (s *EmailCacheSuite) TestConsumeVerificationCodeIsOneTime() {
 
 	consumed, err := s.cache.ConsumeVerificationCode(s.ctx, address)
 	require.NoError(s.T(), err)
+	require.NotNil(s.T(), consumed)
 	require.Equal(s.T(), "123456", consumed.Code)
 	require.Equal(s.T(), "student@muc.edu.cn", consumed.Target)
 

@@ -74,6 +74,7 @@ func UserFromServiceAdmin(u *service.User) *AdminUser {
 		LastUsedAt:           u.LastUsedAt,
 		GroupRates:           u.GroupRates,
 		RestrictPublicGroups: u.RestrictPublicGroups,
+		EducationEmails:      u.EducationEmails,
 	}
 }
 

@@ -136,7 +136,7 @@ sudo cat /srv/sub2api/.env.deploy                                # 查看当前�
 ```yaml
 on:
   push:
-    branches: [main]
+    branches: [muc-main, hubu-main]
 ```
 
 ### 12.1 首次 rollout 前的强制重审计

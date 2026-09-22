@@ -2,9 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, shallowMount } from '@vue/test-utils'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
-import { formatPaymentAmount } from '@/components/payment/currency'
+import { formatPaymentAmount as _formatPaymentAmount } from '@/components/payment/currency'
 import AmountInput from '@/components/payment/AmountInput.vue'
-import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import en from '@/i18n/locales/en'
 import zh from '@/i18n/locales/zh'
 import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
@@ -219,7 +218,7 @@ function oauthOrderFixture() {
   }
 }
 
-async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}) {
+async function _mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}) {
   vi.useRealTimers()
   routeState.path = '/purchase'
   routeState.query = {
@@ -256,7 +255,7 @@ async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoW
   return wrapper
 }
 
-async function mountSubscriptionPlanList(planCount: number) {
+async function _mountSubscriptionPlanList(planCount: number) {
   vi.useRealTimers()
   routeState.path = '/purchase'
   routeState.query = { tab: 'subscription' }
@@ -359,21 +358,6 @@ describe('PaymentView help text', () => {
   })
 })
 
-describe('PaymentView subscription plan grid', () => {
-  it.each([3, 4, 6])('keeps %i plans on the existing mobile/tablet/desktop grid', async (planCount) => {
-    const wrapper = await mountSubscriptionPlanList(planCount)
-    const cards = wrapper.findAllComponents(SubscriptionPlanCard)
-
-    expect(cards).toHaveLength(planCount)
-    expect([...(cards[0].element.parentElement?.classList ?? [])]).toEqual(expect.arrayContaining([
-      'grid',
-      'grid-cols-1',
-      'sm:grid-cols-2',
-      'lg:grid-cols-3',
-    ]))
-  })
-})
-
 describe('PaymentView recharge rate preview', () => {
   it('uses the selected payment method currency in both locale templates', async () => {
     translate.mockClear()
@@ -411,93 +395,102 @@ describe('PaymentView recharge rate preview', () => {
   })
 })
 
-describe('PaymentView subscription confirmation amounts', () => {
-  it('shows converted CNY pay amount using the subscription rate, not the balance multiplier', async () => {
-    const wrapper = await mountSubscriptionConfirm({
-      checkout: {
-        balance_recharge_multiplier: 0.14,
-        subscription_usd_to_cny_rate: 7.15,
-      },
-      method: {
-        currency: 'CNY',
-      },
-      plan: {
-        price: 9.99,
-        original_price: 12.99,
-      },
-    })
-
-    const text = wrapper.text()
-    const convertedPrice = formatPaymentAmount(71.43, 'CNY')
-    const convertedOriginalPrice = formatPaymentAmount(92.88, 'CNY')
-
-    expect(text).toContain(convertedPrice)
-    expect(text).toContain(convertedOriginalPrice)
-    expect(text).not.toContain(formatPaymentAmount(9.99, 'CNY'))
-    // 换算必须使用订阅汇率（×7.15），而不是余额倍率（÷0.14 = 71.36）
-    expect(text).not.toContain(formatPaymentAmount(71.36, 'CNY'))
-    expect(wrapper.findAll('button').some(button => button.text().includes(convertedPrice))).toBe(true)
+describe('PaymentView legacy subscription entry redirect', () => {
+  beforeEach(() => {
+    vi.useRealTimers()
+    routeState.path = '/purchase'
+    routeState.query = {}
+    routerReplace.mockReset().mockResolvedValue(undefined)
+    routerPush.mockReset().mockResolvedValue(undefined)
+    routerResolve.mockClear()
+    createOrder.mockReset()
+    refreshUser.mockReset()
+    fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+    showError.mockReset()
+    showInfo.mockReset()
+    showWarning.mockReset()
+    bridgeInvoke.mockReset()
+    window.localStorage.clear()
+    ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
+    appStoreState.setPublicSettings(undefined)
   })
 
-  it('keeps plan price when the subscription rate is not configured or payment currency is not CNY', async () => {
-    // opt-in 回归锁：即使余额倍率已配置，未配置订阅汇率时 CNY 订阅仍按 price 直付
-    const cnyWrapper = await mountSubscriptionConfirm({
-      checkout: {
-        balance_recharge_multiplier: 0.14,
-        subscription_usd_to_cny_rate: 0,
-      },
-      method: {
-        currency: 'CNY',
-      },
-      plan: {
-        price: 7.99,
-      },
-    })
-
-    expect(cnyWrapper.text()).toContain(formatPaymentAmount(7.99, 'CNY'))
-    expect(cnyWrapper.text()).not.toContain(formatPaymentAmount(57.07, 'CNY'))
-    expect(cnyWrapper.text()).not.toContain(formatPaymentAmount(57.13, 'CNY'))
-
-    const usdWrapper = await mountSubscriptionConfirm({
-      checkout: {
-        subscription_usd_to_cny_rate: 7.15,
-      },
-      method: {
-        currency: 'USD',
-      },
-      plan: {
-        price: 7.99,
-        original_price: 9.99,
-      },
-    })
-
-    expect(usdWrapper.text()).toContain(formatPaymentAmount(7.99, 'USD'))
-    expect(usdWrapper.text()).toContain(formatPaymentAmount(9.99, 'USD'))
+  afterEach(() => {
+    appStoreState.setPublicSettings(undefined)
   })
 
-  it('adds fee rate after CNY rate conversion to match backend pay_amount', async () => {
-    const wrapper = await mountSubscriptionConfirm({
-      checkout: {
-        subscription_usd_to_cny_rate: 7.15,
-        recharge_fee_rate: 2.5,
-      },
-      method: {
-        currency: 'CNY',
-      },
-      plan: {
-        price: 9.99,
+  async function mountPurchase(overrides: Partial<CheckoutInfoResponse> = {}) {
+    getCheckoutInfo.mockResolvedValue(checkoutInfoFixture(overrides))
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          Teleport: true,
+          Transition: false,
+        },
       },
     })
+    await flushPromises()
+    await flushPromises()
+    return wrapper
+  }
 
-    const text = wrapper.text()
-    const convertedPrice = formatPaymentAmount(71.43, 'CNY')
-    const fee = formatPaymentAmount(1.79, 'CNY')
-    const total = formatPaymentAmount(73.22, 'CNY')
+  it('redirects ?tab=subscription to /pricing — the only plan catalog', async () => {
+    routeState.query = { tab: 'subscription' }
+    await mountPurchase()
+    expect(routerReplace).toHaveBeenCalledWith('/pricing')
+  })
 
-    expect(text).toContain(convertedPrice)
-    expect(text).toContain(fee)
-    expect(text).toContain(total)
-    expect(wrapper.findAll('button').some(button => button.text().includes(total))).toBe(true)
+  it('redirects subscription-only sites to /pricing on plain visits', async () => {
+    appStoreState.setPublicSettings({ subscription_enabled: true, payment_balance_disabled: true })
+    await mountPurchase()
+    expect(routerReplace).toHaveBeenCalledWith('/pricing')
+  })
+
+  it('does not redirect subscription-only sites when a wechat resume is in flight', async () => {
+    appStoreState.setPublicSettings({ subscription_enabled: true, payment_balance_disabled: true })
+    routeState.query = {
+      wechat_resume: '1',
+      wechat_resume_token: 'resume-sub-only',
+      payment_type: 'wxpay_direct',
+      order_type: 'subscription',
+      plan_id: '7',
+    }
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoWithPlansFixture())
+    createOrder.mockResolvedValue(oauthOrderFixture())
+
+    const originalLocation = window.location
+    const locationState = { href: 'http://localhost/purchase', origin: 'http://localhost' }
+    Object.defineProperty(window, 'location', { configurable: true, value: locationState })
+
+    shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    // 恢复链先剥离查询参数（replace 到干净路径），随后不得把带恢复态的会话甩到 /pricing
+    expect(routerReplace).toHaveBeenCalledWith({ path: '/purchase', query: {} })
+    expect(routerReplace).not.toHaveBeenCalledWith('/pricing')
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      order_type: 'subscription',
+      plan_id: 7,
+      wechat_resume_token: 'resume-sub-only',
+    }))
+
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+  })
+
+  it('shows the billing-unavailable notice when balance recharge is disabled', async () => {
+    const wrapper = await mountPurchase({ balance_disabled: true })
+    expect(wrapper.text()).toContain('payment.billingUnavailable')
+    expect(wrapper.text()).not.toContain('payment.rechargeAccount')
+    expect(createOrder).not.toHaveBeenCalled()
   })
 })
 
@@ -817,73 +810,5 @@ describe('PaymentView WeChat JSAPI flow', () => {
     expect(showWarning).toHaveBeenCalledWith('payment.errors.mobilePaymentFallbackToQr')
     expect(showError).not.toHaveBeenCalled()
     expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toContain('weixin://wxpay/bizpayurl?pr=fallback-native')
-  })
-})
-
-describe('PaymentView subscription feature flag', () => {
-  afterEach(() => {
-    appStoreState.setPublicSettings(undefined)
-  })
-
-  function tabLabels(wrapper: Awaited<ReturnType<typeof mountSubscriptionPlanList>>) {
-    return wrapper
-      .findAll('button')
-      .map((button) => button.text())
-      .filter((text) => text === 'payment.tabTopUp' || text === 'payment.tabSubscribe')
-  }
-
-  it('keeps the top-up / subscribe switcher when subscription_enabled is absent (opt-out default)', async () => {
-    const wrapper = await mountSubscriptionPlanList(2)
-
-    expect(tabLabels(wrapper)).toEqual(['payment.tabTopUp', 'payment.tabSubscribe'])
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(2)
-  })
-
-  it('drops the subscribe tab, hides the switcher and ignores ?tab=subscription when subscriptions are disabled', async () => {
-    appStoreState.setPublicSettings({ subscription_enabled: false })
-    const wrapper = await mountSubscriptionPlanList(2)
-
-    expect(tabLabels(wrapper)).toEqual([])
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
-    expect(wrapper.text()).toContain('payment.rechargeAccount')
-  })
-
-  it('shows an unavailable notice instead of a doomed top-up form when balance recharge is disabled too', async () => {
-    appStoreState.setPublicSettings({ subscription_enabled: false })
-    const wrapper = await mountSubscriptionConfirm({ checkout: { balance_disabled: true } })
-
-    expect(tabLabels(wrapper)).toEqual([])
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
-    expect(wrapper.text()).not.toContain('payment.confirmSubscription')
-    expect(wrapper.text()).not.toContain('payment.rechargeAccount')
-    expect(wrapper.text()).toContain('payment.billingUnavailable')
-    wrapper.unmount()
-  })
-
-  it('falls back from the subscribe tab to top-up when the flag flips off after mount', async () => {
-    const wrapper = await mountSubscriptionPlanList(2)
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(2)
-
-    appStoreState.setPublicSettings({ subscription_enabled: false })
-    await flushPromises()
-
-    expect(tabLabels(wrapper)).toEqual([])
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
-    expect(wrapper.text()).toContain('payment.rechargeAccount')
-    wrapper.unmount()
-  })
-
-  it('enters the subscribe tab when a subscription-only site turns subscriptions back on', async () => {
-    appStoreState.setPublicSettings({ subscription_enabled: false })
-    const wrapper = await mountSubscriptionConfirm({ checkout: { balance_disabled: true } })
-    expect(wrapper.text()).toContain('payment.billingUnavailable')
-
-    appStoreState.setPublicSettings({ subscription_enabled: true })
-    await flushPromises()
-
-    expect(wrapper.text()).not.toContain('payment.billingUnavailable')
-    expect(wrapper.text()).not.toContain('payment.rechargeAccount')
-    expect(wrapper.findAllComponents(SubscriptionPlanCard).length).toBeGreaterThan(0)
-    wrapper.unmount()
   })
 })

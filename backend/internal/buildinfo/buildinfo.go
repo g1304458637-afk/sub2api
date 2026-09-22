@@ -3,6 +3,9 @@
 package buildinfo
 
 var (
-	Version = "0.0.0-dev"
-	Commit  = "unknown"
+	Version           = "0.0.0-dev"
+	Commit            = "unknown"
+	Date              = "unknown"
+	Brand             = "unknown"
+	MigrationBaseline = "unknown"
 )

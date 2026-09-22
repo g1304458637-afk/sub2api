@@ -230,6 +230,19 @@ describe('useTableLoader', () => {
     })
   })
 
+  it('ignores an older response even if the transport ignores cancellation', async () => {
+    type Result = { items: { id: number }[]; total: number; pages: number }
+    let firstResolve!: (result: Result) => void
+    const first = new Promise<Result>(resolve => { firstResolve = resolve })
+    const fetchFn = vi.fn().mockReturnValueOnce(first).mockResolvedValueOnce({ items: [{ id: 2 }], total: 1, pages: 1 })
+    const { load, items } = useTableLoader({ fetchFn })
+    const oldRequest = load()
+    await load()
+    firstResolve({ items: [{ id: 1 }], total: 1, pages: 1 })
+    await oldRequest
+    expect(items.value).toEqual([{ id: 2 }])
+  })
+
   // --- 错误处理 ---
 
   describe('错误处理', () => {

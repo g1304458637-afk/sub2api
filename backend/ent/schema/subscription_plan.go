@@ -61,6 +61,10 @@ func (SubscriptionPlan) Fields() []ent.Field {
 			Default(true),
 		field.Int("sort_order").
 			Default(0),
+		// entitlement 档位（Gate 4）：Basic=100/Pro=200/Max=300 为产品参数由管理员配置；
+		// 0=未设置——涉及 0 档位的 Plan Change 一律拒绝。与展示用 sort_order 严格分离。
+		field.Int("tier_rank").
+			Default(0),
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now).

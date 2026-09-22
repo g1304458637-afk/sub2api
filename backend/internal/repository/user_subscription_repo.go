@@ -52,6 +52,8 @@ func (r *userSubscriptionRepository) Create(ctx context.Context, sub *service.Us
 		builder.SetAssignedAt(sub.AssignedAt)
 	}
 	// Keep compatibility with historical behavior: always store notes as a string value.
+	builder.SetNillablePlanID(sub.PlanID)
+	builder.SetNillableNextPlanID(sub.NextPlanID)
 	builder.SetNotes(sub.Notes)
 
 	created, err := builder.Save(ctx)
@@ -131,6 +133,64 @@ func (r *userSubscriptionRepository) GetActiveByUserIDAndGroupID(ctx context.Con
 	return userSubscriptionEntityToService(m), nil
 }
 
+// FindActiveByUserIDExcludingGroup 单主套餐守卫（RULE 1）：返回用户在目标组之外的
+// 任一 ACTIVE 订阅（无则 nil）。与运行时口径一致：status=active 且未过 expires_at
+// （惰性到期行不算，履约前置 ExpireLapsedByUser 会先收敛）。created_at 升序保证结果确定。
+func (r *userSubscriptionRepository) FindActiveByUserIDExcludingGroup(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+	client := clientFromContext(ctx, r.client)
+	m, err := client.UserSubscription.Query().
+		Where(
+			usersubscription.UserIDEQ(userID),
+			usersubscription.GroupIDNEQ(groupID),
+			usersubscription.StatusEQ(service.SubscriptionStatusActive),
+			usersubscription.ExpiresAtGT(time.Now()),
+		).
+		Order(dbent.Asc(usersubscription.FieldCreatedAt)).
+		First(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return userSubscriptionEntityToService(m), nil
+}
+
+// FindLatestByUserID 用户级最近一条未删除订阅行（expires_at DESC, id DESC）。
+// 预付费固定周期制：next_plan_id 挂在行上，到期后仍需可读（续费默认目标）。
+func (r *userSubscriptionRepository) FindLatestByUserID(ctx context.Context, userID int64) (*service.UserSubscription, error) {
+	client := clientFromContext(ctx, r.client)
+	m, err := client.UserSubscription.Query().
+		Where(
+			usersubscription.UserIDEQ(userID),
+			usersubscription.DeletedAtIsNil(),
+		).
+		Order(dbent.Desc(usersubscription.FieldExpiresAt), dbent.Desc(usersubscription.FieldID)).
+		First(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return userSubscriptionEntityToService(m), nil
+}
+
+// ExpireLapsedByUser 履约前置清理：把用户 status=active 但已过 expires_at 的订阅
+// 翻为 expired（惰性到期的提前收敛），避免 partial unique index 把合法新购买挡下。
+func (r *userSubscriptionRepository) ExpireLapsedByUser(ctx context.Context, userID int64, now time.Time) (int64, error) {
+	client := clientFromContext(ctx, r.client)
+	n, err := client.UserSubscription.Update().
+		Where(
+			usersubscription.UserIDEQ(userID),
+			usersubscription.StatusEQ(service.SubscriptionStatusActive),
+			usersubscription.ExpiresAtLTE(now),
+		).
+		SetStatus(service.SubscriptionStatusExpired).
+		Save(ctx)
+	return int64(n), err
+}
+
 func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.UserSubscription) error {
 	if sub == nil {
 		return service.ErrSubscriptionNilInput
@@ -150,6 +210,8 @@ func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.Us
 		SetWeeklyUsageUsd(sub.WeeklyUsageUSD).
 		SetMonthlyUsageUsd(sub.MonthlyUsageUSD).
 		SetNillableAssignedBy(sub.AssignedBy).
+		SetNillablePlanID(sub.PlanID).
+		SetNillableNextPlanID(sub.NextPlanID).
 		SetAssignedAt(sub.AssignedAt).
 		SetNotes(sub.Notes)
 
@@ -655,6 +717,9 @@ func userSubscriptionEntityToServiceWithStatusMapping(m *dbent.UserSubscription,
 		MonthlyUsageUSD:    m.MonthlyUsageUsd,
 		AssignedBy:         m.AssignedBy,
 		AssignedAt:         m.AssignedAt,
+		AutoPaygFallback:   m.AutoPaygFallback,
+		PlanID:             m.PlanID,
+		NextPlanID:         m.NextPlanID,
 		Notes:              derefString(m.Notes),
 		CreatedAt:          m.CreatedAt,
 		UpdatedAt:          m.UpdatedAt,
@@ -689,4 +754,42 @@ func applyUserSubscriptionEntityToService(dst *service.UserSubscription, src *db
 	dst.ID = src.ID
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
+}
+
+// UpdatePaygFallback 更新用户级 PAYG fallback 开关。
+func (r *userSubscriptionRepository) UpdatePaygFallback(ctx context.Context, id int64, enabled bool) error {
+	client := clientFromContext(ctx, r.client)
+	_, err := client.UserSubscription.Update().
+		Where(usersubscription.IDEQ(id)).
+		SetAutoPaygFallback(enabled).
+		Save(ctx)
+	return translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
+}
+
+// GetMaxActiveGroupConcurrencyOverride 用户全部 active+metered 订阅分组的
+// concurrency_override 最大值；无任何匹配返回 0。
+func (r *userSubscriptionRepository) GetMaxActiveGroupConcurrencyOverride(ctx context.Context, userID int64) (int, error) {
+	const query = `
+		SELECT COALESCE(MAX(g.concurrency_override), 0)
+		FROM user_subscriptions us
+		JOIN groups g ON g.id = us.group_id AND g.deleted_at IS NULL
+		WHERE us.user_id = $1
+		  AND us.deleted_at IS NULL
+		  AND us.status = 'active'
+		  AND us.expires_at > NOW()
+		  AND g.concurrency_override IS NOT NULL
+	`
+	rows, err := r.client.QueryContext(ctx, query, userID)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		return 0, rows.Err()
+	}
+	var maxOverride int
+	if err := rows.Scan(&maxOverride); err != nil {
+		return 0, err
+	}
+	return maxOverride, rows.Err()
 }

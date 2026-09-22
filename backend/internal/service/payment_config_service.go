@@ -180,6 +180,9 @@ type CreatePlanRequest struct {
 	ProductName   string   `json:"product_name"`
 	ForSale       bool     `json:"for_sale"`
 	SortOrder     int      `json:"sort_order"`
+	// TierRank 套餐等级（entitlement 档位；0=未配置，Plan Change 会拒绝 0 档位）。
+	// 与展示用 SortOrder 完全不同。nil=不设置（保持列默认 0）。
+	TierRank *int `json:"tier_rank"`
 }
 
 type UpdatePlanRequest struct {
@@ -190,6 +193,7 @@ type UpdatePlanRequest struct {
 	OriginalPrice *float64 `json:"original_price"`
 	Currency      *string  `json:"currency"`
 	ValidityDays  *int     `json:"validity_days"`
+	TierRank      *int     `json:"tier_rank"`
 	ValidityUnit  *string  `json:"validity_unit"`
 	Features      *string  `json:"features"`
 	ProductName   *string  `json:"product_name"`

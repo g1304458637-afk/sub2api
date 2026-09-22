@@ -1,5 +1,13 @@
 export default {
     // Dashboard
+    resetCenter: {
+      title: '重置中心',
+      description: '直接重置与重置卡管理'
+    },
+    rewardCenter: {
+      title: '奖励中心',
+      description: '学生认证奖励配置与发放'
+    },
     dashboard: {
       title: '管理控制台',
       description: '系统概览与统计数据',
@@ -443,6 +451,7 @@ export default {
         success: '已删除 {count} 个用户',
         failed: '{count} 个用户删除失败，已保留选中，可重试。'
       },
+      u360: '360 详情',
       bulkLimits: {
         action: '批量设置限制（{count}）',
         title: '批量设置用户限制',
@@ -474,6 +483,8 @@ export default {
       searchGroups: '搜索分组...',
       fuzzySearch: '模糊搜索',
       apiKeyGroupFilter: 'API Key 分组',
+      educationEmailFilter: '校园邮箱认证',
+      allEducationEmail: '全部认证状态',
       apiKeyGroupExclusive: '专用分组',
       apiKeyGroupPublic: '公开分组',
       apiKeyGroupSubscription: '订阅分组',
@@ -504,10 +515,16 @@ export default {
         verificationStatus: '认证状态',
         verified: '已认证',
         notVerified: '未认证',
+        verifiedBadge: '校园认证',
         email: '认证邮箱',
         verifiedAt: '认证时间',
         noRecord: '该用户尚未完成校园邮箱认证。',
         scope: '认证仅证明用户控制该邮箱；不更换登录邮箱、不代表学籍或教职工身份，也不能作为登录方式。',
+        revoke: '撤销认证',
+        revokeConfirmTitle: '撤销校园邮箱认证',
+        revokeConfirmMessage: "确定要撤销 '{email}' 的校园邮箱认证吗？将删除该用户全部校园邮箱认证记录；之后可重新认证，但不会重复发放奖励。",
+        revokeSuccess: '已撤销 {count} 条校园邮箱认证记录',
+        revokeFailed: '撤销校园邮箱认证失败',
         loadFailed: '校园邮箱认证信息加载失败'
       },
       enterNewPassword: '请输入新密码（选填）',
@@ -559,6 +576,16 @@ export default {
       apiKeys: 'API密钥',
       userApiKeys: '用户 API 密钥',
       noApiKeys: '此用户暂无 API 密钥',
+      mucodeDevice: 'mucode 设备',
+      sourceAll: '全部来源',
+      sourceMucode: 'mucode 设备',
+      lastUsed: '最近使用',
+      neverUsed: '未使用',
+      revokeKey: '吊销',
+      revokeKeyTitle: '吊销设备 Key',
+      revokeKeyConfirm: '确定吊销「{name}」？该设备的 mucode 客户端下次请求将失效（401），需重新一键连接。',
+      revokeKeySuccess: '设备 Key 已吊销，该设备已下线',
+      revokeKeyFailed: '吊销失败',
       group: '分组',
       none: '无',
       groupChangedSuccess: '分组修改成功',

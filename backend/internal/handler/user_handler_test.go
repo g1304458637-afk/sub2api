@@ -156,6 +156,13 @@ func (s *userHandlerRepoStub) UnbindUserAuthProvider(_ context.Context, _ int64,
 	return nil
 }
 
+func (s *userHandlerRepoStub) RevokeUserEducationEmailIdentities(_ context.Context, _ int64) (int64, error) {
+	return 0, nil
+}
+func (s *userHandlerRepoStub) ListVerifiedEducationEmailsByUserIDs(_ context.Context, _ []int64) (map[int64][]string, error) {
+	return map[int64][]string{}, nil
+}
+
 func TestUserHandlerUpdateProfileReturnsAvatarURL(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

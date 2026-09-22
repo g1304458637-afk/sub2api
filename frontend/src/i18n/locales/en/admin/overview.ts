@@ -1,4 +1,12 @@
 export default {
+    resetCenter: {
+      title: 'Reset Center',
+      description: 'Direct resets and reset card management'
+    },
+    rewardCenter: {
+      title: 'Reward Center',
+      description: 'Student verification reward configuration'
+    },
     // Dashboard
     dashboard: {
       title: 'Admin Dashboard',
@@ -443,6 +451,7 @@ export default {
         success: 'Deleted {count} users',
         failed: 'Failed to delete {count} users. They remain selected for retry.'
       },
+      u360: '360 detail',
       bulkLimits: {
         action: 'Set limits ({count})',
         title: 'Set user limits',
@@ -474,6 +483,8 @@ export default {
       searchGroups: 'Search groups...',
       fuzzySearch: 'Fuzzy search',
       apiKeyGroupFilter: 'API Key Group',
+      educationEmailFilter: 'Campus Email Verification',
+      allEducationEmail: 'All verification statuses',
       apiKeyGroupExclusive: 'Exclusive Groups',
       apiKeyGroupPublic: 'Public Groups',
       apiKeyGroupSubscription: 'Subscription Groups',
@@ -504,10 +515,16 @@ export default {
         verificationStatus: 'Verification status',
         verified: 'Verified',
         notVerified: 'Not verified',
+        verifiedBadge: 'Campus verified',
         email: 'Verified email',
         verifiedAt: 'Verified at',
         noRecord: 'This user has not completed campus email verification.',
         scope: 'Verification proves control of this mailbox only. It does not replace the sign-in email, establish student or staff status, or become a sign-in method.',
+        revoke: 'Revoke Verification',
+        revokeConfirmTitle: 'Revoke Campus Email Verification',
+        revokeConfirmMessage: "Revoke the campus email verification for '{email}'? This deletes all of the user's campus email verification records. They can verify again, but rewards will not be granted twice.",
+        revokeSuccess: 'Revoked {count} campus email verification record(s)',
+        revokeFailed: 'Failed to revoke campus email verification',
         loadFailed: 'Failed to load campus email verification information'
       },
       enterNewPassword: 'Enter new password (optional)',
@@ -581,6 +598,16 @@ export default {
       apiKeys: 'API Keys',
       userApiKeys: 'User API Keys',
       noApiKeys: 'This user has no API keys',
+      mucodeDevice: 'mucode device',
+      sourceAll: 'All sources',
+      sourceMucode: 'mucode device',
+      lastUsed: 'Last used',
+      neverUsed: 'Never used',
+      revokeKey: 'Revoke',
+      revokeKeyTitle: 'Revoke device key',
+      revokeKeyConfirm: 'Revoke "{name}"? The mucode client on this device will fail with 401 on its next request and must reconnect.',
+      revokeKeySuccess: 'Device key revoked, device signed out',
+      revokeKeyFailed: 'Failed to revoke key',
       group: 'Group',
       none: 'None',
       groupChangedSuccess: 'Group updated successfully',

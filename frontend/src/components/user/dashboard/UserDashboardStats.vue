@@ -2,7 +2,7 @@
   <!-- Row 1: Core Stats -->
   <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
     <!-- Balance -->
-    <div v-if="!isSimple" class="card p-4">
+    <div v-if="!isSimple" class="card dash-stat p-4">
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
           <svg class="h-5 w-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -18,7 +18,7 @@
     </div>
 
     <!-- API Keys -->
-    <div class="card p-4">
+    <div class="card dash-stat p-4">
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
           <Icon name="key" size="md" class="text-blue-600 dark:text-blue-400" :stroke-width="2" />
@@ -32,7 +32,7 @@
     </div>
 
     <!-- Today Requests -->
-    <div class="card p-4">
+    <div class="card dash-stat p-4">
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/30">
           <Icon name="chart" size="md" class="text-green-600 dark:text-green-400" :stroke-width="2" />
@@ -46,7 +46,7 @@
     </div>
 
     <!-- Today Cost -->
-    <div class="card p-4">
+    <div class="card dash-stat p-4">
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30">
           <Icon name="dollar" size="md" class="text-purple-600 dark:text-purple-400" :stroke-width="2" />
@@ -71,7 +71,7 @@
   <!-- 用户端不展示「性能指标」「平均响应」卡片，行内仅剩两张，改用两等分栅格。 -->
   <div class="grid grid-cols-2 gap-4 lg:grid-cols-2">
     <!-- Today Tokens -->
-    <div class="card p-4">
+    <div class="card dash-stat p-4">
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
           <Icon name="cube" size="md" class="text-amber-600 dark:text-amber-400" :stroke-width="2" />
@@ -85,7 +85,7 @@
     </div>
 
     <!-- Total Tokens -->
-    <div class="card p-4">
+    <div class="card dash-stat p-4">
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-indigo-100 p-2 dark:bg-indigo-900/30">
           <Icon name="database" size="md" class="text-indigo-600 dark:text-indigo-400" :stroke-width="2" />
@@ -100,7 +100,7 @@
   </div>
 
   <!-- Row 3: Per-platform breakdown -->
-  <div v-if="!isSimple && platformCards.length > 0" class="card p-4">
+  <div v-if="!isSimple && platformCards.length > 0" class="card dash-stat p-4">
     <div class="mb-3 flex items-center justify-between">
       <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('dashboard.platformBreakdown') }}</h3>
       <span class="text-xs text-gray-500 dark:text-gray-400">
@@ -365,3 +365,19 @@ const formatTokens = (t: number) => {
   return t.toString()
 }
 </script>
+
+<style scoped>
+/* MUC 统计卡材质（视觉统一轮）：dark 下玻璃 + 24px 圆角；light 保持 .card 原样 */
+:global(.dark) .dash-stat {
+  border-radius: 24px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--muc-glass, rgba(15, 15, 17, 0.66));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: border-color 0.2s var(--muc-ease, ease);
+}
+
+:global(.dark) .dash-stat:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+</style>

@@ -50,7 +50,8 @@
 
       <!-- Table -->
       <template #table>
-        <DataTable :columns="columns" :data="grants" :loading="loading" row-key="id">
+        <p v-if="loadError" role="alert" class="p-4 text-red-500">{{ loadError }}</p>
+        <DataTable v-else :columns="columns" :data="grants" :loading="loading" row-key="id">
           <template #cell-created_at="{ value }">
             <span class="whitespace-nowrap text-gray-600 dark:text-gray-300">{{ formatTime(value) }}</span>
           </template>
@@ -131,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { RewardGrantRecord } from '@/api/admin/rewardGrants'
@@ -152,6 +153,7 @@ const appStore = useAppStore()
 // ==================== List state ====================
 
 const loading = ref(false)
+const loadError = ref('')
 const grants = ref<RewardGrantRecord[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -195,16 +197,26 @@ function buildQuery() {
   }
 }
 
+let requestId = 0
+onBeforeUnmount(() => { ++requestId })
+
 async function fetchGrants() {
+  const request = ++requestId
+  loadError.value = ''
   loading.value = true
   try {
     const res = await adminAPI.rewardGrants.list(buildQuery())
+    if (request !== requestId) return
     grants.value = res.items
     total.value = res.total
   } catch (err: any) {
-    appStore.showError(err?.message || t('admin.rewardGrants.loadFailed'))
+    if (request !== requestId) return
+    grants.value = []
+    total.value = 0
+    loadError.value = err?.message || t('admin.rewardGrants.loadFailed')
+    appStore.showError(loadError.value)
   } finally {
-    loading.value = false
+    if (request === requestId) loading.value = false
   }
 }
 

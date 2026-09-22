@@ -290,6 +290,7 @@ func (h *PaymentHandler) ListPlans(c *gin.Context) {
 type AdminSubscriptionPlanResult struct {
 	ID              int64     `json:"id"`
 	GroupID         int64     `json:"group_id"`
+	TierRank        int       `json:"tier_rank"`
 	GroupPlatform   string    `json:"group_platform,omitempty"`
 	GroupName       string    `json:"group_name,omitempty"`
 	RateMultiplier  float64   `json:"rate_multiplier,omitempty"`
@@ -322,6 +323,7 @@ func adminSubscriptionPlansForResponse(plans []*dbent.SubscriptionPlan, groupInf
 		result = append(result, AdminSubscriptionPlanResult{
 			ID:              int64(p.ID),
 			GroupID:         p.GroupID,
+			TierRank:        p.TierRank,
 			GroupPlatform:   gi.Platform,
 			GroupName:       gi.Name,
 			RateMultiplier:  gi.RateMultiplier,

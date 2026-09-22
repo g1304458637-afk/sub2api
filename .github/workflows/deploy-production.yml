@@ -1,7 +1,7 @@
 # =============================================================================
 # Deploy Production — 手动触发的生产部署（workflow_dispatch）
 #
-# 稳定运行 2~3 次后，再追加 push main 自动触发（见 docs/CICD.md 第十六节 rollout 计划）。
+# 只允许从 MUC 长期主线 muc-main 手动触发。HUBU 尚无生产环境。
 # 流程: 测试门禁 → migration 审计 → 构建并推送 GHCR(sha-<commit>) → SSH 部署
 #       (记录 PREVIOUS_IMAGE → pull → up -d --no-deps sub2api → 健康检查)
 #       失败自动回滚上一镜像 → 独立复核 → GHCR 旧版本清理。
@@ -26,6 +26,23 @@ permissions:
   packages: write
 
 jobs:
+  canonical-source:
+    name: Gate — canonical MUC source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require muc-main and exact commit
+        env:
+          DEPLOY_COMMIT: ${{ github.sha }}
+        run: |
+          test "${{ github.ref }}" = "refs/heads/muc-main" || {
+            echo "Production deployment is restricted to refs/heads/muc-main" >&2
+            exit 1
+          }
+          printf '%s' "$DEPLOY_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || {
+            echo "DEPLOY_COMMIT must be an exact 40-character Git SHA" >&2
+            exit 1
+          }
+
   # ---------------------------------------------------------------------------
   test: # 与 ci.yml 同等门禁：任一失败则不进入构建与部署
     name: Gate — Frontend
@@ -78,7 +95,7 @@ jobs:
     name: Migration audit (vs last deployed commit)
     runs-on: ubuntu-latest
     environment: production
-    needs: [test, test-backend]
+    needs: [canonical-source, test, test-backend]
     outputs:
       previous_commit: ${{ steps.state.outputs.previous_commit }}
     steps:
@@ -105,13 +122,13 @@ jobs:
         run: |
           prev=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "sudo grep '^DEPLOY_COMMIT=' /srv/sub2api/.env.deploy 2>/dev/null | head -1 | cut -d= -f2-" || true)
-          if [ -z "$prev" ] || [ "$prev" = "unknown" ]; then
-            git fetch origin main
-            prev=$(git rev-parse origin/main)
-            echo "首次部署：以 origin/main ($prev) 为 migration 审计基线"
-          else
-            echo "上次部署 commit: $prev"
-          fi
+          printf '%s' "$prev" | grep -Eq '^[0-9a-f]{40}$' || {
+            echo "部署门禁失败：服务器 DEPLOY_COMMIT 缺失、unknown 或不是完整 Git SHA" >&2
+            exit 1
+          }
+          git fetch --no-tags origin muc-main
+          git cat-file -e "$prev^{commit}"
+          echo "上次部署 commit: $prev"
           echo "previous_commit=$prev" >> "$GITHUB_OUTPUT"
 
       - name: Migration audit
@@ -124,6 +141,8 @@ jobs:
     needs: [preflight]
     outputs:
       image: ${{ steps.image.outputs.name }}
+      build_timestamp: ${{ steps.metadata.outputs.build_timestamp }}
+      version: ${{ steps.metadata.outputs.version }}
     steps:
       - uses: actions/checkout@v6
 
@@ -132,6 +151,12 @@ jobs:
         run: |
           repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "name=ghcr.io/${repo_lc}/sub2api" >> "$GITHUB_OUTPUT"
+
+      - name: Compute immutable release metadata
+        id: metadata
+        run: |
+          echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "version=sha-${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -154,8 +179,11 @@ jobs:
             ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
             ${{ steps.image.outputs.name }}:production
           build-args: |
-            VERSION=sha-${{ github.sha }}
+            VERSION=${{ steps.metadata.outputs.version }}
             COMMIT=${{ github.sha }}
+            DATE=${{ steps.metadata.outputs.build_timestamp }}
+            BRAND=muc
+            MIGRATION_BASELINE=${{ needs.preflight.outputs.previous_commit }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -164,7 +192,7 @@ jobs:
     name: Deploy to production (with auto-rollback)
     runs-on: ubuntu-latest
     environment: production
-    needs: [build-push]
+    needs: [preflight, build-push]
     steps:
       - uses: actions/checkout@v6
 
@@ -218,6 +246,10 @@ jobs:
             "sudo bash /tmp/sub2api-deploy/production-deploy.sh \
                --image '${{ needs.build-push.outputs.image }}:sha-${{ github.sha }}' \
                --commit '${{ github.sha }}' \
+               --version '${{ needs.build-push.outputs.version }}' \
+               --build-timestamp '${{ needs.build-push.outputs.build_timestamp }}' \
+               --migration-baseline '${{ needs.preflight.outputs.previous_commit }}' \
+               --brand 'muc' \
                --token-file /tmp/sub2api-deploy/.ghcr-token \
                --ghcr-user '${{ github.repository_owner }}'"
           code=$?

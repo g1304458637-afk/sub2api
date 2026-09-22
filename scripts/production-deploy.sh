@@ -5,6 +5,8 @@
 # 用法:
 #   sudo bash production-deploy.sh --image <ghcr.io/.../sub2api:sha-xxxx> \
 #                                  --commit <git-sha> \
+#                                  --version <version> --build-timestamp <RFC3339> \
+#                                  --migration-baseline <git-sha> --brand muc \
 #                                  [--token-file <ghcr读取令牌文件>] [--ghcr-user <user>]
 # 回滚(内部入口，保持 .env.deploy 其余记录):
 #   sudo bash production-deploy.sh --rollback-only <镜像ref> [--commit <sha>]
@@ -23,11 +25,15 @@ ENV_DEPLOY="$COMPOSE_DIR/.env.deploy"
 COMPOSE=(docker compose -f "$COMPOSE_DIR/docker-compose.yml" --env-file "$COMPOSE_DIR/.env" --env-file "$ENV_DEPLOY")
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-NEW_IMAGE="" NEW_COMMIT="" TOKEN_FILE="" GHCR_USER="" ROLLBACK_MODE=0
+NEW_IMAGE="" NEW_COMMIT="" NEW_VERSION="" BUILD_TIMESTAMP="" MIGRATION_BASELINE="" BRAND="" TOKEN_FILE="" GHCR_USER="" ROLLBACK_MODE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --image)        NEW_IMAGE="${2:?}"; shift 2 ;;
     --commit)       NEW_COMMIT="${2:?}"; shift 2 ;;
+    --version)      NEW_VERSION="${2:?}"; shift 2 ;;
+    --build-timestamp) BUILD_TIMESTAMP="${2:?}"; shift 2 ;;
+    --migration-baseline) MIGRATION_BASELINE="${2:?}"; shift 2 ;;
+    --brand)        BRAND="${2:?}"; shift 2 ;;
     --token-file)   TOKEN_FILE="${2:?}"; shift 2 ;;
     --ghcr-user)    GHCR_USER="${2:?}"; shift 2 ;;
     --rollback-only) ROLLBACK_MODE=1; NEW_IMAGE="${2:?}"; shift 2 ;;
@@ -45,7 +51,7 @@ state_field() { # $1=字段名 → 输出 .env.deploy 中该字段当前值
   [ -f "$ENV_DEPLOY" ] && grep "^$1=" "$ENV_DEPLOY" | head -1 | cut -d= -f2- || true
 }
 
-write_env_deploy() { # $1=SUB2API_IMAGE $2=PREVIOUS_IMAGE $3=DEPLOY_COMMIT $4=PREVIOUS_COMMIT $5=ROLLBACK
+write_env_deploy() { # image, previous image, commit, previous commit, rollback, version, build time, migration baseline, brand
   cat > "$ENV_DEPLOY" <<EOF
 # 由 production-deploy.sh 维护的部署状态文件。不含任何 secret。
 SUB2API_IMAGE=$1
@@ -54,6 +60,10 @@ DEPLOY_COMMIT=$3
 PREVIOUS_COMMIT=$4
 DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 ROLLBACK=$5
+VERSION=${6:-unknown}
+BUILD_TIMESTAMP=${7:-unknown}
+MIGRATION_BASELINE=${8:-unknown}
+BRAND=${9:-unknown}
 EOF
   chown admin:admin "$ENV_DEPLOY"
   chmod 600 "$ENV_DEPLOY"
@@ -64,7 +74,8 @@ if [ "$ROLLBACK_MODE" = "1" ]; then
   # 回滚模式：镜像切回指定版本并重启应用容器，健康检查失败直接退出 2
   OLD_IMAGE=$(state_field "SUB2API_IMAGE"); OLD_IMAGE=${OLD_IMAGE:-$NEW_IMAGE}
   OLD_PREV_COMMIT=$(state_field "PREVIOUS_COMMIT"); OLD_PREV_COMMIT=${OLD_PREV_COMMIT:-unknown}
-  write_env_deploy "$NEW_IMAGE" "$OLD_IMAGE" "$OLD_PREV_COMMIT" "" "true"
+  write_env_deploy "$NEW_IMAGE" "$OLD_IMAGE" "$OLD_PREV_COMMIT" "" "true" \
+    "$(state_field VERSION)" "$(state_field BUILD_TIMESTAMP)" "$(state_field MIGRATION_BASELINE)" "$(state_field BRAND)"
   "${COMPOSE[@]}" up -d --no-deps "$CONTAINER"
   # 宽松模式：回滚目标可能是旧版镜像（尚无 /healthz JSON），只要求容器健康+真实探针+路由存在
   if bash "$SCRIPT_DIR/production-healthcheck.sh" --lenient --retries 12 --interval 5; then
@@ -79,6 +90,11 @@ fi
 echo "== 预检 =="
 [ -f "$COMPOSE_DIR/docker-compose.yml" ] || fail_preflight "compose 文件不存在"
 [ -f "$COMPOSE_DIR/.env" ] || fail_preflight ".env 不存在"
+printf '%s' "$NEW_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || fail_preflight "--commit 必须是完整 40 位 Git SHA"
+printf '%s' "$MIGRATION_BASELINE" | grep -Eq '^[0-9a-f]{40}$' || fail_preflight "--migration-baseline 必须是完整 40 位 Git SHA"
+[ -n "$NEW_VERSION" ] || fail_preflight "缺少 --version"
+[ -n "$BUILD_TIMESTAMP" ] || fail_preflight "缺少 --build-timestamp"
+[ "$BRAND" = "muc" ] || fail_preflight "生产只允许 brand=muc"
 
 avail_kb=$(df --output=avail -k "$COMPOSE_DIR" | tail -1)
 echo "可用磁盘: $((avail_kb / 1024)) MB"
@@ -125,7 +141,8 @@ deploy_fail() {
 }
 
 echo "== 写部署状态 =="
-write_env_deploy "$NEW_IMAGE" "$PREVIOUS_IMAGE" "$NEW_COMMIT" "${PREVIOUS_COMMIT:-unknown}" "false"
+write_env_deploy "$NEW_IMAGE" "$PREVIOUS_IMAGE" "$NEW_COMMIT" "${PREVIOUS_COMMIT:-unknown}" "false" \
+  "$NEW_VERSION" "$BUILD_TIMESTAMP" "$MIGRATION_BASELINE" "$BRAND"
 
 echo "== 拉取镜像 =="
 login_ghcr || deploy_fail "GHCR 登录失败"

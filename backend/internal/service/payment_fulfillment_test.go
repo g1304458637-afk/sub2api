@@ -1026,6 +1026,15 @@ func TestExecuteSubscriptionFulfillmentRecoversCommittedAssignmentWithoutExtendi
 		subscriptionSvc: NewSubscriptionService(groupRepo, subRepo, nil, nil, nil),
 	}
 
+	// A processing note alone cannot recover the immutable purchased window.
+	require.ErrorContains(t, svc.ExecuteSubscriptionFulfillment(ctx, order.ID), "missing authoritative order-linked term")
+	assertPaymentSubscriptionExpiry(t, subRepo, order, expiresAt)
+	terms := &paymentFulfillmentTestTerms{client: client, userID: order.UserID, groupID: *order.SubscriptionGroupID}
+	require.NoError(t, terms.RecordTerm(ctx, &SubscriptionTermRecord{
+		SubscriptionID: 99, OrderID: &order.ID, PlanID: order.PlanID,
+		PricePaid: order.Amount, Currency: "CNY", Days: 30,
+		TermStart: expiresAt.AddDate(0, 0, -30), TermEnd: expiresAt, Source: "purchase",
+	}))
 	require.NoError(t, svc.ExecuteSubscriptionFulfillment(ctx, order.ID))
 	assertPaymentSubscriptionExpiry(t, subRepo, order, expiresAt)
 
@@ -1176,6 +1185,7 @@ func TestExecuteSubscriptionFulfillmentAppliesAffiliateRebate(t *testing.T) {
 		groupRepo:        &subscriptionGroupRepoStub{group: &Group{ID: 7, Status: payment.EntityStatusActive, SubscriptionType: SubscriptionTypeSubscription}},
 		subscriptionSvc:  subscriptionSvc,
 		affiliateService: NewAffiliateService(affiliateRepo, settingSvc, nil, nil),
+		termStore:        &paymentFulfillmentTestTerms{client: client, userID: user.ID, groupID: 7},
 	}
 
 	err = svc.ExecuteSubscriptionFulfillment(ctx, order.ID)
@@ -1289,3 +1299,42 @@ func TestExecuteSubscriptionFulfillmentDoesNotDuplicateWorkAfterLegacySuccessAud
 
 var _ AffiliateRepository = (*paymentFulfillmentAffiliateRepoStub)(nil)
 var _ SettingRepository = (*paymentFulfillmentSettingRepoStub)(nil)
+
+// Persist the term in the real SQLite transaction while mirroring the subscription
+// repository stub's identity for its FK. PostgreSQL tests cover the full repositories.
+type paymentFulfillmentTestTerms struct {
+	TermStore
+	client          *dbent.Client
+	userID, groupID int64
+}
+
+func (s *paymentFulfillmentTestTerms) RecordTerm(ctx context.Context, term *SubscriptionTermRecord) error {
+	client := s.client
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		client = tx.Client()
+	}
+	if _, err := client.Group.Get(ctx, s.groupID); dbent.IsNotFound(err) {
+		group, err := client.Group.Create().SetName("test-paid-subscription").Save(ctx)
+		if err != nil {
+			return err
+		}
+		if _, err := client.ExecContext(ctx, "UPDATE groups SET id=? WHERE id=?", s.groupID, group.ID); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+	if _, err := client.UserSubscription.Get(ctx, term.SubscriptionID); dbent.IsNotFound(err) {
+		sub, err := client.UserSubscription.Create().SetUserID(s.userID).SetGroupID(s.groupID).SetStartsAt(term.TermStart).SetExpiresAt(term.TermEnd).Save(ctx)
+		if err != nil {
+			return err
+		}
+		if _, err := client.ExecContext(ctx, "UPDATE user_subscriptions SET id=? WHERE id=?", term.SubscriptionID, sub.ID); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+	_, err := client.SubscriptionTerm.Create().SetSubscriptionID(term.SubscriptionID).SetNillableOrderID(term.OrderID).SetNillablePlanID(term.PlanID).SetPricePaid(term.PricePaid).SetCurrency(term.Currency).SetDays(term.Days).SetTermStart(term.TermStart).SetTermEnd(term.TermEnd).SetSource(term.Source).Save(ctx)
+	return err
+}

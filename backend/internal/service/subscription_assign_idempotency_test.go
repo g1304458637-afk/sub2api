@@ -106,6 +106,10 @@ func (s *subscriptionGroupRepoStub) GetByID(context.Context, int64) (*Group, err
 
 type userSubRepoNoop struct{}
 
+// UpdatePaygFallback 满足接口（unrelated 测试不应触达）。
+func (userSubRepoNoop) UpdatePaygFallback(context.Context, int64, bool) error {
+	panic("unexpected UpdatePaygFallback call")
+}
 func (userSubRepoNoop) Create(context.Context, *UserSubscription) error {
 	panic("unexpected Create call")
 }
@@ -195,6 +199,10 @@ func newSubscriptionUserSubRepoStub() *subscriptionUserSubRepoStub {
 		byID:        make(map[int64]*UserSubscription),
 		byUserGroup: make(map[string]*UserSubscription),
 	}
+}
+
+func (s *subscriptionUserSubRepoStub) GetMaxActiveGroupConcurrencyOverride(context.Context, int64) (int, error) {
+	return 0, nil
 }
 
 func (s *subscriptionUserSubRepoStub) key(userID, groupID int64) string {

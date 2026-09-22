@@ -155,6 +155,11 @@ func ProviderKey(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldProviderKey, v))
 }
 
+// PlanChangeID applies equality check predicate on the "plan_change_id" field. It's identical to PlanChangeIDEQ.
+func PlanChangeID(v int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldPlanChangeID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldStatus, v))
@@ -1438,6 +1443,56 @@ func ProviderKeyEqualFold(v string) predicate.PaymentOrder {
 // ProviderKeyContainsFold applies the ContainsFold predicate on the "provider_key" field.
 func ProviderKeyContainsFold(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldContainsFold(FieldProviderKey, v))
+}
+
+// PlanChangeIDEQ applies the EQ predicate on the "plan_change_id" field.
+func PlanChangeIDEQ(v int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldPlanChangeID, v))
+}
+
+// PlanChangeIDNEQ applies the NEQ predicate on the "plan_change_id" field.
+func PlanChangeIDNEQ(v int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldPlanChangeID, v))
+}
+
+// PlanChangeIDIn applies the In predicate on the "plan_change_id" field.
+func PlanChangeIDIn(vs ...int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldPlanChangeID, vs...))
+}
+
+// PlanChangeIDNotIn applies the NotIn predicate on the "plan_change_id" field.
+func PlanChangeIDNotIn(vs ...int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldPlanChangeID, vs...))
+}
+
+// PlanChangeIDGT applies the GT predicate on the "plan_change_id" field.
+func PlanChangeIDGT(v int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldPlanChangeID, v))
+}
+
+// PlanChangeIDGTE applies the GTE predicate on the "plan_change_id" field.
+func PlanChangeIDGTE(v int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldPlanChangeID, v))
+}
+
+// PlanChangeIDLT applies the LT predicate on the "plan_change_id" field.
+func PlanChangeIDLT(v int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldPlanChangeID, v))
+}
+
+// PlanChangeIDLTE applies the LTE predicate on the "plan_change_id" field.
+func PlanChangeIDLTE(v int64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldPlanChangeID, v))
+}
+
+// PlanChangeIDIsNil applies the IsNil predicate on the "plan_change_id" field.
+func PlanChangeIDIsNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIsNull(FieldPlanChangeID))
+}
+
+// PlanChangeIDNotNil applies the NotNil predicate on the "plan_change_id" field.
+func PlanChangeIDNotNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotNull(FieldPlanChangeID))
 }
 
 // ProviderSnapshotIsNil applies the IsNil predicate on the "provider_snapshot" field.

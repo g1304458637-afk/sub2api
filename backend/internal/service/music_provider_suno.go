@@ -63,9 +63,9 @@ type sunoRecordInfoResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    struct {
-		Status      string `json:"status"`
-		TaskStatus  string `json:"taskStatus"`
-		FailMsg     string `json:"failMsg"`
+		Status        string `json:"status"`
+		TaskStatus    string `json:"taskStatus"`
+		FailMsg       string `json:"failMsg"`
 		ErrorResponse *struct {
 			Message string `json:"message"`
 		} `json:"error_response"`
@@ -84,7 +84,14 @@ type sunoRecordInfoResponse struct {
 // Generate submits the generation job and polls record-info until the clip is
 // ready, the upstream reports a failure, or ctx expires (the handler bounds the
 // whole window at 10 minutes).
-func (s *SunoAdapter) Generate(ctx context.Context, req MusicGenerationRequest) (*MusicGenerationResult, error) {
+func (s *SunoAdapter) Generate(ctx context.Context, req MusicGenerationRequest) (result *MusicGenerationResult, err error) {
+	// The overall generation deadline also covers in-flight HTTP requests and
+	// body reads, not just the wait between polls.
+	defer func() {
+		if err != nil && ctx.Err() == context.DeadlineExceeded {
+			err = &MusicProviderError{Message: "music generation timed out"}
+		}
+	}()
 	taskID, err := s.createTask(ctx, req)
 	if err != nil {
 		return nil, err
@@ -136,11 +143,6 @@ func (s *SunoAdapter) awaitResult(ctx context.Context, taskID string, req MusicG
 	for {
 		record, err := s.fetchRecordInfo(ctx, taskID)
 		if err != nil {
-			// 整体超时可能正好打断在途的轮询请求：此时报"超时"而不是
-			// 把 context deadline 误分类成"上游不可达"。
-			if ctx.Err() != nil {
-				return nil, &MusicProviderError{Message: "music generation timed out"}
-			}
 			return nil, err
 		}
 		switch sunoStatusOf(record) {

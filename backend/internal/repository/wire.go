@@ -95,6 +95,15 @@ var ProviderSet = wire.NewSet(
 	NewPasskeySessionStore,
 	NewUserSubscriptionRepository,
 	NewSubscriptionResetApplicationRepository, // Subscription V1 reset events
+	NewSubscriptionResetCardStore,
+	NewSubscriptionResetTargetRepo,
+	NewSubscriptionResetEventStore,
+	NewSubscriptionTermStore,
+	NewSubscriptionPlanChangeStore,
+	NewPlanSnapshotService,
+	NewAPIKeyGroupMigrator,
+	NewSubscriptionResetCardRepository, // Subscription V1 reset cards (read-only count)
+	// Subscription V1 reset events
 	NewUserAttributeDefinitionRepository,
 	NewUserAttributeValueRepository,
 	NewUserGroupRateRepository,

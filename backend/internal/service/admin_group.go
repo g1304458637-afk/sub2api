@@ -418,6 +418,12 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	weeklyLimit := normalizeLimit(input.WeeklyLimitUSD)
 	monthlyLimit := normalizeLimit(input.MonthlyLimitUSD)
 
+	// Phase 9 并发权益：NULL = 不提供；正整数 = 权益值（负数/0 非法）
+	if input.ConcurrencyOverride != nil && *input.ConcurrencyOverride <= 0 {
+		return nil, errors.New("concurrency_override must be a positive integer or omitted")
+	}
+	concurrencyOverride := input.ConcurrencyOverride
+
 	// 图片价格：负数表示清除（使用默认价格），0 保留（表示免费）
 	imagePrice1K := normalizePrice(input.ImagePrice1K)
 	imagePrice2K := normalizePrice(input.ImagePrice2K)
@@ -563,6 +569,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		SubscriptionType:                subscriptionType,
 		DailyLimitUSD:                   dailyLimit,
 		WeeklyLimitUSD:                  weeklyLimit,
+		ConcurrencyOverride:             concurrencyOverride,
 		MonthlyLimitUSD:                 monthlyLimit,
 		LongContextPricingEnabled:       input.LongContextPricingEnabled,
 		ModelPricing:                    modelPricing,
@@ -804,6 +811,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.WeeklyLimitUSD != nil {
 		group.WeeklyLimitUSD = normalizeLimit(input.WeeklyLimitUSD)
+	}
+	if input.ConcurrencyOverride != nil && *input.ConcurrencyOverride <= 0 {
+		return nil, errors.New("concurrency_override must be a positive integer or omitted")
+	}
+	if input.ConcurrencyOverride != nil {
+		group.ConcurrencyOverride = input.ConcurrencyOverride
 	}
 	if input.MonthlyLimitUSD != nil {
 		group.MonthlyLimitUSD = normalizeLimit(input.MonthlyLimitUSD)
@@ -1446,6 +1459,20 @@ func (s *adminServiceImpl) AdminResetAPIKeyRateLimitUsage(ctx context.Context, k
 		_ = s.billingCacheService.InvalidateAPIKeyRateLimit(ctx, apiKey.ID)
 	}
 	return apiKey, nil
+}
+
+// AdminDeleteAPIKey 管理员删除任意用户的 API Key。
+// 先取 Key 的所有者，再以所有者身份复用用户侧 APIKeyService.Delete，
+// 完整继承软删(tombstone)+审计+认证缓存失效；不校验调用者是否为所有者。
+func (s *adminServiceImpl) AdminDeleteAPIKey(ctx context.Context, keyID int64) error {
+	if s.apiKeyService == nil {
+		return infraerrors.InternalServer("API_KEY_SERVICE_UNAVAILABLE", "api key service is not configured")
+	}
+	_, ownerID, err := s.apiKeyRepo.GetKeyAndOwnerID(ctx, keyID)
+	if err != nil {
+		return err
+	}
+	return s.apiKeyService.Delete(ctx, keyID, ownerID)
 }
 
 // ReplaceUserGroup 替换用户的专属分组

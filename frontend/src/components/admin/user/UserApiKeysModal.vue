@@ -7,14 +7,36 @@
         </div>
         <div><p class="font-medium text-gray-900 dark:text-white">{{ user.email }}</p><p class="text-sm text-gray-500 dark:text-dark-400">{{ user.username }}</p></div>
       </div>
+      <div class="flex items-center gap-2">
+        <select v-model="sourceFilter" class="input w-auto text-sm" @change="load">
+          <option value="all">{{ t('admin.users.sourceAll') }}</option>
+          <option value="mucode">{{ t('admin.users.sourceMucode') }}</option>
+        </select>
+      </div>
       <div v-if="loading" class="flex justify-center py-8"><svg class="h-8 w-8 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
       <div v-else-if="apiKeys.length === 0" class="py-8 text-center"><p class="text-sm text-gray-500">{{ t('admin.users.noApiKeys') }}</p></div>
       <div v-else ref="scrollContainerRef" class="max-h-96 space-y-3 overflow-y-auto" @scroll="closeGroupSelector">
         <div v-for="key in apiKeys" :key="key.id" class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-600 dark:bg-dark-800">
           <div class="flex items-start justify-between">
             <div class="min-w-0 flex-1">
-              <div class="mb-1 flex items-center gap-2"><span class="font-medium text-gray-900 dark:text-white">{{ key.name }}</span><span :class="['badge text-xs', key.status === 'active' ? 'badge-success' : 'badge-danger']">{{ key.status }}</span></div>
+              <div class="mb-1 flex flex-wrap items-center gap-2">
+                <span class="font-medium text-gray-900 dark:text-white">{{ key.name }}</span>
+                <span v-if="isMucodeKey(key)" class="badge badge-purple text-xs">{{ t('admin.users.mucodeDevice') }}</span>
+                <span :class="['badge text-xs', key.status === 'active' ? 'badge-success' : 'badge-danger']">{{ key.status }}</span>
+              </div>
               <p class="truncate font-mono text-sm text-gray-500">{{ key.key.substring(0, 20) }}...{{ key.key.substring(key.key.length - 8) }}</p>
+            </div>
+            <div class="ml-3 flex shrink-0 items-center gap-1">
+              <button
+                v-if="key.status === 'active'"
+                class="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                :disabled="revokingKeyIds.has(key.id)"
+                @click="askRevoke(key)"
+              >
+                <svg v-if="revokingKeyIds.has(key.id)" class="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <svg v-else class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                {{ t('admin.users.revokeKey') }}
+              </button>
             </div>
           </div>
           <div class="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
@@ -42,12 +64,25 @@
                 <svg v-else class="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" /></svg>
               </button>
             </div>
+            <div class="flex items-center gap-1"><span>{{ t('admin.users.lastUsed') }}: {{ key.last_used_at ? formatDateTime(key.last_used_at) : t('admin.users.neverUsed') }}</span></div>
             <div class="flex items-center gap-1"><span>{{ t('admin.users.columns.created') }}: {{ formatDateTime(key.created_at) }}</span></div>
           </div>
         </div>
       </div>
     </div>
   </BaseDialog>
+
+  <!-- Revoke Confirmation Dialog -->
+  <ConfirmDialog
+    :show="showRevokeDialog"
+    :title="t('admin.users.revokeKeyTitle')"
+    :message="t('admin.users.revokeKeyConfirm', { name: revokeTarget?.name })"
+    :confirm-text="t('admin.users.revokeKey')"
+    :cancel-text="t('common.cancel')"
+    :danger="true"
+    @confirm="handleRevoke"
+    @cancel="showRevokeDialog = false"
+  />
 
   <!-- Group Selector Dropdown -->
   <Teleport to="body">
@@ -113,8 +148,12 @@ import { adminAPI } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
 import type { AdminUser, AdminGroup, ApiKey } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
+
+// mucode 桌面端设备 Key 统一以 "MUC " 前缀命名（见 muc_connect_handler）
+const MUCODE_KEY_PREFIX = 'MUC '
 
 const props = defineProps<{ show: boolean; user: AdminUser | null }>()
 const emit = defineEmits(['close'])
@@ -125,6 +164,10 @@ const apiKeys = ref<ApiKey[]>([])
 const allGroups = ref<AdminGroup[]>([])
 const loading = ref(false)
 const updatingKeyIds = ref(new Set<number>())
+const revokingKeyIds = ref(new Set<number>())
+const sourceFilter = ref<'all' | 'mucode'>('all')
+const showRevokeDialog = ref(false)
+const revokeTarget = ref<ApiKey | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const dropdownPosition = ref<{ top: number; left: number } | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -136,6 +179,8 @@ const selectedKeyForGroup = computed(() => {
   return apiKeys.value.find((k) => k.id === groupSelectorKeyId.value) || null
 })
 
+const isMucodeKey = (key: ApiKey) => key.name.startsWith(MUCODE_KEY_PREFIX)
+
 const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance | null) => {
   if (el instanceof HTMLElement) {
     groupButtonRefs.value.set(keyId, el)
@@ -146,6 +191,7 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 
 watch(() => props.show, (v) => {
   if (v && props.user) {
+    sourceFilter.value = 'all'
     load()
     loadGroups()
   } else {
@@ -158,7 +204,9 @@ const load = async () => {
   loading.value = true
   groupButtonRefs.value.clear()
   try {
-    const res = await adminAPI.users.getUserApiKeys(props.user.id)
+    // 选 mucode 时按名称前缀 "MUC " 过滤（服务端 TrimSpace 后按包含匹配）
+    const params = sourceFilter.value === 'mucode' ? { search: MUCODE_KEY_PREFIX } : undefined
+    const res = await adminAPI.users.getUserApiKeys(props.user.id, params)
     apiKeys.value = res.items || []
   } catch (error) {
     console.error('Failed to load API keys:', error)
@@ -230,6 +278,29 @@ const handleKeyDown = (event: KeyboardEvent) => {
   if (event.key === 'Escape' && groupSelectorKeyId.value !== null) {
     event.stopPropagation()
     closeGroupSelector()
+  }
+}
+
+const askRevoke = (key: ApiKey) => {
+  revokeTarget.value = key
+  showRevokeDialog.value = true
+}
+
+const handleRevoke = async () => {
+  const key = revokeTarget.value
+  if (!key) return
+  showRevokeDialog.value = false
+
+  revokingKeyIds.value.add(key.id)
+  try {
+    await adminAPI.apiKeys.deleteApiKey(key.id)
+    apiKeys.value = apiKeys.value.filter((k) => k.id !== key.id)
+    appStore.showSuccess(t('admin.users.revokeKeySuccess'))
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.users.revokeKeyFailed'))
+  } finally {
+    revokingKeyIds.value.delete(key.id)
+    revokeTarget.value = null
   }
 }
 

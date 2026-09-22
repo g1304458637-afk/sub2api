@@ -137,9 +137,6 @@ func RegisterAdminRoutes(
 		// 奖励发放记录（只读台账）
 		registerRewardGrantRoutes(admin, h)
 
-		// 媒体（只读：本地生图 wrapper 额度）
-		registerMediaRoutes(admin, h)
-
 		// 网页聊天（管理端只读：可用模型并集）
 		admin.GET("/web-chat/available-models", h.WebChat.AdminAvailableModels)
 	}
@@ -208,6 +205,7 @@ func registerAdminAPIKeyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	apiKeys := admin.Group("/api-keys")
 	{
 		apiKeys.PUT("/:id", h.Admin.APIKey.UpdateGroup)
+		apiKeys.DELETE("/:id", h.Admin.APIKey.Delete)
 	}
 }
 
@@ -326,6 +324,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		users.GET("", h.Admin.User.List)
 		users.GET("/:id", h.Admin.User.GetByID)
 		users.GET("/:id/education-email", h.Admin.User.GetEducationEmailStatus)
+		users.DELETE("/:id/education-email", h.Admin.User.RevokeEducationEmail)
 		users.POST("/:id/auth-identities", h.Admin.User.BindAuthIdentity)
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)
@@ -471,15 +470,6 @@ func registerRewardGrantRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	rewardGrants := admin.Group("/reward-grants")
 	{
 		rewardGrants.GET("", h.Admin.RewardGrant.List)
-	}
-}
-
-// registerMediaRoutes 媒体相关管理端只读路由
-func registerMediaRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	media := admin.Group("/media")
-	{
-		// 只读代理本地 codex-image-bridge 的 /stats（env 未配置时返回 enabled:false）
-		media.GET("/image-quota", h.Admin.Ops.GetImageQuota)
 	}
 }
 
@@ -722,6 +712,32 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		subscriptions.POST("/:id/revoke", h.Admin.Subscription.Revoke)
 		subscriptions.POST("/:id/restore", h.Admin.Subscription.Restore)
 		subscriptions.DELETE("/:id", h.Admin.Subscription.Revoke)
+
+		// ── Subscription V1：Direct Reset 事件（scoped/batch）──
+		resets := admin.Group("/subscription-resets")
+		{
+			resets.POST("", h.Admin.ResetEvent.CreateResetEvent)
+			resets.POST("/preview", h.Admin.ResetEvent.PreviewResetTargets)
+			resets.GET("", h.Admin.ResetEvent.ListResetEvents)
+			resets.GET("/:id", h.Admin.ResetEvent.GetResetEvent)
+			resets.POST("/:id/retry", h.Admin.ResetEvent.RetryResetEvent)
+		}
+
+		// ── Final Frontend CLOSURE：Reward 审计 + 套餐变更审计 ──
+		admin.GET("/wallet/ledger", h.WalletLedger.AdminLedger)
+		admin.GET("/rewards", h.WalletLedger.AdminRewardList)
+		admin.GET("/rewards/stats", h.WalletLedger.AdminRewardStats)
+		admin.GET("/plan-changes", h.WalletLedger.AdminPlanChangeList)
+
+		// ── Reset Card 管理端（grant / list / revoke / preview / count）──
+		resetCards := admin.Group("/subscription-reset-cards")
+		{
+			resetCards.POST("/grants", h.Admin.ResetCard.GrantResetCards)
+			resetCards.POST("/grants/preview", h.Admin.ResetCard.PreviewGrantResetCards)
+			resetCards.GET("", h.Admin.ResetCard.ListResetCards)
+			resetCards.GET("/count", h.Admin.ResetCard.CountAvailableResetCards)
+			resetCards.POST("/:id/revoke", h.Admin.ResetCard.RevokeResetCard)
+		}
 	}
 
 	// 分组下的订阅列表

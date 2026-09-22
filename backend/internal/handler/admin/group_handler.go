@@ -190,6 +190,7 @@ type CreateGroupRequest struct {
 	SubscriptionType          string                        `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
 	DailyLimitUSD             optionalLimitField            `json:"daily_limit_usd"`
 	WeeklyLimitUSD            optionalLimitField            `json:"weekly_limit_usd"`
+	ConcurrencyOverride       *int                          `json:"concurrency_override" binding:"omitempty,gte=1"`
 	MonthlyLimitUSD           optionalLimitField            `json:"monthly_limit_usd"`
 	LongContextPricingEnabled bool                          `json:"long_context_pricing_enabled"`
 	ModelPricing              []service.ChannelModelPricing `json:"model_pricing"`
@@ -266,6 +267,7 @@ type UpdateGroupRequest struct {
 	SubscriptionType          string                         `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
 	DailyLimitUSD             optionalLimitField             `json:"daily_limit_usd"`
 	WeeklyLimitUSD            optionalLimitField             `json:"weekly_limit_usd"`
+	ConcurrencyOverride       *int                           `json:"concurrency_override" binding:"omitempty,gte=1"`
 	MonthlyLimitUSD           optionalLimitField             `json:"monthly_limit_usd"`
 	LongContextPricingEnabled *bool                          `json:"long_context_pricing_enabled"`
 	ModelPricing              *[]service.ChannelModelPricing `json:"model_pricing"`
@@ -672,6 +674,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		SubscriptionType:                req.SubscriptionType,
 		DailyLimitUSD:                   req.DailyLimitUSD.ToServiceInput(),
 		WeeklyLimitUSD:                  req.WeeklyLimitUSD.ToServiceInput(),
+		ConcurrencyOverride:             req.ConcurrencyOverride,
 		MonthlyLimitUSD:                 req.MonthlyLimitUSD.ToServiceInput(),
 		LongContextPricingEnabled:       req.LongContextPricingEnabled,
 		ModelPricing:                    req.ModelPricing,
@@ -819,6 +822,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		SubscriptionType:                req.SubscriptionType,
 		DailyLimitUSD:                   req.DailyLimitUSD.ToServiceInput(),
 		WeeklyLimitUSD:                  req.WeeklyLimitUSD.ToServiceInput(),
+		ConcurrencyOverride:             req.ConcurrencyOverride,
 		MonthlyLimitUSD:                 req.MonthlyLimitUSD.ToServiceInput(),
 		LongContextPricingEnabled:       req.LongContextPricingEnabled,
 		ModelPricing:                    req.ModelPricing,

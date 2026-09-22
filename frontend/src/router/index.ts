@@ -1,3 +1,4 @@
+import { currentBrand } from '@/brand'
 /**
  * Vue Router configuration for Sub2API frontend
  * Defines all application routes with lazy loading and navigation guards
@@ -254,13 +255,13 @@ const routes: RouteRecordRaw[] = [
   },
   // MUC Harness: 桌面客户端下载与一键连接
   {
-    path: '/muc',
+    path: currentBrand.homePath,
     name: 'Muc',
     component: () => import('@/views/user/MucView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'MUC AI Harness'
+      title: currentBrand.productName
     }
   },
   {
@@ -384,15 +385,39 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/pricing',
+    name: 'Pricing',
+    component: () => import('@/views/user/PricingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Pricing',
+      titleKey: 'nav.pricing',
+      requiresPayment: true
+    }
+  },
+  {
     path: '/purchase',
     name: 'PurchaseSubscription',
     component: () => import('@/views/user/PaymentView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Purchase Subscription',
-      titleKey: 'nav.buySubscription',
-      descriptionKey: 'purchase.description',
+      title: 'Recharge',
+      titleKey: 'nav.recharge',
+      descriptionKey: 'purchase.rechargeDescription',
+      requiresPayment: true
+    }
+  },
+  {
+    path: '/wallet',
+    name: 'Wallet',
+    component: () => import('@/views/user/WalletView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Wallet',
+      titleKey: 'nav.wallet',
       requiresPayment: true
     }
   },
@@ -593,6 +618,28 @@ const routes: RouteRecordRaw[] = [
       title: 'Subscription Management',
       titleKey: 'admin.subscriptions.title',
       descriptionKey: 'admin.subscriptions.description'
+    }
+  },
+  {
+    path: '/admin/reset-center',
+    name: 'AdminResetCenter',
+    component: () => import('@/views/admin/ResetCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Reset Center',
+      titleKey: 'admin.resetCenter.title'
+    }
+  },
+  {
+    path: '/admin/reward-center',
+    name: 'AdminRewardCenter',
+    component: () => import('@/views/admin/RewardCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Reward Center',
+      titleKey: 'admin.rewardCenter.title'
     }
   },
   {

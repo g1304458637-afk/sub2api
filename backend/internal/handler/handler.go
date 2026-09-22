@@ -44,6 +44,8 @@ type AdminHandlers struct {
 	Compliance             *admin.ComplianceHandler
 	AuditLog               *admin.AuditLogHandler
 	Research               *admin.ResearchHandler
+	ResetEvent             *admin.AdminResetEventHandler
+	ResetCard              *admin.AdminSubscriptionResetHandler
 	RewardGrant            *admin.RewardGrantHandler
 }
 
@@ -72,8 +74,10 @@ type Handlers struct {
 	AsyncImage       *AsyncImageHandler
 	MusicTask        *AsyncMusicHandler
 	BatchImage       *BatchImageHandler
-	CampusConnect    CampusConnectHandlers
+	MucConnect       *MucConnectHandler
 	Research         *ResearchApplicationHandler
+	PlanChange       *PlanChangeHandler
+	WalletLedger     *WalletLedgerHandler
 }
 
 // BuildInfo contains build-time information

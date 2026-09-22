@@ -109,10 +109,10 @@ func ResearchASCIIFallback(name string) string {
 	var b strings.Builder
 	for _, r := range name {
 		if r < 0x20 || r > 0x7e || r == '"' || r == '\\' {
-			b.WriteByte('_')
+			_ = b.WriteByte('_')
 			continue
 		}
-		b.WriteRune(r)
+		_, _ = b.WriteRune(r)
 	}
 	out := b.String()
 	if out == "" {

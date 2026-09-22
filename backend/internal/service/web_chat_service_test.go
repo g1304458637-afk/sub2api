@@ -5,12 +5,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -73,19 +75,30 @@ func (s *webChatSettingRepoStub) Delete(ctx context.Context, key string) error {
 
 // ─────────────────────────── 依赖接口 stub ───────────────────────────
 
+type webChatSubscriptionsStub struct {
+	rows []UserSubscription
+	err  error
+}
+
+func (s *webChatSubscriptionsStub) ListActiveByUserID(context.Context, int64) ([]UserSubscription, error) {
+	return s.rows, s.err
+}
+
 type webChatAPIKeyServiceStub struct {
 	visibility     map[int64]struct{}
 	restrictPublic bool
 	existingKeys   []APIKey
+	listErr        error
+	visibilityErr  error
 	created        []CreateAPIKeyRequest
 }
 
 func (s *webChatAPIKeyServiceStub) GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error) {
-	return s.visibility, s.restrictPublic, nil
+	return s.visibility, s.restrictPublic, s.visibilityErr
 }
 
 func (s *webChatAPIKeyServiceStub) List(ctx context.Context, userID int64, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
-	return s.existingKeys, &pagination.PaginationResult{Total: int64(len(s.existingKeys))}, nil
+	return s.existingKeys, &pagination.PaginationResult{Total: int64(len(s.existingKeys))}, s.listErr
 }
 
 func (s *webChatAPIKeyServiceStub) Create(ctx context.Context, userID int64, req CreateAPIKeyRequest) (*APIKey, error) {
@@ -95,10 +108,11 @@ func (s *webChatAPIKeyServiceStub) Create(ctx context.Context, userID int64, req
 
 type webChatGroupListerStub struct {
 	groups []Group
+	err    error
 }
 
 func (s *webChatGroupListerStub) ListActive(ctx context.Context) ([]Group, error) {
-	return s.groups, nil
+	return s.groups, s.err
 }
 
 type webChatGatewayStub struct {
@@ -115,6 +129,7 @@ func (s *webChatGatewayStub) GetAvailableModels(ctx context.Context, groupID *in
 // newWebChatTestService 组装被测服务（settings 已注入指定值）
 func newWebChatTestService(values map[string]string, keys *webChatAPIKeyServiceStub, gw *webChatGatewayStub, groups *webChatGroupListerStub) *WebChatService {
 	return &WebChatService{
+		subscriptions:  &webChatSubscriptionsStub{},
 		settingService: NewSettingService(&webChatSettingRepoStub{values: values}, &config.Config{}),
 		apiKeyService:  keys,
 		gatewayService: gw,
@@ -210,11 +225,11 @@ func TestWebChatSettingsParseAndRoundTrip(t *testing.T) {
 
 func TestWebChatEnabledParse(t *testing.T) {
 	cases := []struct {
-		raw   string
-		want  bool
+		raw  string
+		want bool
 	}{
 		{"true", true},
-		{"", true},    // 键缺失/空值（存量站点未写入设置行）默认开启
+		{"", true}, // 键缺失/空值（存量站点未写入设置行）默认开启
 		{"false", false},
 		{"True", false}, // 脏值 fail-closed
 		{"1", false},
@@ -327,13 +342,13 @@ func TestWebChatCheckModelAllowed(t *testing.T) {
 		SettingKeyWebChatModels:  `[{"model":"glm-4.6","type":"chat"},{"model":"gemini-image","type":"image","api_only":true}]`,
 	}, nil, nil, nil)
 
-	require.NoError(t, svc.checkModelAllowed(context.Background(), 42, "glm-4.6", WebChatModelTypeChat))
+	require.NoError(t, svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "glm-4.6", WebChatModelTypeChat))
 
-	err := svc.checkModelAllowed(context.Background(), 42, "claude-sonnet-5", WebChatModelTypeChat)
+	err := svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "claude-sonnet-5", WebChatModelTypeChat)
 	require.Error(t, err)
 	require.Equal(t, 400, errors.Code(err))
 
-	err = svc.checkModelAllowed(context.Background(), 42, "gemini-image", WebChatModelTypeImage)
+	err = svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "gemini-image", WebChatModelTypeImage)
 	require.Error(t, err)
 	require.Equal(t, 400, errors.Code(err))
 
@@ -342,7 +357,7 @@ func TestWebChatCheckModelAllowed(t *testing.T) {
 		SettingKeyWebChatEnabled: "false",
 		SettingKeyWebChatModels:  `[{"model":"glm-4.6","type":"chat"}]`,
 	}, nil, nil, nil)
-	err = disabled.checkModelAllowed(context.Background(), 42, "glm-4.6", WebChatModelTypeChat)
+	err = disabled.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, disabled), 42, "glm-4.6", WebChatModelTypeChat)
 	require.Error(t, err)
 	require.Equal(t, 403, errors.Code(err))
 }
@@ -447,7 +462,7 @@ func TestWebChatGetOrCreateAPIKeyReusesExisting(t *testing.T) {
 		visibility: map[int64]struct{}{1: {}},
 		existingKeys: []APIKey{
 			{Key: "sk-other", Name: "别的 Key", Status: StatusActive},
-			{Key: "sk-web-chat", Name: WebChatAPIKeyName, Status: StatusActive},
+			{Key: "sk-web-chat", Name: WebChatAPIKeyName, Status: StatusActive, GroupID: new(int64(1))},
 		},
 	}
 	gw := &webChatGatewayStub{byGroup: map[int64][]string{1: {"glm-4.6"}}}
@@ -547,11 +562,11 @@ func TestWebChatCheckModelAllowedTTSAndMusic(t *testing.T) {
 		SettingKeyWebChatModels:  `[{"model":"tts-1","type":"tts"},{"model":"music-x","type":"music"}]`,
 	}, nil, nil, nil)
 
-	require.NoError(t, svc.checkModelAllowed(context.Background(), 42, "tts-1", WebChatModelTypeTTS))
-	require.NoError(t, svc.checkModelAllowed(context.Background(), 42, "music-x", WebChatModelTypeMusic))
+	require.NoError(t, svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "tts-1", WebChatModelTypeTTS))
+	require.NoError(t, svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "music-x", WebChatModelTypeMusic))
 
 	// speech 入口用 chat 模型 → 400
-	err := svc.checkModelAllowed(context.Background(), 42, "music-x", WebChatModelTypeTTS)
+	err := svc.checkModelAllowedWithSettings(context.Background(), mustWebChatSettings(t, svc), 42, "music-x", WebChatModelTypeTTS)
 	require.Error(t, err)
 	require.Equal(t, 400, errors.Code(err))
 }
@@ -566,6 +581,7 @@ func newLoopbackTestService(t *testing.T, srv *httptest.Server, modelsJSON, defa
 	port, err := strconv.Atoi(u.Port())
 	require.NoError(t, err)
 	return &WebChatService{
+		subscriptions: &webChatSubscriptionsStub{},
 		settingService: NewSettingService(&webChatSettingRepoStub{values: map[string]string{
 			SettingKeyWebChatEnabled:      "true",
 			SettingKeyWebChatModels:       modelsJSON,
@@ -573,7 +589,7 @@ func newLoopbackTestService(t *testing.T, srv *httptest.Server, modelsJSON, defa
 		}}, &config.Config{}),
 		apiKeyService: &webChatAPIKeyServiceStub{
 			visibility:   map[int64]struct{}{1: {}},
-			existingKeys: []APIKey{{Key: "sk-web-chat", Name: WebChatAPIKeyName, Status: StatusActive}},
+			existingKeys: []APIKey{{Key: "sk-web-chat", Name: WebChatAPIKeyName, Status: StatusActive, GroupID: new(int64(1))}},
 		},
 		gatewayService: &webChatGatewayStub{byGroup: map[int64][]string{1: {"glm-4.6", "gpt-image-2", "tts-1"}}},
 		groupService:   &webChatGroupListerStub{groups: []Group{{ID: 1, IsExclusive: false}}},
@@ -712,4 +728,57 @@ func TestWebChatProxyAudioSpeechRejectsNonTTSModel(t *testing.T) {
 	err = svc.ProxyAudioSpeech(c, 42, WebChatAudioSpeechRequest{Model: "music-x", Input: "hi"})
 	require.Error(t, err)
 	require.Equal(t, 400, errors.Code(err))
+}
+
+// Exercise the production whitelist entry point with the same settings read as request handling.
+func mustWebChatSettings(t *testing.T, svc *WebChatService) *SystemSettings {
+	t.Helper()
+	settings, err := svc.GetWebChatSettings(context.Background())
+	require.NoError(t, err)
+	return settings
+}
+
+func TestWebChatSubscriptionBillingGroupAndStaleKey(t *testing.T) {
+	keys := &webChatAPIKeyServiceStub{visibility: map[int64]struct{}{2: {}, 5: {}}, restrictPublic: true, existingKeys: []APIKey{{Key: "old-wallet-key", Name: WebChatAPIKeyName, Status: StatusActive, GroupID: new(int64(2))}}}
+	groups := &webChatGroupListerStub{groups: []Group{{ID: 2, Status: StatusActive}, {ID: 5, Status: StatusActive, SubscriptionType: "subscription"}}}
+	svc := newWebChatTestService(nil, keys, &webChatGatewayStub{byGroup: map[int64][]string{2: {"gpt-4o"}}}, groups)
+	subs := &webChatSubscriptionsStub{rows: []UserSubscription{{UserID: 42, GroupID: 5, Status: StatusActive, StartsAt: time.Now().Add(-time.Hour), ExpiresAt: time.Now().Add(time.Hour)}}}
+	svc.subscriptions = subs
+	key, err := svc.getOrCreateAPIKey(context.Background(), 42, "gpt-4o")
+	require.NoError(t, err)
+	require.Equal(t, "sk-web-chat-new", key)
+	require.Equal(t, int64(5), *keys.created[0].GroupID)
+	for _, failure := range []string{"visibility", "subscription", "group", "key-list", "missing-dependency", "ambiguous", "future", "invisible"} {
+		t.Run(failure, func(t *testing.T) {
+			keys.created = nil
+			keys.visibilityErr = nil
+			keys.listErr = nil
+			groups.err = nil
+			subs.err = nil
+			svc.subscriptions = subs
+			original := append([]UserSubscription(nil), subs.rows...)
+			defer func() { subs.rows = original; keys.visibility = map[int64]struct{}{2: {}, 5: {}} }()
+			switch failure {
+			case "visibility":
+				keys.visibilityErr = fmt.Errorf("lookup failed")
+			case "subscription":
+				subs.err = fmt.Errorf("lookup failed")
+			case "group":
+				groups.err = fmt.Errorf("lookup failed")
+			case "key-list":
+				keys.listErr = fmt.Errorf("lookup failed")
+			case "missing-dependency":
+				svc.subscriptions = nil
+			case "ambiguous":
+				subs.rows = append(subs.rows, subs.rows[0])
+			case "future":
+				subs.rows[0].StartsAt = time.Now().Add(time.Hour)
+			case "invisible":
+				delete(keys.visibility, 5)
+			}
+			_, err := svc.getOrCreateAPIKey(context.Background(), 42, "gpt-4o")
+			require.Error(t, err)
+			require.Empty(t, keys.created)
+		})
+	}
 }
