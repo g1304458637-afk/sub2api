@@ -903,3 +903,59 @@ Copyright (c) 2026 Wesley Liddick
 **If you find this project useful, please give it a star!**
 
 </div>
+
+---
+
+## 🏫 校园定制功能（本 Fork 新增）
+
+> 以下为本仓库相对上游新增的校园版功能。管理端入口均需管理员登录；文档另有说明见 `docs/`。
+
+### 管理端
+
+| 功能 | 入口 | 说明 |
+| --- | --- | --- |
+| 媒体额度控制台 | `/admin/media-quota` | GPT Image 生图额度、今日/24h 生成数、p50/p95 延迟、最近请求记录 |
+| 奖励发放记录 | `/admin/reward-grants` | 学生认证奖励的每笔发放流水（用户、金额、原因、时间），支持筛选审计 |
+| 教育邮箱认证撤销 | 用户管理 → 行动菜单 →「教育邮箱」 | 弹窗内可撤销误认证的教育邮箱；用户列表新增「已认证」筛选 |
+| mucode 设备密钥管理 | 渠道与用量 → API 密钥管理 | 可见用户 mucode 桌面端的设备密钥（每设备独立），支持单独吊销 |
+
+#### 媒体额度控制台配置
+
+额度数据源是本机旁路部署的 `codex-image-bridge` 服务（本地仓库，与本项目同机或同网部署，
+部署清单见 `codex-image-bridge-server-kit`），由 sub2api
+服务端只读代理（`/api/v1/admin/media/image-quota`），wrapper 的 Bearer key 不下发前端。
+`docker-compose.yml` 需注入两个环境变量：
+
+```yaml
+environment:
+  MUC_IMAGE_BRIDGE_URL: "http://host-gateway:3011"   # wrapper 地址；同一台宿主机用 host-gateway
+  MUC_IMAGE_BRIDGE_KEY: "<wrapper 的 API_KEY>"        # 与 wrapper .env 的 API_KEY 一致
+```
+
+页面额度卡片为三态：**未配置**（缺环境变量）/ **不可达**（wrapper 掉线或 key 错误）/
+**正常**（显示 used/limit 与重置时间）。生图计费单价在分组设置里配置
+（`image_price_1k/2k/4k`，按输出尺寸分档，如 1536x1024 计 2K 档）。
+
+### 用户端
+
+| 功能 | 入口 | 说明 |
+| --- | --- | --- |
+| 网页绘图 · 多轮编辑 | `/draw` | 生成结果点「继续编辑」，上一张自动作为基底图，输入指令即可图生图 |
+| 语音合成 | `/tts` | 文本转语音，按量计费 |
+| 音乐合成 | `/music` | 歌曲生成，任务异步轮询 |
+| 校园客户端下载 | `/muc`、`/hubu` | mucode 桌面端下载与接入说明；设备密钥在用户「API 密钥」页自助吊销 |
+
+**图生图接口契约**：`POST /v1/images/edits`（Bearer 用户 Key），JSON 协议：
+
+```json
+{
+  "model": "gpt-image-2",
+  "prompt": "给这只猫戴一条红色围巾",
+  "images": [{ "image_url": "data:image/png;base64,..." }]
+}
+```
+
+- `images[0]` 为编辑基底，其余为参考图（最多 4 张）；也接受裸 base64 字符串
+- 不支持 OpenAI 官方 multipart 格式；输出按尺寸阶梯计费（方形 1024 计 1K 档）
+- 底层由 codex-image-bridge 的同名端点承接（编辑提示词模板强制走 `image_gen` 编辑模式），
+  部署与安全清单见 `codex-image-bridge-server-kit`
