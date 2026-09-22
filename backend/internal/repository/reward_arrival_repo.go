@@ -29,13 +29,17 @@ SELECT id, type, quantity, occurred_at, subscription_id FROM (
    AND e.event_type='global_reset' AND a.applied_at >= $2
 ) arrivals ORDER BY occurred_at DESC, id DESC LIMIT 100`
 
-func (r *subscriptionResetCardRepository) ListRewardArrivals(ctx context.Context, userID int64, since time.Time) ([]service.RewardArrival, error) {
+func (r *subscriptionResetCardRepository) ListRewardArrivals(ctx context.Context, userID int64, since time.Time) (result []service.RewardArrival, retErr error) {
 	rows, err := r.client.QueryContext(ctx, rewardArrivalQuery, userID, since)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	result := []service.RewardArrival{}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && retErr == nil {
+			retErr = closeErr
+		}
+	}()
+	result = []service.RewardArrival{}
 	for rows.Next() {
 		var arrival service.RewardArrival
 		var subscription sql.NullInt64
