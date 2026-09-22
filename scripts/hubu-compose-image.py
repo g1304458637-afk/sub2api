@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Read or atomically update only the backend image in the HUBU compose file."""
 
+from __future__ import annotations
+
 import os
 import re
 import stat
