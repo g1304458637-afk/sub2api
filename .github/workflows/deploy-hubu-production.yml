@@ -61,6 +61,8 @@ jobs:
       previous_commit: ${{ steps.state.outputs.previous_commit }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Setup SSH
         env:
           PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
