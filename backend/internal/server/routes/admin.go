@@ -137,6 +137,9 @@ func RegisterAdminRoutes(
 		// 奖励发放记录（只读台账）
 		registerRewardGrantRoutes(admin, h)
 
+		// 媒体（只读：本地生图 wrapper 额度）
+		registerMediaRoutes(admin, h)
+
 		// 网页聊天（管理端只读：可用模型并集）
 		admin.GET("/web-chat/available-models", h.WebChat.AdminAvailableModels)
 	}
@@ -468,6 +471,15 @@ func registerRewardGrantRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	rewardGrants := admin.Group("/reward-grants")
 	{
 		rewardGrants.GET("", h.Admin.RewardGrant.List)
+	}
+}
+
+// registerMediaRoutes 媒体相关管理端只读路由
+func registerMediaRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	media := admin.Group("/media")
+	{
+		// 只读代理本地 codex-image-bridge 的 /stats（env 未配置时返回 enabled:false）
+		media.GET("/image-quota", h.Admin.Ops.GetImageQuota)
 	}
 }
 
