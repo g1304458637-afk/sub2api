@@ -544,7 +544,7 @@ func (r *userSubscriptionRepository) IncrementUsage(ctx context.Context, id int6
 			return err
 		}
 		if err == nil {
-			defer tx.Rollback()
+			defer func() { _ = tx.Rollback() }()
 			if err := r.IncrementUsage(dbent.NewTxContext(ctx, tx), id, costUSD); err != nil {
 				return err
 			}
