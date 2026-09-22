@@ -112,3 +112,28 @@ func TestAdminMediaImageQuotaUpstreamErrorStatus(t *testing.T) {
 	require.Equal(t, false, data["reachable"])
 	require.Contains(t, data["error"], "wrapper http 500")
 }
+
+func TestAdminMediaImageQuotaRejectsRedirect(t *testing.T) {
+	var received bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { received = true }))
+	defer target.Close()
+	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, http.StatusFound) }))
+	defer bridge.Close()
+	t.Setenv(mediaQuotaTestURLEnv, bridge.URL)
+	t.Setenv(mediaQuotaTestKeyEnv, "test-key")
+	data := decodeMediaQuotaData(t, doGetMediaImageQuota(t))
+	require.Equal(t, false, data["reachable"])
+	require.False(t, received, "bridge credentials must not follow redirects")
+}
+
+func TestAdminMediaImageQuotaRejectsInvalidConfiguration(t *testing.T) {
+	for _, endpoint := range []string{"file:///etc/passwd", "http://user:pass@localhost", "http://", "http://localhost?target=x", "http://localhost#fragment"} {
+		t.Run(endpoint, func(t *testing.T) {
+			t.Setenv(mediaQuotaTestURLEnv, endpoint)
+			t.Setenv(mediaQuotaTestKeyEnv, "test-key")
+			data := decodeMediaQuotaData(t, doGetMediaImageQuota(t))
+			require.Equal(t, false, data["reachable"])
+			require.Equal(t, "invalid bridge url", data["error"])
+		})
+	}
+}
