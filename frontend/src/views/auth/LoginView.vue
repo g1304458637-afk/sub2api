@@ -222,6 +222,7 @@
 </template>
 
 <script setup lang="ts">
+import { currentBrand } from '@/brand'
 import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -607,7 +608,7 @@ async function handleLogin(): Promise<void> {
     const redirectTo = (router.currentRoute.value.query.redirect as string)
       || (authStore.isAdmin
         ? '/admin/dashboard'
-        : localStorage.getItem('muc_seen') ? '/chat' : '/muc')
+        : localStorage.getItem(currentBrand.seenKey) ? '/chat' : currentBrand.homePath)
     await router.push(redirectTo)
   } catch (error: unknown) {
     errorMessage.value = extractI18nErrorMessage(error, t, 'auth.errors', t('auth.loginFailed'))
@@ -652,7 +653,7 @@ async function handlePasskeyLogin(): Promise<void> {
     const redirectTo = (router.currentRoute.value.query.redirect as string)
       || (authStore.isAdmin
         ? '/admin/dashboard'
-        : localStorage.getItem('muc_seen') ? '/chat' : '/muc')
+        : localStorage.getItem(currentBrand.seenKey) ? '/chat' : currentBrand.homePath)
     await router.push(redirectTo)
   } catch (error: unknown) {
     const fallback = error instanceof DOMException && error.name === 'NotAllowedError'
@@ -725,7 +726,7 @@ async function handle2FAVerify(code: string): Promise<void> {
     const redirectTo = (router.currentRoute.value.query.redirect as string)
       || (authStore.isAdmin
         ? '/admin/dashboard'
-        : localStorage.getItem('muc_seen') ? '/chat' : '/muc')
+        : localStorage.getItem(currentBrand.seenKey) ? '/chat' : currentBrand.homePath)
     await router.push(redirectTo)
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { data?: { message?: string } } }

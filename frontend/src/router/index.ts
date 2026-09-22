@@ -264,6 +264,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/hubu',
+    name: 'Hubu',
+    component: () => import('@/views/user/HubuView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'HUBU AI'
+    }
+  },
+  {
     path: '/keys',
     name: 'Keys',
     component: () => import('@/views/user/KeysView.vue'),
@@ -729,6 +739,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Usage Records',
       titleKey: 'admin.usage.title',
       descriptionKey: 'admin.usage.description'
+    }
+  },
+  {
+    path: '/admin/media-quota',
+    name: 'AdminMediaQuota',
+    component: () => import('@/views/admin/MediaQuotaView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Media Quota',
+      titleKey: 'admin.mediaQuota.title',
+      descriptionKey: 'admin.mediaQuota.description'
     }
   },
   {

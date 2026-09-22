@@ -34,6 +34,8 @@ backend/.gocache/
 # ===================
 node_modules/
 frontend/node_modules/
+# worktree 开发时用软链共享主仓 node_modules（软链不被上面的目录模式匹配）
+frontend/node_modules
 frontend/dist/
 *.local
 *.tsbuildinfo
@@ -143,6 +145,8 @@ docs/*
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/CICD.md
+!docs/HUBU_LOCAL_IMPLEMENTATION_PLAN.md
+!docs/HUBU_LOCAL_REPORT.md
 !docs/channel-monitor-v2-safe-defaults.md
 !docs/legal/
 !docs/legal/*.md

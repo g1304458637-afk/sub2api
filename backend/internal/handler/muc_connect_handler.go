@@ -1,9 +1,9 @@
-// MUC Harness: 一次性授权码 → per-device API Key。
+// 校园 Harness 共用：一次性授权码 → per-device API Key（MUC / HUBU 共用，品牌见 internal/pkg/campus）。
 //
-// 安全约定（硬性约束）：
+// 安全约定（硬性约束，两品牌一致）：
 // - Redis 只保存 code 的 SHA-256 哈希（60s TTL），不保存明文 code；
 // - GETDEL 保证原子单次使用（用过即失效）；
-// - exchange 以绑定的用户身份创建独立 Key（名 "MUC <device>"），可单独撤销；
+// - exchange 以绑定的用户身份创建独立 Key（名 "<品牌前缀> <device>"），可单独撤销；
 // - 任何日志不得出现 code 或 API Key 明文；
 // - 客户端只拿到该用户自己的调用凭据，绝不接触管理员/上游凭据。
 
@@ -26,6 +26,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/campus"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/muccode"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -33,13 +34,10 @@ import (
 )
 
 const (
-	mucCodeTTL        = 60 * time.Second
-	mucCodeKeyPrefix  = "muc:code:"
-	mucMaxCodeLength  = 128
-	mucMaxDeviceRunes = 64
-	mucMaxStoredName  = 255 // api_keys.name 列宽；轮换/截断都按转义后的落库名称对齐
-	mucDefaultKeyHint = "MUC Desktop"
-	mucSearchPrefix   = "MUC "
+	campusCodeTTL       = 60 * time.Second
+	campusMaxCodeLength = 128
+	campusMaxDeviceRunes = 64
+	campusMaxStoredName = 255 // api_keys.name 列宽；轮换/截断都按转义后的落库名称对齐
 )
 
 // 窄接口：handler 层禁止直接依赖 redis 客户端（depguard: handler-no-repository）。
@@ -65,19 +63,37 @@ type mucGroupLookup interface {
 	DefaultGroupIDWithAccounts(ctx context.Context) (*int64, error)
 }
 
-type MucConnectHandler struct {
+type CampusConnectHandler struct {
+	brand       campus.Brand
 	codes       mucCodeStore
 	keys        mucKeyManager
 	userLookup  mucUserLookup
 	groupLookup mucGroupLookup
 }
 
-func NewMucConnectHandler(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, gatewayService *service.GatewayService) *MucConnectHandler {
-	return &MucConnectHandler{
+// NewCampusConnectHandler 按品牌构造（MUC/HUBU 各一实例，行为一致仅前缀不同）。
+func NewCampusConnectHandler(brand campus.Brand, codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, gatewayService *service.GatewayService) *CampusConnectHandler {
+	return &CampusConnectHandler{
+		brand:       brand,
 		codes:       codeStore,
 		keys:        apiKeyService,
 		userLookup:  userService,
 		groupLookup: gatewayService,
+	}
+}
+
+// CampusConnectHandlers 两品牌 handler 集合（同一构造函数产出的两个实例，
+// wire 不支持同类型双 provider，故聚合成一个结构体统一注入）。
+type CampusConnectHandlers struct {
+	Muc  *CampusConnectHandler
+	Hubu *CampusConnectHandler
+}
+
+// ProvideCampusConnectHandlers wire 装配：同类型两实例，统一注入 Handlers。
+func ProvideCampusConnectHandlers(codeStore *muccode.CodeStore, apiKeyService *service.APIKeyService, userService *service.UserService, gatewayService *service.GatewayService) CampusConnectHandlers {
+	return CampusConnectHandlers{
+		Muc:  NewCampusConnectHandler(campus.MUC, codeStore, apiKeyService, userService, gatewayService),
+		Hubu: NewCampusConnectHandler(campus.HUBU, codeStore, apiKeyService, userService, gatewayService),
 	}
 }
 
@@ -86,8 +102,8 @@ type mucCodePayload struct {
 }
 
 // ConnectCode 为已登录用户签发一次性授权码（TTL 60s）。
-// POST /api/v1/muc/connect-code   （需网站登录态）
-func (h *MucConnectHandler) ConnectCode(c *gin.Context) {
+// POST /api/v1/{muc|hubu}/connect-code   （需网站登录态）
+func (h *CampusConnectHandler) ConnectCode(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -107,20 +123,20 @@ func (h *MucConnectHandler) ConnectCode(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if err := h.codes.SetCode(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:]), payload, mucCodeTTL); err != nil {
+	if err := h.codes.SetCode(c.Request.Context(), h.brand.RedisPrefix+hex.EncodeToString(sum[:]), payload, campusCodeTTL); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
 	response.Success(c, gin.H{
 		"code":       code,
-		"expires_in": int(mucCodeTTL.Seconds()),
+		"expires_in": int(campusCodeTTL.Seconds()),
 	})
 }
 
 // Exchange 用一次性授权码换取 per-device API Key（公开接口，靠 code 本身授权）。
-// POST /api/v1/muc/exchange   body: {"code": "...", "device_name": "..."}
-func (h *MucConnectHandler) Exchange(c *gin.Context) {
+// POST /api/v1/{muc|hubu}/exchange   body: {"code": "...", "device_name": "..."}
+func (h *CampusConnectHandler) Exchange(c *gin.Context) {
 	var req struct {
 		Code       string `json:"code"`
 		DeviceName string `json:"device_name"`
@@ -129,14 +145,14 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "bad_request"})
 		return
 	}
-	if len(req.Code) > mucMaxCodeLength {
+	if len(req.Code) > campusMaxCodeLength {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "bad_request"})
 		return
 	}
 
 	sum := sha256.Sum256([]byte(req.Code))
 	// GETDEL：原子取出并删除 —— 单次使用（验收 D/E）
-	payload, err := h.codes.GetDelCode(c.Request.Context(), mucCodeKeyPrefix+hex.EncodeToString(sum[:]))
+	payload, err := h.codes.GetDelCode(c.Request.Context(), h.brand.RedisPrefix+hex.EncodeToString(sum[:]))
 	if err != nil {
 		// 不存在的 code（未签发/已过期/已使用）统一 404，不泄露具体原因；
 		// 其余错误是 Redis 基础设施故障，必须与 404 区分，否则故障被伪装成"码无效"。
@@ -144,7 +160,7 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "code_not_found"})
 			return
 		}
-		response.ErrorFrom(c, fmt.Errorf("muc exchange: getdel code: %w", err))
+		response.ErrorFrom(c, fmt.Errorf("%s exchange: getdel code: %w", h.brand.ID, err))
 		return
 	}
 	var payloadData mucCodePayload
@@ -153,9 +169,9 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 		return
 	}
 
-	deviceName := mucDefaultKeyHint
+	deviceName := h.brand.DeviceHint
 	if req.DeviceName != "" {
-		deviceName = "MUC " + mucTruncateDeviceName(req.DeviceName)
+		deviceName = h.brand.KeyPrefix + campusTruncateDeviceName(req.DeviceName)
 	}
 	// service.CreateAPIKey 落库时会做 html.EscapeString；轮换必须按转义后的
 	// 完整名称精确匹配，按子串匹配会误删其他设备/用户手建的同前缀 Key。
@@ -195,7 +211,7 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 
 	// MUC Harness: 轮换——删除该设备此前的旧 Key（转义后名称精确相等，排除刚创建的）。
 	// 搜索失败视为轮换失败但不阻断换取（旧 Key 可另行清理）。
-	if olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, mucSearchPrefix, 50); err == nil {
+	if olds, err := h.keys.SearchAPIKeys(c.Request.Context(), payloadData.UserID, h.brand.KeyPrefix, 50); err == nil {
 		for _, old := range olds {
 			if old.ID == key.ID || old.Name != storedName {
 				continue
@@ -207,12 +223,12 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 	userDisplay := ""
 	if h.userLookup != nil {
 		if user, err := h.userLookup.GetByID(c.Request.Context(), payloadData.UserID); err == nil && user != nil {
-			userDisplay = mucMaskEmail(user.Email)
+			userDisplay = campusMaskEmail(user.Email)
 		}
 	}
 
 	response.Success(c, gin.H{
-		"gateway":  mucPublicGatewayURL(c),
+		"gateway":  campusPublicGatewayURL(c),
 		"api_key":  key.Key,
 		"key_name": key.Name,
 		"user":     userDisplay,
@@ -220,7 +236,7 @@ func (h *MucConnectHandler) Exchange(c *gin.Context) {
 }
 
 // 网关对外地址：优先环境变量，其次从请求推导（反代场景跟随 X-Forwarded-Proto）。
-func mucPublicGatewayURL(c *gin.Context) string {
+func campusPublicGatewayURL(c *gin.Context) string {
 	scheme := "https"
 	if c.Request.TLS == nil {
 		if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
@@ -232,22 +248,22 @@ func mucPublicGatewayURL(c *gin.Context) string {
 	return scheme + "://" + c.Request.Host
 }
 
-// mucTruncateDeviceName 按 rune 截断设备名（保证 UTF-8 完整，中文不被切碎），
+// campusTruncateDeviceName 按 rune 截断设备名（保证 UTF-8 完整，中文不被切碎），
 // 并确保 html.EscapeString 转义后的长度不超过 api_keys.name 列宽。
-func mucTruncateDeviceName(name string) string {
+func campusTruncateDeviceName(name string) string {
 	runes := []rune(name)
-	if len(runes) > mucMaxDeviceRunes {
-		runes = runes[:mucMaxDeviceRunes]
+	if len(runes) > campusMaxDeviceRunes {
+		runes = runes[:campusMaxDeviceRunes]
 	}
-	for len(html.EscapeString(string(runes))) > mucMaxStoredName && len(runes) > 0 {
+	for len(html.EscapeString(string(runes))) > campusMaxStoredName && len(runes) > 0 {
 		runes = runes[:len(runes)-1]
 	}
 	return string(runes)
 }
 
-// mucMaskEmail 兑换响应会连同授权码一起留在客户端与浏览器历史里，
+// campusMaskEmail 兑换响应会连同授权码一起留在客户端与浏览器历史里，
 // 邮箱只回显足以辨识的脱敏形式。
-func mucMaskEmail(email string) string {
+func campusMaskEmail(email string) string {
 	at := strings.LastIndex(email, "@")
 	if at <= 0 {
 		return "***"

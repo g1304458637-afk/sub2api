@@ -9,6 +9,7 @@ import promptAudit from './promptAudit'
 import plugins from './plugins'
 import research from './research'
 import rewardGrants from './rewardGrants'
+import mediaQuota from './mediaQuota'
 
 export default {
   ...overview,
@@ -22,4 +23,5 @@ export default {
   ...plugins,
   ...research,
   ...rewardGrants,
+  ...mediaQuota,
 }

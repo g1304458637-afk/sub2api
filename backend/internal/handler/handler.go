@@ -72,7 +72,7 @@ type Handlers struct {
 	AsyncImage       *AsyncImageHandler
 	MusicTask        *AsyncMusicHandler
 	BatchImage       *BatchImageHandler
-	MucConnect       *MucConnectHandler
+	CampusConnect    CampusConnectHandlers
 	Research         *ResearchApplicationHandler
 }
 

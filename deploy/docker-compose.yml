@@ -200,6 +200,11 @@ services:
       - GATEWAY_IMAGE_CONCURRENCY_OVERFLOW_MODE=${GATEWAY_IMAGE_CONCURRENCY_OVERFLOW_MODE:-reject}
       - GATEWAY_IMAGE_CONCURRENCY_WAIT_TIMEOUT_SECONDS=${GATEWAY_IMAGE_CONCURRENCY_WAIT_TIMEOUT_SECONDS:-30}
       - GATEWAY_IMAGE_CONCURRENCY_MAX_WAITING_REQUESTS=${GATEWAY_IMAGE_CONCURRENCY_MAX_WAITING_REQUESTS:-100}
+      # MUC Harness: 图片额度控制台的 wrapper 代理
+      - MUC_IMAGE_BRIDGE_URL=${MUC_IMAGE_BRIDGE_URL:-http://host.docker.internal:3011}
+      - MUC_IMAGE_BRIDGE_KEY=${MUC_IMAGE_BRIDGE_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

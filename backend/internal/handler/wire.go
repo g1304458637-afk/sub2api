@@ -214,7 +214,7 @@ func ProvideHandlers(
 	asyncImageHandler *AsyncImageHandler,
 	musicTaskHandler *AsyncMusicHandler,
 	batchImageHandler *BatchImageHandler,
-	mucConnectHandler *MucConnectHandler,
+	campusConnectHandlers CampusConnectHandlers,
 	researchHandler *ResearchApplicationHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
@@ -244,7 +244,7 @@ func ProvideHandlers(
 		AsyncImage:       asyncImageHandler,
 		MusicTask:        musicTaskHandler,
 		BatchImage:       batchImageHandler,
-		MucConnect:       mucConnectHandler,
+		CampusConnect:    campusConnectHandlers,
 		Research:         researchHandler,
 	}
 }
@@ -274,7 +274,7 @@ var ProviderSet = wire.NewSet(
 	NewAsyncImageHandler,
 	NewAsyncMusicHandler,
 	ProvideBatchImageHandler,
-	NewMucConnectHandler,
+	ProvideCampusConnectHandlers,
 	// 科研优惠登记：DATA_DIR 在 handler 装配层解析（见 ProvideResearchApplicationService）
 	ProvideResearchApplicationService,
 	wire.Bind(new(service.ResearchRedeemIssuer), new(*service.RedeemService)),
