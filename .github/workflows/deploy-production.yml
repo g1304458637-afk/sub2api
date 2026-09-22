@@ -102,8 +102,6 @@ jobs:
     needs: [canonical-source, test, test-backend]
     outputs:
       previous_commit: ${{ steps.state.outputs.previous_commit }}
-      legacy_image: ${{ steps.state.outputs.legacy_image }}
-      legacy_ledger: ${{ steps.state.outputs.legacy_ledger }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -130,6 +128,9 @@ jobs:
           LEGACY_BASELINE: ${{ inputs.legacy_migration_baseline }}
         run: |
           set -euo pipefail
+          mkdir -p migration-proof
+          : > migration-proof/image.txt
+          : > migration-proof/ledger.txt
           prev=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "sudo sh -c 'if test -f /srv/sub2api/.env.deploy; then sed -n \"s/^DEPLOY_COMMIT=//p\" /srv/sub2api/.env.deploy; fi'")
           if printf '%s' "$prev" | grep -Eq '^[0-9a-f]{40}$'; then
@@ -144,8 +145,8 @@ jobs:
             python3 scripts/verify-migration-ledger.py "$LEGACY_BASELINE" migration-ledger.tsv
             image=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "sudo docker inspect sub2api --format '{{.Image}}'")
             printf '%s' "$image" | grep -Eq '^sha256:[0-9a-f]{64}$'
-            echo "legacy_image=$image" >> "$GITHUB_OUTPUT"
-            echo "legacy_ledger=$(sha256sum migration-ledger.tsv | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+            printf '%s\n' "$image" > migration-proof/image.txt
+            sha256sum migration-ledger.tsv | cut -d' ' -f1 > migration-proof/ledger.txt
             prev="$LEGACY_BASELINE"
           fi
           echo "Migration baseline: $prev (does not replace unknown legacy app provenance)"
@@ -155,6 +156,17 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts -p test_verify_migration_ledger.py
           bash scripts/audit-migrations.sh "${{ steps.state.outputs.previous_commit }}" "${{ github.sha }}"
+
+      # Only two generated, non-credential digests, never DB rows or environment files.
+      # Job-output secret heuristics can suppress arbitrary hashes; artifacts preserve
+      # the exact audited bytes for the same run's deployment recheck.
+      - name: Preserve verified migration proof
+        uses: actions/upload-artifact@v7
+        with:
+          name: migration-proof
+          path: migration-proof/*.txt
+          if-no-files-found: error
+          retention-days: 7
 
   # ---------------------------------------------------------------------------
   build-push:
@@ -218,6 +230,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Download this run's migration proof
+        uses: actions/download-artifact@v8
+        with:
+          name: migration-proof
+          path: migration-proof
+
       - name: Setup SSH
         env:
           PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
@@ -263,6 +281,12 @@ jobs:
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
+          proof_image=$(cat migration-proof/image.txt)
+          proof_ledger=$(cat migration-proof/ledger.txt)
+          if [ -n "$proof_image$proof_ledger" ]; then
+            printf '%s' "$proof_image" | grep -Eq '^sha256:[0-9a-f]{64}$'
+            printf '%s' "$proof_ledger" | grep -Eq '^[0-9a-f]{64}$'
+          fi
           set +e
           ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "sudo bash /tmp/sub2api-deploy/production-deploy.sh \
@@ -272,8 +296,8 @@ jobs:
                --build-timestamp '${{ needs.build-push.outputs.build_timestamp }}' \
                --migration-baseline '${{ needs.preflight.outputs.previous_commit }}' \
                --brand 'muc' \
-               --expected-legacy-image '${{ needs.preflight.outputs.legacy_image }}' \
-               --expected-legacy-ledger '${{ needs.preflight.outputs.legacy_ledger }}' \
+               --expected-legacy-image '$proof_image' \
+               --expected-legacy-ledger '$proof_ledger' \
                --token-file /tmp/sub2api-deploy/.ghcr-token \
                --ghcr-user '${{ github.repository_owner }}'"
           code=$?

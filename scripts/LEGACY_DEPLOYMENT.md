@@ -19,4 +19,10 @@ evidence for selecting the input, not a hardcoded exemption; each run verifies i
 again. Future releases use the actual canonical deployed commit automatically.
 HUBU has no production deployment.
 
+The two generated legacy digests travel in the same workflow run's
+`migration-proof` artifact, not job outputs (GitHub can suppress arbitrary hashes
+as potential secrets). This artifact contains only the image digest and ledger
+digest, no rows, environment files or credentials. Deployment validates their
+format and compares them to fresh server observations before changing app state.
+
 Validation: `python3 -m unittest discover -s scripts -p test_verify_migration_ledger.py`.
