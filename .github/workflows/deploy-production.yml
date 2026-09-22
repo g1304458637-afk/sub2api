@@ -259,8 +259,8 @@ jobs:
         run: |
           ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "mkdir -p /tmp/sub2api-deploy"
           for f in production-deploy.sh production-healthcheck.sh production-rollback.sh production-migration-ledger.sh; do
-            cat "scripts/$f" | ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
-              "cat > /tmp/sub2api-deploy/$f && chmod 700 /tmp/sub2api-deploy/$f"
+            ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+              "cat > /tmp/sub2api-deploy/$f && chmod 700 /tmp/sub2api-deploy/$f" < "scripts/$f"
           done
 
       - name: Stage GHCR pull token (temp file, 600, server-side auto-delete)
