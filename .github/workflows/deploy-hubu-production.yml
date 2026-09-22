@@ -1,0 +1,221 @@
+name: Deploy HUBU Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Deployment reason recorded in the workflow run
+        required: true
+        default: Reward arrival feed for reset cards and global resets
+
+concurrency:
+  group: production-hubu
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  canonical-source:
+    name: Gate — exact HUBU production source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require hubu-main and exact commit
+        env:
+          DEPLOY_COMMIT: ${{ github.sha }}
+        run: |
+          test "${GITHUB_REF}" = "refs/heads/hubu-main" || {
+            echo "HUBU production deployment is restricted to refs/heads/hubu-main" >&2
+            exit 1
+          }
+          printf '%s' "$DEPLOY_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || {
+            echo "DEPLOY_COMMIT must be an exact 40-character Git SHA" >&2
+            exit 1
+          }
+
+  test-backend:
+    name: Gate — backend unit and integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Unit tests
+        working-directory: backend
+        run: make test-unit
+      - name: Integration tests
+        working-directory: backend
+        run: make test-integration
+
+  preflight:
+    name: Migration audit against deployed HUBU source
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [canonical-source, test-backend]
+    outputs:
+      previous_commit: ${{ steps.state.outputs.previous_commit }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup SSH
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$PROD_PORT" "$PROD_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Verify current isolated HUBU stack and read deployed source
+        id: state
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+        run: |
+          for container in sub2api-hubu sub2api-hubu-postgres sub2api-hubu-redis; do
+            state=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+              "sudo docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' $container")
+            test "$state" = 'true healthy' || { echo "$container is not healthy" >&2; exit 1; }
+          done
+          health=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+            'sudo curl -fsS --max-time 10 http://127.0.0.1:8081/healthz')
+          previous=$(printf '%s' "$health" | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)
+          if d.get("status")!="ok" or d.get("brand")!="hubu":
+              raise SystemExit("current HUBU health response is not healthy")
+          print(d.get("commit", ""))
+          ')
+          printf '%s' "$previous" | grep -Eq '^[0-9a-f]{40}$' || {
+            echo "HUBU health endpoint has no full source commit" >&2
+            exit 1
+          }
+          DEPLOY_COMMIT="${GITHUB_SHA}"
+          git fetch --no-tags origin hubu-main
+          git cat-file -e "$previous^{commit}"
+          git merge-base --is-ancestor "$previous" "$DEPLOY_COMMIT" || {
+            echo "Deployed HUBU commit is not an ancestor of this release" >&2
+            exit 1
+          }
+          echo "previous_commit=$previous" >> "$GITHUB_OUTPUT"
+      - name: Audit migrations
+        run: bash scripts/audit-migrations.sh "${{ steps.state.outputs.previous_commit }}" "${{ github.sha }}"
+
+  build-push:
+    name: Build immutable HUBU image
+    runs-on: ubuntu-latest
+    needs: [preflight]
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      version: ${{ steps.metadata.outputs.version }}
+      build_timestamp: ${{ steps.metadata.outputs.build_timestamp }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: image
+        name: Compute image name
+        run: |
+          repo_lc=$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          echo "name=ghcr.io/${repo_lc}/sub2api:hubu-sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - id: metadata
+        name: Compute immutable release metadata
+        run: |
+          echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "version=hubu-$(date -u +%Y%m%d)-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./deploy/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.name }}
+          build-args: |
+            BRAND=hubu
+            VERSION=${{ steps.metadata.outputs.version }}
+            COMMIT=${{ github.sha }}
+            DATE=${{ steps.metadata.outputs.build_timestamp }}
+            MIGRATION_BASELINE=${{ needs.preflight.outputs.previous_commit }}
+
+  deploy:
+    name: Deploy only the HUBU backend container
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [preflight, build-push]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup SSH
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$PROD_PORT" "$PROD_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Upload HUBU-only deployment scripts
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+        run: |
+          ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "mkdir -p /tmp/hubu-sub2api-deploy"
+          for f in hubu-production-deploy.sh hubu-production-healthcheck.sh hubu-compose-image.py; do
+            cat "scripts/$f" | ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+              "cat > /tmp/hubu-sub2api-deploy/$f && chmod 700 /tmp/hubu-sub2api-deploy/$f"
+          done
+      - name: Stage temporary GHCR pull token
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "$GHCR_PULL_TOKEN" ]; then token="$GHCR_PULL_TOKEN"; else token="$GITHUB_TOKEN"; fi
+          printf '%s' "$token" | ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+            "umask 077; cat > /tmp/hubu-sub2api-deploy/.ghcr-token"
+      - name: Deploy HUBU image with app-only rollback
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+        run: |
+          ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+            "sudo bash /tmp/hubu-sub2api-deploy/hubu-production-deploy.sh \
+               --image '${{ needs.build-push.outputs.image }}' \
+               --commit '${{ github.sha }}' \
+               --version '${{ needs.build-push.outputs.version }}' \
+               --build-timestamp '${{ needs.build-push.outputs.build_timestamp }}' \
+               --migration-baseline '${{ needs.preflight.outputs.previous_commit }}' \
+               --token-file /tmp/hubu-sub2api-deploy/.ghcr-token \
+               --ghcr-user '${{ github.repository_owner }}'"
+      - name: Verify public HUBU health endpoint
+        run: |
+          body=$(curl -fsS --max-time 20 https://hubu.wuxuexi.top/healthz)
+          printf '%s' "$body" | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)
+          expected=sys.argv[1]
+          if d.get("status")!="ok" or d.get("brand")!="hubu" or d.get("commit")!=expected:
+              raise SystemExit("public HUBU health check did not match the deployed commit")
+          print("public HUBU health: status=ok brand=hubu commit="+expected)
+          ' "${{ github.sha }}"
+      - name: Remove remote temporary deployment files
+        if: always()
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+        run: ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "rm -rf /tmp/hubu-sub2api-deploy" || true
