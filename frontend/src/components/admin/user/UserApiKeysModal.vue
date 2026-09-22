@@ -163,6 +163,8 @@ const appStore = useAppStore()
 const apiKeys = ref<ApiKey[]>([])
 const allGroups = ref<AdminGroup[]>([])
 const loading = ref(false)
+let requestVersion = 0
+let wasOpen = false
 const updatingKeyIds = ref(new Set<number>())
 const revokingKeyIds = ref(new Set<number>())
 const sourceFilter = ref<'all' | 'mucode'>('all')
@@ -189,29 +191,36 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
   }
 }
 
-watch(() => props.show, (v) => {
-  if (v && props.user) {
-    sourceFilter.value = 'all'
+watch(() => [props.show, props.user?.id] as const, ([show], _, onCleanup) => {
+  onCleanup(() => { requestVersion++ })
+  closeGroupSelector()
+  if (show && props.user) {
+    if (!wasOpen) sourceFilter.value = 'all'
+    wasOpen = true
     load()
     loadGroups()
   } else {
-    closeGroupSelector()
+    wasOpen = false
   }
 })
 
 const load = async () => {
   if (!props.user) return
+  const version = ++requestVersion
+  apiKeys.value = []
   loading.value = true
   groupButtonRefs.value.clear()
   try {
     // 选 mucode 时按名称前缀 "MUC " 过滤（服务端 TrimSpace 后按包含匹配）
-    const params = sourceFilter.value === 'mucode' ? { search: MUCODE_KEY_PREFIX } : undefined
-    const res = await adminAPI.users.getUserApiKeys(props.user.id, params)
-    apiKeys.value = res.items || []
+    const res = sourceFilter.value === 'mucode'
+      ? await adminAPI.users.getUserApiKeys(props.user.id, { search: MUCODE_KEY_PREFIX })
+      : await adminAPI.users.getUserApiKeys(props.user.id)
+    if (version === requestVersion) apiKeys.value = res.items || []
   } catch (error) {
+    if (version !== requestVersion) return
     console.error('Failed to load API keys:', error)
   } finally {
-    loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 
