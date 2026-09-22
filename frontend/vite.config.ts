@@ -93,7 +93,10 @@ export default defineConfig(({ mode }) => {
         vueTsc: true
       }),
       injectPublicSettings(backendUrl),
-      { name: 'campus-brand-title', transformIndexHtml: (html: string) => html.replace(/<title>[^<]*<\/title>/i, `<title>${campusBrand === 'hubu' ? '湖北大学' : '中央民族大学'} AI 服务平台</title>`) }
+      { name: 'campus-brand-title', transformIndexHtml: (html: string) => {
+        const branded = html.replace(/<title>[^<]*<\/title>/i, `<title>${campusBrand === 'hubu' ? '湖北大学' : '中央民族大学'} AI 服务平台</title>`)
+        return branded.replace('<html lang="zh-CN">', `<html lang="zh-CN" class="dark" data-campus-brand="${campusBrand}">`)
+      } }
     ],
   resolve: {
     alias: {

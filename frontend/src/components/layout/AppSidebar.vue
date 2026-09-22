@@ -15,7 +15,7 @@
         :class="{ 'sidebar-logo-glow': true }"
         @click="handleMenuItemClick(homePath)"
       >
-        <img v-if="settingsLoaded" :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
+        <img v-if="settingsLoaded" :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" @error="useDefaultLogo" />
       </router-link>
       <div class="sidebar-brand" :class="{ 'sidebar-brand-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
         <router-link
@@ -275,6 +275,7 @@
     <div class="sidebar-bottom mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
       <!-- Theme Toggle -->
       <button
+        v-if="!hasCampusScenes(currentBrand.id)"
         @click="toggleTheme"
         class="sidebar-link mb-2 w-full"
         :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
@@ -312,7 +313,9 @@
 </template>
 
 <script setup lang="ts">
+import { hasCampusScenes } from '@/brand/scenes'
 import { currentBrand } from '@/brand'
+import { useDefaultLogo } from '@/utils/imageFallback'
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -1280,6 +1283,7 @@ function toggleSidebar() {
 }
 
 function toggleTheme() {
+  if (hasCampusScenes(currentBrand.id)) return
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
@@ -1355,7 +1359,7 @@ function handleGroupClick(item: NavItem) {
 
 // Initialize theme（与 main.ts 同规则：默认 dark，显式 light 才回浅色）
 const savedTheme = localStorage.getItem('theme')
-if (savedTheme !== 'light') {
+if (hasCampusScenes(currentBrand.id) || savedTheme !== 'light') {
   isDark.value = true
   document.documentElement.classList.add('dark')
 }
