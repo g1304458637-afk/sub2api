@@ -5,15 +5,16 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/domain"
-	"github.com/Wei-Shaw/sub2api/internal/service"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDualQuotaSettlementResetAndDedup(t *testing.T) {
@@ -290,4 +291,23 @@ func TestDualQuotaMigrationCannotSplitSettlementPolicy(t *testing.T) {
 	require.NoError(t, NewUserSubscriptionRepository(client).IncrementUsage(ctx, sub.ID, 1))
 	require.Equal(t, 1.0, phase0QueryFloat(t, "SELECT short_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
 	require.Equal(t, 2.0, phase0QueryFloat(t, "SELECT weekly_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
+}
+
+func TestDualQuotaTransactionalClientRetainsCallerRollback(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	limit := 50.0
+	_, group, sub, _, _ := phase0MustSubscriptionStack(t, client, 0, &limit)
+	_, err := integrationDB.ExecContext(ctx, "UPDATE groups SET quota_policy='dual_window_v1',short_limit_usd=10 WHERE id=$1", group.ID)
+	require.NoError(t, err)
+	tx, err := client.Tx(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback()
+	repo := NewUserSubscriptionRepository(tx.Client())
+	require.NoError(t, repo.IncrementUsage(ctx, sub.ID, 1.25))
+	updated, err := repo.GetByID(ctx, sub.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1.25, updated.ShortUsageUSD)
+	require.NoError(t, tx.Rollback())
+	require.Zero(t, phase0QueryFloat(t, "SELECT short_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
 }

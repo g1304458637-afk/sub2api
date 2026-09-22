@@ -3,10 +3,11 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
+
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-	"time"
 )
 
 func (r *userSubscriptionRepository) MaintainDualWindows(ctx context.Context, id int64, now time.Time, activate bool) (*service.UserSubscription, error) {
