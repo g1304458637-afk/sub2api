@@ -90,7 +90,8 @@ func TestRCResetExhaustedRouteAndDurableRecovery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "cancelled", cancelled.Status)
 	// A reconciliation request never changes usage or spends a card.
-	require.WithinDuration(t, time.Now().Add(7*24*time.Hour), *recovered.Result.WeeklyPeriodEndsAt, time.Minute)
+	// This fixture expires tomorrow; a reset never extends its usable term.
+	require.WithinDuration(t, sub.ExpiresAt, *recovered.Result.WeeklyPeriodEndsAt, time.Second)
 }
 
 func TestRCResetReconcileSerializesWithConsumption(t *testing.T) {

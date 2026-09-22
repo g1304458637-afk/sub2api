@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"errors"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/group"
@@ -538,14 +540,18 @@ func (r *userSubscriptionRepository) translateConditionalWindowReset(ctx context
 func (r *userSubscriptionRepository) IncrementUsage(ctx context.Context, id int64, costUSD float64) error {
 	if dbent.TxFromContext(ctx) == nil {
 		tx, err := r.client.Tx(ctx)
-		if err != nil {
+		if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
 			return err
 		}
-		if err = r.IncrementUsage(dbent.NewTxContext(ctx, tx), id, costUSD); err != nil {
-			_ = tx.Rollback()
-			return err
+		if err == nil {
+			defer tx.Rollback()
+			if err := r.IncrementUsage(dbent.NewTxContext(ctx, tx), id, costUSD); err != nil {
+				return err
+			}
+			return tx.Commit()
 		}
-		return tx.Commit()
+		// A repository constructed with tx.Client() already belongs to the caller's
+		// transaction. Reuse it without nesting, committing or rolling it back.
 	}
 	now := time.Now()
 	if _, err := clientFromContext(ctx, r.client).ExecContext(ctx, "SELECT campus_advance_dual_windows($1,$2,true,$3)", id, now, timezone.StartOfDay(now)); err != nil {
