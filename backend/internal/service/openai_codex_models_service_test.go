@@ -1114,6 +1114,7 @@ func TestBuildCodexModelsManifestForGroupLoadsAccountsOnce(t *testing.T) {
 	require.Contains(t, repo.platforms, PlatformGrok)
 	require.Contains(t, repo.platforms, PlatformDeepseek)
 	require.Contains(t, repo.platforms, PlatformMiniMax)
+	require.Contains(t, repo.platforms, PlatformOpenCodeGo)
 	require.NotContains(t, repo.platforms, PlatformComposite)
 }
 
@@ -2560,6 +2561,11 @@ func TestFetchCodexModelsManifestRejectsInvalidEnvelope(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateCodexModelsManifestEnvelopeRequiresExactModelsKey(t *testing.T) {
+	require.NoError(t, validateCodexModelsManifestEnvelope([]byte(`{"models":[]}`)))
+	require.Error(t, validateCodexModelsManifestEnvelope([]byte(`{"Models":[]}`)))
 }
 
 func TestFetchCodexModelsManifestAPIKeyDoesNotCacheInvalidEnvelope(t *testing.T) {
