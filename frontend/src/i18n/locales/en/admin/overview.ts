@@ -1,4 +1,12 @@
 export default {
+    resetCenter: {
+      title: 'Reset Center',
+      description: 'Direct resets and reset card management'
+    },
+    rewardCenter: {
+      title: 'Reward Center',
+      description: 'Student verification reward configuration'
+    },
     // Dashboard
     dashboard: {
       title: 'Admin Dashboard',
@@ -443,6 +451,7 @@ export default {
         success: 'Deleted {count} users',
         failed: 'Failed to delete {count} users. They remain selected for retry.'
       },
+      u360: '360 detail',
       bulkLimits: {
         action: 'Set limits ({count})',
         title: 'Set user limits',

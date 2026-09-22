@@ -21,12 +21,14 @@ export type OrderStatus =
 
 export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex'
 
-export type OrderType = 'balance' | 'subscription'
+export type OrderType = 'balance' | 'subscription' | 'plan_change'
 
 // ==================== Configuration ====================
 
 export interface PaymentConfig {
   payment_enabled: boolean
+  /** 展示用 USD→CNY 汇率（仅用于 ≈¥ 换算展示；0=未配置）；真实扣款语义与后端一致 */
+  usd_to_cny_display_rate?: number
   min_amount: number
   max_amount: number
   daily_limit: number

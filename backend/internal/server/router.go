@@ -2,13 +2,17 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/campus"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/server/routes"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -38,6 +42,7 @@ func SetupRouter(
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) *gin.Engine {
+	_ = campus.Current() // validate deployment identity before registering routes
 	middleware2.SetIngressRejectRecorder(opsService)
 	// 缓存 iframe 页面的 origin 列表，用于动态注入 CSP frame-src
 	var cachedFrameOrigins atomic.Pointer[[]string]
@@ -90,15 +95,23 @@ func SetupRouter(
 		settingService.SetOnUpdateCallback(refreshFrameOrigins)
 	}
 
+	r.GET("/api/v1/campus/brand", func(c *gin.Context) { response.Success(c, campus.Current()) })
+	r.GET("/campus-assets/:brand.svg", func(c *gin.Context) {
+		brand := campus.Current()
+		if c.Param("brand.svg") != brand.ID+".svg" {
+			c.Status(404)
+			return
+		}
+		c.Data(200, "image/svg+xml", []byte(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%s"/><text x="32" y="38" font-size="15" text-anchor="middle" fill="white">%s</text></svg>`, brand.PrimaryColor, brand.ShortName)))
+	})
 	// 注册路由
 	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient)
 
-	// 校园 Harness: 客户端安装包静态下载目录（宿主机 data/downloads 挂载；
-	// 换安装包直接替换文件即可，无需重建镜像。目录解析顺序：
-	// DOWNLOADS_DIR > MUC_DOWNLOADS_DIR（历史兼容）> 默认值）
+	// MUC Harness: 客户端安装包静态下载目录（宿主机 data/downloads 挂载；
+	// 换安装包直接替换文件即可，无需重建镜像。MUC_DOWNLOADS_DIR 可覆盖）
 	downloadsDir := os.Getenv("DOWNLOADS_DIR")
 	if downloadsDir == "" {
-		downloadsDir = os.Getenv("MUC_DOWNLOADS_DIR")
+		downloadsDir = os.Getenv(strings.ToUpper(campus.Current().ID) + "_DOWNLOADS_DIR")
 	}
 	if downloadsDir == "" {
 		downloadsDir = "/app/data/downloads"
@@ -141,7 +154,6 @@ func registerRoutes(
 	routes.RegisterUserRoutes(v1, h, jwtAuth, auditLog, settingService, panelRateLimiter)
 	routes.RegisterWebChatRoutes(v1, h, jwtAuth, auditLog, settingService, panelRateLimiter)
 	routes.RegisterMucRoutes(v1, h, jwtAuth, auditLog, redisClient, settingService, panelRateLimiter)
-	routes.RegisterHubuRoutes(v1, h, jwtAuth, auditLog, redisClient, settingService, panelRateLimiter)
 	routes.RegisterModelPlazaRoutes(v1, h, optionalJWTAuth, settingService, panelRateLimiter)
 	routes.RegisterAdminRoutes(v1, h, adminAuth, auditLog, stepUpAuth, settingService, panelRateLimiter)
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg)

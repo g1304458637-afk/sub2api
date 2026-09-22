@@ -152,13 +152,13 @@ func TestPhase0PAYGSettlementDeductsBalanceOnly(t *testing.T) {
 	phase0CleanupStack(t, user.ID, group.ID, account.ID)
 
 	cmd := &service.UsageBillingCommand{
-		RequestID:       uuid.NewString(),
-		APIKeyID:        apiKey.ID,
-		UserID:          user.ID,
-		AccountID:       account.ID,
-		AccountType:     service.AccountTypeAPIKey,
-		BalanceCost:     0.5,
-		SubscriptionID:  nil,
+		RequestID:        uuid.NewString(),
+		APIKeyID:         apiKey.ID,
+		UserID:           user.ID,
+		AccountID:        account.ID,
+		AccountType:      service.AccountTypeAPIKey,
+		BalanceCost:      0.5,
+		SubscriptionID:   nil,
 		SubscriptionCost: 0,
 	}
 
@@ -375,9 +375,11 @@ func TestPhase0ResetVsSettlementSequences(t *testing.T) {
 //
 // 不变量：初始 (anchor=T0, usage=10)，并发执行 IncrementUsage(1.5) 与
 // ResetWeeklyUsage(T0→T1) 各一次，最终只允许三种结局：
-//   (usage=11.5, anchor=T0)  reset 的 CAS 输了（合法：另一请求已推进）
-//   (usage=0,    anchor=T1)  settlement 先提交
-//   (usage=1.5,  anchor=T1)  reset 先提交
+//
+//	(usage=11.5, anchor=T0)  reset 的 CAS 输了（合法：另一请求已推进）
+//	(usage=0,    anchor=T1)  settlement 先提交
+//	(usage=1.5,  anchor=T1)  reset 先提交
+//
 // 被禁止：usage=11.5 且 anchor=T1（旧周期用量被叠进新周期）。
 func TestPhase0ResetVsSettlementConcurrentInvariant(t *testing.T) {
 	client := testEntClient(t)
@@ -585,9 +587,9 @@ func TestPhase0AdminResetQuotaReAnchorsWeeklyPeriod(t *testing.T) {
 	require.InDelta(t, before.MonthlyUsageUSD, monthly, 1e-8)
 }
 
-// ---- §16 多订阅并存 ----
+// ---- 历史订阅隔离与 single-active ----
 
-func TestPhase0MultipleSubscriptionsIndependentWindows(t *testing.T) {
+func TestPhase0HistoricalSubscriptionKeepsIndependentWindow(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
 	subRepo := NewUserSubscriptionRepository(client)
@@ -611,17 +613,18 @@ func TestPhase0MultipleSubscriptionsIndependentWindows(t *testing.T) {
 
 	anchorPro := time.Now().Add(-72 * time.Hour).Truncate(time.Microsecond)
 	anchorMax := time.Now().Add(-2 * time.Hour).Truncate(time.Microsecond)
-	subPro := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: groupPro.ID})
+	subPro := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: groupPro.ID, Status: service.SubscriptionStatusExpired})
 	subMax := mustCreateSubscription(t, client, &service.UserSubscription{UserID: user.ID, GroupID: groupMax.ID})
 	phase0SetWeeklyWindow(t, subPro.ID, anchorPro, 5)
 	phase0SetWeeklyWindow(t, subMax.ID, anchorMax, 1)
 
-	// 两订阅并存且 anchor / usage 完全独立
+	// 历史订阅与当前订阅的 anchor / usage 独立，只有 Max ACTIVE。
 	active, err := subRepo.ListActiveByUserID(ctx, user.ID)
 	require.NoError(t, err)
-	require.Len(t, active, 2, "Pro and Max subscriptions coexist in parallel")
+	require.Len(t, active, 1, "only the current subscription is active")
+	require.Equal(t, subMax.ID, active[0].ID)
 
-	byPro, err := subRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, groupPro.ID)
+	byPro, err := subRepo.GetByID(ctx, subPro.ID)
 	require.NoError(t, err)
 	require.InDelta(t, 5, byPro.WeeklyUsageUSD, 1e-8)
 	require.Equal(t, anchorPro.Format(time.RFC3339Nano), byPro.WeeklyWindowStart.Format(time.RFC3339Nano))
@@ -633,7 +636,7 @@ func TestPhase0MultipleSubscriptionsIndependentWindows(t *testing.T) {
 
 	// 增量只落在对应分组的订阅上
 	require.NoError(t, subRepo.IncrementUsage(ctx, subPro.ID, 2))
-	byPro, _ = subRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, groupPro.ID)
+	byPro, _ = subRepo.GetByID(ctx, subPro.ID)
 	byMax, _ = subRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, groupMax.ID)
 	require.InDelta(t, 7, byPro.WeeklyUsageUSD, 1e-8)
 	require.InDelta(t, 1, byMax.WeeklyUsageUSD, 1e-8)

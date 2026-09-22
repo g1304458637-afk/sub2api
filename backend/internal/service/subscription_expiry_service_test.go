@@ -16,6 +16,15 @@ type subscriptionExpiryRepoStub struct {
 	listCalls int
 }
 
+func (s *subscriptionExpiryRepoStub) GetMaxActiveGroupConcurrencyOverride(context.Context, int64) (int, error) {
+	return 0, nil
+
+}
+
+func (s *subscriptionExpiryRepoStub) UpdatePaygFallback(context.Context, int64, bool) error {
+	return nil
+}
+
 func (r *subscriptionExpiryRepoStub) Create(context.Context, *UserSubscription) error {
 	return nil
 }

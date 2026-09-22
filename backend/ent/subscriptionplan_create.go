@@ -166,6 +166,20 @@ func (_c *SubscriptionPlanCreate) SetNillableSortOrder(v *int) *SubscriptionPlan
 	return _c
 }
 
+// SetTierRank sets the "tier_rank" field.
+func (_c *SubscriptionPlanCreate) SetTierRank(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetTierRank(v)
+	return _c
+}
+
+// SetNillableTierRank sets the "tier_rank" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableTierRank(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetTierRank(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *SubscriptionPlanCreate) SetCreatedAt(v time.Time) *SubscriptionPlanCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -261,6 +275,10 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
 	}
+	if _, ok := _c.mutation.TierRank(); !ok {
+		v := subscriptionplan.DefaultTierRank
+		_c.mutation.SetTierRank(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := subscriptionplan.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -325,6 +343,9 @@ func (_c *SubscriptionPlanCreate) check() error {
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		return &ValidationError{Name: "sort_order", err: errors.New(`ent: missing required field "SubscriptionPlan.sort_order"`)}
+	}
+	if _, ok := _c.mutation.TierRank(); !ok {
+		return &ValidationError{Name: "tier_rank", err: errors.New(`ent: missing required field "SubscriptionPlan.tier_rank"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "SubscriptionPlan.created_at"`)}
@@ -406,6 +427,10 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.SortOrder(); ok {
 		_spec.SetField(subscriptionplan.FieldSortOrder, field.TypeInt, value)
 		_node.SortOrder = value
+	}
+	if value, ok := _c.mutation.TierRank(); ok {
+		_spec.SetField(subscriptionplan.FieldTierRank, field.TypeInt, value)
+		_node.TierRank = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(subscriptionplan.FieldCreatedAt, field.TypeTime, value)
@@ -644,6 +669,24 @@ func (u *SubscriptionPlanUpsert) UpdateSortOrder() *SubscriptionPlanUpsert {
 // AddSortOrder adds v to the "sort_order" field.
 func (u *SubscriptionPlanUpsert) AddSortOrder(v int) *SubscriptionPlanUpsert {
 	u.Add(subscriptionplan.FieldSortOrder, v)
+	return u
+}
+
+// SetTierRank sets the "tier_rank" field.
+func (u *SubscriptionPlanUpsert) SetTierRank(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldTierRank, v)
+	return u
+}
+
+// UpdateTierRank sets the "tier_rank" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateTierRank() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldTierRank)
+	return u
+}
+
+// AddTierRank adds v to the "tier_rank" field.
+func (u *SubscriptionPlanUpsert) AddTierRank(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldTierRank, v)
 	return u
 }
 
@@ -911,6 +954,27 @@ func (u *SubscriptionPlanUpsertOne) AddSortOrder(v int) *SubscriptionPlanUpsertO
 func (u *SubscriptionPlanUpsertOne) UpdateSortOrder() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateSortOrder()
+	})
+}
+
+// SetTierRank sets the "tier_rank" field.
+func (u *SubscriptionPlanUpsertOne) SetTierRank(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetTierRank(v)
+	})
+}
+
+// AddTierRank adds v to the "tier_rank" field.
+func (u *SubscriptionPlanUpsertOne) AddTierRank(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddTierRank(v)
+	})
+}
+
+// UpdateTierRank sets the "tier_rank" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateTierRank() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateTierRank()
 	})
 }
 
@@ -1346,6 +1410,27 @@ func (u *SubscriptionPlanUpsertBulk) AddSortOrder(v int) *SubscriptionPlanUpsert
 func (u *SubscriptionPlanUpsertBulk) UpdateSortOrder() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateSortOrder()
+	})
+}
+
+// SetTierRank sets the "tier_rank" field.
+func (u *SubscriptionPlanUpsertBulk) SetTierRank(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetTierRank(v)
+	})
+}
+
+// AddTierRank adds v to the "tier_rank" field.
+func (u *SubscriptionPlanUpsertBulk) AddTierRank(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddTierRank(v)
+	})
+}
+
+// UpdateTierRank sets the "tier_rank" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateTierRank() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateTierRank()
 	})
 }
 

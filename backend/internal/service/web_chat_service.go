@@ -147,12 +147,17 @@ type WebChatModelLister interface {
 	GetAvailableModels(ctx context.Context, groupID *int64, platform string) []string
 }
 
+type webChatSubscriptionReader interface {
+	ListActiveByUserID(context.Context, int64) ([]UserSubscription, error)
+}
+
 // WebChatService 网页聊天/绘图代理服务
 type WebChatService struct {
 	settingService *SettingService
 	apiKeyService  WebChatUserGroupReader
 	gatewayService WebChatModelLister
 	groupService   WebChatGroupLister
+	subscriptions  webChatSubscriptionReader
 	cfg            *config.Config
 
 	httpClient *http.Client
@@ -175,6 +180,7 @@ func NewWebChatService(
 		apiKeyService:  apiKeyService,
 		gatewayService: gatewayService,
 		groupService:   groupService,
+		subscriptions:  apiKeyService.userSubRepo,
 		cfg:            cfg,
 		httpClient:     &http.Client{},
 	}
@@ -432,16 +438,6 @@ func (s *WebChatService) checkModelAllowedWithSettings(ctx context.Context, sett
 	return nil
 }
 
-// checkModelAllowed 服务端强制白名单：model 必须出现在指定类型（chat/image）的
-// 可选集中（type 匹配且非 api_only）。
-func (s *WebChatService) checkModelAllowed(ctx context.Context, userID int64, model, modelType string) error {
-	settings, err := s.GetWebChatSettings(ctx)
-	if err != nil {
-		return err
-	}
-	return s.checkModelAllowedWithSettings(ctx, settings, userID, model, modelType)
-}
-
 // webChatLoopbackBaseURL 回环转发目标：本机监听端口（固定 127.0.0.1，
 // 不依赖 Server.Host——它可能是 0.0.0.0 等通配地址）。
 func (s *WebChatService) webChatLoopbackBaseURL() string {
@@ -458,29 +454,30 @@ func (s *WebChatService) getOrCreateAPIKey(ctx context.Context, userID int64, de
 	s.getOrCreateMu.Lock()
 	defer s.getOrCreateMu.Unlock()
 
+	// Resolve on every request: a previously created wallet key must not survive a subscription change.
+	groupID, err := s.pickGroupID(ctx, userID, defaultModel)
+	if err != nil {
+		return "", err
+	}
 	filters := APIKeyListFilters{Search: WebChatAPIKeyName, Status: StatusActive}
 	keys, _, err := s.apiKeyService.List(ctx, userID, pagination.PaginationParams{
 		Page:      1,
 		PageSize:  100,
 		SortOrder: pagination.SortOrderAsc,
 	}, filters)
-	if err == nil {
-		for i := range keys {
-			if keys[i].Name != WebChatAPIKeyName || keys[i].Key == "" {
-				continue
-			}
-			if !keys[i].IsActive() || keys[i].IsExpired() {
-				continue
-			}
-			return keys[i].Key, nil
+	if err != nil {
+		return "", fmt.Errorf("list web chat api keys: %w", err)
+	}
+	for i := range keys {
+		if keys[i].Name != WebChatAPIKeyName || keys[i].Key == "" || keys[i].GroupID == nil || *keys[i].GroupID != *groupID {
+			continue
 		}
+		if !keys[i].IsActive() || keys[i].IsExpired() {
+			continue
+		}
+		return keys[i].Key, nil
 	}
 
-	// 选择绑定分组（决策见文件头注释）
-	groupID, err := s.pickGroupID(ctx, userID, defaultModel)
-	if err != nil {
-		return "", err
-	}
 	apiKey, err := s.apiKeyService.Create(ctx, userID, CreateAPIKeyRequest{
 		Name:    WebChatAPIKeyName,
 		GroupID: groupID,
@@ -491,8 +488,8 @@ func (s *WebChatService) getOrCreateAPIKey(ctx context.Context, userID int64, de
 	return apiKey.Key, nil
 }
 
-// pickGroupID 从用户可见分组中选择 Key 绑定分组：优先可用模型包含 defaultModel
-// 的第一个分组；无默认模型 / 分组模型不可枚举时取第一个可见分组。
+// pickGroupID prioritizes the active primary subscription. Wallet-only users retain
+// model-based selection among visible standard groups; lookup failures never fall back.
 func (s *WebChatService) pickGroupID(ctx context.Context, userID int64, defaultModel string) (*int64, error) {
 	allowed, restrictPublicGroups, err := s.apiKeyService.GetUserGroupVisibility(ctx, userID)
 	if err != nil {
@@ -508,6 +505,40 @@ func (s *WebChatService) pickGroupID(ctx context.Context, userID int64, defaultM
 	visible := webChatVisibleGroups(groups, allowed, restrictPublicGroups)
 	if len(visible) == 0 {
 		return nil, infraerrors.Forbidden("WEB_CHAT_NO_AVAILABLE_GROUP", "No available group for web chat")
+	}
+
+	if s.subscriptions == nil {
+		return nil, fmt.Errorf("web chat subscription resolver unavailable")
+	}
+	subscriptions, err := s.subscriptions.ListActiveByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list active web chat subscriptions: %w", err)
+	}
+	if len(subscriptions) > 1 {
+		return nil, fmt.Errorf("ambiguous primary subscription")
+	}
+	if len(subscriptions) == 1 {
+		sub := subscriptions[0]
+		if sub.UserID != userID || !sub.IsActive() || sub.StartsAt.After(time.Now()) {
+			return nil, fmt.Errorf("invalid active subscription")
+		}
+		for _, group := range visible {
+			if group.ID == sub.GroupID && group.Status == StatusActive && group.IsSubscriptionType() {
+				id := group.ID
+				return &id, nil
+			}
+		}
+		return nil, fmt.Errorf("active subscription group unavailable")
+	}
+	standard := make([]Group, 0, len(visible))
+	for _, group := range visible {
+		if !group.IsSubscriptionType() {
+			standard = append(standard, group)
+		}
+	}
+	visible = standard
+	if len(visible) == 0 {
+		return nil, infraerrors.Forbidden("WEB_CHAT_NO_AVAILABLE_GROUP", "No available wallet group for web chat")
 	}
 
 	defaultModel = strings.TrimSpace(defaultModel)

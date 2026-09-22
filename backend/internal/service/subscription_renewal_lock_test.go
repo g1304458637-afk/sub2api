@@ -157,3 +157,27 @@ func TestAssignSubscriptionDoesNotReactivateRowSuspendedAfterStaleRead(t *testin
 	require.Equal(t, current.ExpiresAt, sub.ExpiresAt)
 	require.Equal(t, current.Notes, sub.Notes)
 }
+
+func TestPaidSubscriptionTermWindow(t *testing.T) {
+	start := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	oldEnd := start.AddDate(0, 0, 30)
+	for _, tc := range []struct {
+		name      string
+		previous  *UserSubscription
+		assigned  UserSubscription
+		wantStart time.Time
+		source    string
+	}{
+		{"early_renewal", &UserSubscription{StartsAt: start, ExpiresAt: oldEnd}, UserSubscription{StartsAt: start, ExpiresAt: oldEnd.AddDate(0, 0, 30)}, oldEnd, "renewal"},
+		{"expired_renewal", &UserSubscription{StartsAt: start, ExpiresAt: oldEnd}, UserSubscription{StartsAt: oldEnd.AddDate(0, 0, 3), ExpiresAt: oldEnd.AddDate(0, 0, 33)}, oldEnd.AddDate(0, 0, 3), "renewal"},
+		{"new_purchase", nil, UserSubscription{StartsAt: start, ExpiresAt: oldEnd}, start, "purchase"},
+		{"clamped_extension", &UserSubscription{StartsAt: start, ExpiresAt: oldEnd}, UserSubscription{StartsAt: start, ExpiresAt: oldEnd.AddDate(0, 0, 1)}, oldEnd, "renewal"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gotStart, gotEnd, source := paidSubscriptionTermWindow(tc.previous, &tc.assigned)
+			require.Equal(t, tc.wantStart, gotStart)
+			require.Equal(t, tc.assigned.ExpiresAt, gotEnd)
+			require.Equal(t, tc.source, source)
+		})
+	}
+}

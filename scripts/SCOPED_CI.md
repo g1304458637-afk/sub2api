@@ -1,0 +1,7 @@
+# Scoped checks and deployment
+
+CI compares every changed path in a pull request or canonical-branch push. Frontend inputs (including imported legal documents) run frontend checks and image validation. Backend inputs run backend checks and image validation. Deployment files run shell checks and image validation. Repository scripts/workflows run their syntax and regression checks. Unknown shared inputs run all scopes; ordinary documentation does not run application suites. Renames include both paths.
+
+Required frontend/backend/image check names remain stable. They validate successful scope detection and operations checks even when their application suite is not relevant. The production workflow requires a successful canonical CI run for the exact MUC commit, reusing its result instead of repeating the suites. Migration audit, image build, backup and production health checks remain mandatory. SSH keepalive protects quiet image pulls. Startup transport failures remain inside the health probe retry loop.
+
+On 2026-09-22, MUC application commit `c4b8e45562871325cc321d8190d2bad0cba6ab0c` was deployed directly from the CI-built image after the Actions SSH connection dropped. The targeted health-probe retry fix was applied to the deployment script on the server. Server and public health checks confirmed the exact commit and `brand=muc`; Compose preserves `CAMPUS_PAYG_GROUP_ID=14`. HUBU was not deployed. The failed Actions run remains a historical failure, not the final live application status.

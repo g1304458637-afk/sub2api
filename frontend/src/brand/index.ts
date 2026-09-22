@@ -1,7 +1,7 @@
 /**
  * 校园品牌注册表（前端）：MUC / HUBU 共用，构建期由 VITE_BRAND（来自 BRAND env，默认 muc）决定站点品牌。
  * 规则：
- * - 站点级品牌（登录页、导航、主题色）取当前品牌；两个品牌页 /muc /hubu 始终共存可访问。
+ * - 站点级品牌（登录页、导航、主题色）取当前品牌；部署仅注册当前品牌的连接页与授权入口。
  * - MUC 配置的文案/色值/图片与历史硬编码逐字节一致，保证 MUC 构建零视觉变化。
  * - HUBU 色值采样自湖北大学主视觉图 hubu-hero.png（深湖大绿 #135440 / 青铜金 #BC9D53），非官方 VI 标准色。
  */
@@ -13,6 +13,10 @@ export interface BrandDownloadOption {
 }
 
 export interface BrandConfig {
+  educationDomain: string
+  desktopLabel: string
+  manifestPath: string
+  downloadBase: string
   id: string
   /** API 路径段：/api/v1/{pathSegment}/connect-code */
   pathSegment: string
@@ -68,6 +72,7 @@ import hubuHeroImg from '@/assets/hubu/hubu-hero.png'
 
 const muc: BrandConfig = {
   id: 'muc',
+  educationDomain: 'muc.edu.cn', desktopLabel: 'MUCODE', manifestPath: '/downloads/latest-mucode.json', downloadBase: '/downloads',
   pathSegment: 'muc',
   name: '中央民族大学',
   englishName: 'Minzu University of China',
@@ -117,6 +122,7 @@ const muc: BrandConfig = {
 
 const hubu: BrandConfig = {
   id: 'hubu',
+  educationDomain: '', desktopLabel: 'HUBU AI', manifestPath: '/downloads/latest-hubu-ai.json', downloadBase: '/downloads',
   pathSegment: 'hubu',
   name: '湖北大学',
   englishName: 'Hubei University',
@@ -168,7 +174,27 @@ const hubu: BrandConfig = {
 const registry: Record<string, BrandConfig> = { muc, hubu }
 
 /** 构建期品牌（Vite define 注入，默认 muc —— 保证未设 BRAND 时与历史构建完全一致） */
-export const currentBrand: BrandConfig = registry[import.meta.env.VITE_BRAND as string] ?? muc
+const brandId = import.meta.env.VITE_BRAND || 'muc'
+if (!registry[brandId]) throw new Error('Unknown campus brand')
+export const currentBrand: BrandConfig = { ...registry[brandId]! }
+
+export function applyPublicBrand(value?: { id: string; education_email_domain?: string; download_base_url?: string }): void {
+  if (!value) return // Legacy MUC backend compatibility.
+  if (value.id !== currentBrand.id) throw new Error('Campus website/backend brand mismatch')
+  if (value.education_email_domain !== undefined) currentBrand.educationDomain = value.education_email_domain
+  if (value.download_base_url) currentBrand.downloadBase = value.download_base_url
+}
+
+// Existing translation content is shared; only the known brand tokens vary.
+export function brandMessages<T>(value: T): T {
+  if (typeof value === 'string') return value.replace(/MUCODE/g, currentBrand.desktopLabel)
+    .replace(/MUC AI/g, `${currentBrand.shortName} AI`)
+    .replace(/中央民族大学/g, currentBrand.name)
+    .replace(/muc\.edu\.cn/g, currentBrand.educationDomain || 'campus.example') as T
+  if (Array.isArray(value)) return value.map(brandMessages) as T
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, brandMessages(entry)])) as T
+  return value
+}
 
 export function getBrand(id: string): BrandConfig {
   return registry[id] ?? muc

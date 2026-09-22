@@ -137,7 +137,7 @@ func TestPhase2ResetCore_NaturalWindowContinuesFromNewAnchor(t *testing.T) {
 	svc, repo := phase2NewCore(t, &anchor, 5, now)
 
 	_, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
-		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceGlobalReset,
+		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceBatchDirect,
 	})
 	require.NoError(t, err)
 
@@ -163,7 +163,7 @@ func TestPhase2ResetCore_StaleEventNeverRollsBack(t *testing.T) {
 	svc, repo := phase2NewCore(t, &anchor, 5.5, now)
 
 	res, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
-		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceGlobalReset,
+		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceBatchDirect,
 	})
 	require.NoError(t, err)
 	require.Equal(t, WeeklyResetSkippedStale, res.Status)
@@ -181,7 +181,7 @@ func TestPhase2ResetCore_SameTimeEventIsStale(t *testing.T) {
 	svc, repo := phase2NewCore(t, &anchor, 2.5, now)
 
 	res, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
-		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceGlobalReset,
+		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceBatchDirect,
 	})
 	require.NoError(t, err)
 	require.Equal(t, WeeklyResetSkippedStale, res.Status)
@@ -204,7 +204,7 @@ func TestPhase2ResetCore_EventRetryIdempotent(t *testing.T) {
 	statuses := make([]WeeklyResetStatus, 0, 10)
 	for i := 0; i < 10; i++ {
 		res, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
-			UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceGlobalReset,
+			UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceBatchDirect,
 			ResetEventID: &eventID,
 		})
 		require.NoError(t, err)
@@ -234,7 +234,7 @@ func TestPhase2ResetCore_StaleEventWritesSkippedApplication(t *testing.T) {
 	eventID := int64(7)
 
 	res, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
-		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceGlobalReset,
+		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceBatchDirect,
 		ResetEventID: &eventID,
 	})
 	require.NoError(t, err)
@@ -257,7 +257,7 @@ func TestPhase2ResetCore_ExpiredSubscriptionRejected(t *testing.T) {
 	repo.sub.ExpiresAt = now.Add(-time.Hour) // 已过期
 
 	_, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
-		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceGlobalReset,
+		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceBatchDirect,
 	})
 	require.ErrorIs(t, err, ErrSubscriptionExpired, "reset must not revive an expired subscription")
 	require.InDelta(t, 3, repo.sub.WeeklyUsageUSD, 1e-9, "state untouched")
@@ -273,7 +273,7 @@ func TestPhase2ResetCore_FutureEffectiveRejected(t *testing.T) {
 	_, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
 		UserSubscriptionID: 1,
 		EffectiveAt:        now.Add(time.Hour), // 未来
-		Source:             domain.WeeklyResetSourceGlobalReset,
+		Source:             domain.WeeklyResetSourceBatchDirect,
 	})
 	require.ErrorIs(t, err, ErrResetNotYetEffective, "V1 does not anchor into the future")
 	require.Zero(t, repo.casCalls)
@@ -286,7 +286,7 @@ func TestPhase2ResetCore_InvalidInputRejected(t *testing.T) {
 	svc, _ := phase2NewCore(t, &anchor, 0, now)
 
 	_, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
-		UserSubscriptionID: 1, Source: domain.WeeklyResetSourceAdminManual,
+		UserSubscriptionID: 1, Source: domain.WeeklyResetSourceAdminDirect,
 	})
 	require.ErrorIs(t, err, ErrResetInvalidEffectiveTime)
 
@@ -312,7 +312,7 @@ func TestPhase2ResetCore_AdminLegacyAllowsExpired(t *testing.T) {
 	res, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
 		UserSubscriptionID:   1,
 		EffectiveAt:          effective,
-		Source:               domain.WeeklyResetSourceAdminManual,
+		Source:               domain.WeeklyResetSourceAdminDirect,
 		IgnoreLifecycleCheck: true,
 	})
 	require.NoError(t, err)
@@ -331,7 +331,7 @@ func TestPhase2ResetCore_EventWithoutRepoFails(t *testing.T) {
 	eventID := int64(5)
 
 	_, err := svc.ResetSubscriptionWeeklyPeriod(context.Background(), &WeeklyResetInput{
-		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceGlobalReset,
+		UserSubscriptionID: 1, EffectiveAt: effective, Source: domain.WeeklyResetSourceBatchDirect,
 		ResetEventID: &eventID,
 	})
 	require.Error(t, err, "event-driven reset without wired application repo must fail loudly")

@@ -43,6 +43,13 @@ func (s *stubRewardGrantRepo) GetBySource(ctx context.Context, sourceType string
 	return nil, nil
 }
 
+func (s *stubRewardGrantRepo) ListAll(context.Context, *int64, int, int) ([]service.RewardGrant, int64, error) {
+	return nil, 0, nil
+}
+func (s *stubRewardGrantRepo) StatsRange(context.Context, *int64, time.Time, time.Time) (int64, float64, error) {
+	return 0, 0, nil
+}
+
 func (s *stubRewardGrantRepo) AdminList(ctx context.Context, filter *service.RewardGrantAdminFilter) (*service.RewardGrantList, error) {
 	s.filter = filter
 	if s.result != nil {

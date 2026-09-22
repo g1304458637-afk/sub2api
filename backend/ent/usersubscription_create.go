@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetapplication"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionresetcard"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionterm"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -247,6 +248,34 @@ func (_c *UserSubscriptionCreate) SetNillableAutoPaygFallback(v *bool) *UserSubs
 	return _c
 }
 
+// SetPlanID sets the "plan_id" field.
+func (_c *UserSubscriptionCreate) SetPlanID(v int64) *UserSubscriptionCreate {
+	_c.mutation.SetPlanID(v)
+	return _c
+}
+
+// SetNillablePlanID sets the "plan_id" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillablePlanID(v *int64) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetPlanID(*v)
+	}
+	return _c
+}
+
+// SetNextPlanID sets the "next_plan_id" field.
+func (_c *UserSubscriptionCreate) SetNextPlanID(v int64) *UserSubscriptionCreate {
+	_c.mutation.SetNextPlanID(v)
+	return _c
+}
+
+// SetNillableNextPlanID sets the "next_plan_id" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableNextPlanID(v *int64) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetNextPlanID(*v)
+	}
+	return _c
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_c *UserSubscriptionCreate) SetUser(v *User) *UserSubscriptionCreate {
 	return _c.SetUserID(v.ID)
@@ -289,6 +318,21 @@ func (_c *UserSubscriptionCreate) AddUsageLogs(v ...*UsageLog) *UserSubscription
 		ids[i] = v[i].ID
 	}
 	return _c.AddUsageLogIDs(ids...)
+}
+
+// AddTermIDs adds the "terms" edge to the SubscriptionTerm entity by IDs.
+func (_c *UserSubscriptionCreate) AddTermIDs(ids ...int64) *UserSubscriptionCreate {
+	_c.mutation.AddTermIDs(ids...)
+	return _c
+}
+
+// AddTerms adds the "terms" edges to the SubscriptionTerm entity.
+func (_c *UserSubscriptionCreate) AddTerms(v ...*SubscriptionTerm) *UserSubscriptionCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTermIDs(ids...)
 }
 
 // AddResetApplicationIDs adds the "reset_applications" edge to the SubscriptionResetApplication entity by IDs.
@@ -538,6 +582,14 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 		_spec.SetField(usersubscription.FieldAutoPaygFallback, field.TypeBool, value)
 		_node.AutoPaygFallback = value
 	}
+	if value, ok := _c.mutation.PlanID(); ok {
+		_spec.SetField(usersubscription.FieldPlanID, field.TypeInt64, value)
+		_node.PlanID = &value
+	}
+	if value, ok := _c.mutation.NextPlanID(); ok {
+		_spec.SetField(usersubscription.FieldNextPlanID, field.TypeInt64, value)
+		_node.NextPlanID = &value
+	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -598,6 +650,22 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.TermsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   usersubscription.TermsTable,
+			Columns: []string{usersubscription.TermsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionterm.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -947,6 +1015,54 @@ func (u *UserSubscriptionUpsert) UpdateAutoPaygFallback() *UserSubscriptionUpser
 	return u
 }
 
+// SetPlanID sets the "plan_id" field.
+func (u *UserSubscriptionUpsert) SetPlanID(v int64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldPlanID, v)
+	return u
+}
+
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdatePlanID() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldPlanID)
+	return u
+}
+
+// AddPlanID adds v to the "plan_id" field.
+func (u *UserSubscriptionUpsert) AddPlanID(v int64) *UserSubscriptionUpsert {
+	u.Add(usersubscription.FieldPlanID, v)
+	return u
+}
+
+// ClearPlanID clears the value of the "plan_id" field.
+func (u *UserSubscriptionUpsert) ClearPlanID() *UserSubscriptionUpsert {
+	u.SetNull(usersubscription.FieldPlanID)
+	return u
+}
+
+// SetNextPlanID sets the "next_plan_id" field.
+func (u *UserSubscriptionUpsert) SetNextPlanID(v int64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldNextPlanID, v)
+	return u
+}
+
+// UpdateNextPlanID sets the "next_plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateNextPlanID() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldNextPlanID)
+	return u
+}
+
+// AddNextPlanID adds v to the "next_plan_id" field.
+func (u *UserSubscriptionUpsert) AddNextPlanID(v int64) *UserSubscriptionUpsert {
+	u.Add(usersubscription.FieldNextPlanID, v)
+	return u
+}
+
+// ClearNextPlanID clears the value of the "next_plan_id" field.
+func (u *UserSubscriptionUpsert) ClearNextPlanID() *UserSubscriptionUpsert {
+	u.SetNull(usersubscription.FieldNextPlanID)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -1290,6 +1406,62 @@ func (u *UserSubscriptionUpsertOne) SetAutoPaygFallback(v bool) *UserSubscriptio
 func (u *UserSubscriptionUpsertOne) UpdateAutoPaygFallback() *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateAutoPaygFallback()
+	})
+}
+
+// SetPlanID sets the "plan_id" field.
+func (u *UserSubscriptionUpsertOne) SetPlanID(v int64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetPlanID(v)
+	})
+}
+
+// AddPlanID adds v to the "plan_id" field.
+func (u *UserSubscriptionUpsertOne) AddPlanID(v int64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddPlanID(v)
+	})
+}
+
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdatePlanID() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdatePlanID()
+	})
+}
+
+// ClearPlanID clears the value of the "plan_id" field.
+func (u *UserSubscriptionUpsertOne) ClearPlanID() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearPlanID()
+	})
+}
+
+// SetNextPlanID sets the "next_plan_id" field.
+func (u *UserSubscriptionUpsertOne) SetNextPlanID(v int64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetNextPlanID(v)
+	})
+}
+
+// AddNextPlanID adds v to the "next_plan_id" field.
+func (u *UserSubscriptionUpsertOne) AddNextPlanID(v int64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddNextPlanID(v)
+	})
+}
+
+// UpdateNextPlanID sets the "next_plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateNextPlanID() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateNextPlanID()
+	})
+}
+
+// ClearNextPlanID clears the value of the "next_plan_id" field.
+func (u *UserSubscriptionUpsertOne) ClearNextPlanID() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearNextPlanID()
 	})
 }
 
@@ -1802,6 +1974,62 @@ func (u *UserSubscriptionUpsertBulk) SetAutoPaygFallback(v bool) *UserSubscripti
 func (u *UserSubscriptionUpsertBulk) UpdateAutoPaygFallback() *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateAutoPaygFallback()
+	})
+}
+
+// SetPlanID sets the "plan_id" field.
+func (u *UserSubscriptionUpsertBulk) SetPlanID(v int64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetPlanID(v)
+	})
+}
+
+// AddPlanID adds v to the "plan_id" field.
+func (u *UserSubscriptionUpsertBulk) AddPlanID(v int64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddPlanID(v)
+	})
+}
+
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdatePlanID() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdatePlanID()
+	})
+}
+
+// ClearPlanID clears the value of the "plan_id" field.
+func (u *UserSubscriptionUpsertBulk) ClearPlanID() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearPlanID()
+	})
+}
+
+// SetNextPlanID sets the "next_plan_id" field.
+func (u *UserSubscriptionUpsertBulk) SetNextPlanID(v int64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetNextPlanID(v)
+	})
+}
+
+// AddNextPlanID adds v to the "next_plan_id" field.
+func (u *UserSubscriptionUpsertBulk) AddNextPlanID(v int64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddNextPlanID(v)
+	})
+}
+
+// UpdateNextPlanID sets the "next_plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateNextPlanID() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateNextPlanID()
+	})
+}
+
+// ClearNextPlanID clears the value of the "next_plan_id" field.
+func (u *UserSubscriptionUpsertBulk) ClearNextPlanID() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearNextPlanID()
 	})
 }
 

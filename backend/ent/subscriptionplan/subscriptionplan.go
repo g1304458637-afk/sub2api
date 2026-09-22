@@ -37,6 +37,8 @@ const (
 	FieldForSale = "for_sale"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
 	FieldSortOrder = "sort_order"
+	// FieldTierRank holds the string denoting the tier_rank field in the database.
+	FieldTierRank = "tier_rank"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -60,6 +62,7 @@ var Columns = []string{
 	FieldProductName,
 	FieldForSale,
 	FieldSortOrder,
+	FieldTierRank,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -99,6 +102,8 @@ var (
 	DefaultForSale bool
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
 	DefaultSortOrder int
+	// DefaultTierRank holds the default value on creation for the "tier_rank" field.
+	DefaultTierRank int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -173,6 +178,11 @@ func ByForSale(opts ...sql.OrderTermOption) OrderOption {
 // BySortOrder orders the results by the sort_order field.
 func BySortOrder(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSortOrder, opts...).ToFunc()
+}
+
+// ByTierRank orders the results by the tier_rank field.
+func ByTierRank(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTierRank, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

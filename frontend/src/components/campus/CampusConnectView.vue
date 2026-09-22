@@ -109,7 +109,7 @@
         <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
           <p class="font-medium">macOS 首次打开提示「已损坏」？</p>
           <p class="mt-1">安装包为开发测试签名（未公证），两种方式任选：
-          ① 终端执行 <code class="rounded bg-black/10 px-1">xattr -dr com.apple.quarantine {{ brand.page.xattrAppPath }}</code>；
+          ① 终端执行 <code class="rounded bg-black/10 px-1">xattr -dr com.apple.quarantine "{{ brand.page.xattrAppPath }}"</code>；
           ② 或右键 app → 打开，并在 系统设置 → 隐私与安全性 中点「仍要打开」。之后即可正常使用。</p>
         </div>
         <p class="mt-4 text-xs text-gray-400 dark:text-gray-500">
@@ -132,6 +132,8 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import { createCampusConnectCode } from '@/api/campus'
 import { fetchLatestMucodeManifest, type MucodeManifest } from '@/utils/mucUpdate'
 import type { BrandConfig } from '@/brand'
+import { useAppStore } from '@/stores/app'
+const appStore = useAppStore()
 
 type PlatformKey = 'mac-arm' | 'mac-intel' | 'win' | 'other'
 
@@ -145,7 +147,10 @@ const latest = ref<MucodeManifest | null>(null)
 
 function downloadUrl(file: string): string {
   // 与网关同源；部署时将 dist/ 下的安装包挂载到 /downloads/ 路径
-  return `/downloads/${file}`
+  const option = props.brand.downloads.find((item) => item.file === file)
+  const target = option?.key === 'mac-arm' ? 'mac-arm64' : option?.key === 'mac-intel' ? 'mac-x64' : 'win-x64'
+  const artifact = latest.value?.downloads[target]?.file || file
+  return `${props.brand.downloadBase}/${encodeURIComponent(artifact)}`
 }
 
 function hexAlpha(hex: string, alpha: number): string {
@@ -170,6 +175,9 @@ function detectPlatform(): void {
   }
   // Apple Silicon 探测：优先 User-Agent Client Hints，默认 arm64
   const uad = (navigator as unknown as { userAgentData?: { getHighEntropyValues?: (hints: string[]) => Promise<{ architecture?: string }> } }).userAgentData
+  if (!uad?.getHighEntropyValues) {
+    platform.value = /MacIntel|Intel/i.test(navigator.platform) ? { key: 'mac-intel', label: 'macOS Intel' } : { key: 'mac-arm', label: 'macOS Apple Silicon' }
+  }
   if (uad?.getHighEntropyValues) {
     uad
       .getHighEntropyValues(['architecture'])
@@ -203,8 +211,9 @@ async function connect(): Promise<void> {
       if (!left) state.value = 'fallback'
       else state.value = 'idle'
     }, 2500)
-  } catch {
+  } catch (error) {
     state.value = 'idle'
+    appStore.showError(error instanceof Error ? error.message : '授权码签发失败，请稍后重试')
   }
 }
 
@@ -213,7 +222,7 @@ onMounted(() => {
   // 已看过下载引导，后续登录直达控制台
   localStorage.setItem(props.brand.seenKey, '1')
   // 最新版本信息拉取失败时静默（版本区块整体隐藏）
-  void fetchLatestMucodeManifest().then((m) => {
+  void fetchLatestMucodeManifest(fetch, props.brand.manifestPath).then((m) => {
     if (m) latest.value = m
   })
 })

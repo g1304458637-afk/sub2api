@@ -124,7 +124,7 @@
           </div>
         </div>
 
-        <p class="mt-6 text-center text-xs text-gray-400 dark:text-gray-500">{{ t('tts.saveHint') }}</p>
+        <p class="campus-media-note mt-6 text-center text-xs text-gray-400 dark:text-gray-500">{{ t('tts.saveHint') }}</p>
       </template>
     </div>
   </AppLayout>

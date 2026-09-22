@@ -1,7 +1,7 @@
 # =============================================================================
 # Deploy Production — 手动触发的生产部署（workflow_dispatch）
 #
-# 稳定运行 2~3 次后，再追加 push main 自动触发（见 docs/CICD.md 第十六节 rollout 计划）。
+# 只允许从 MUC 长期主线 muc-main 手动触发。HUBU 尚无生产环境。
 # 流程: 测试门禁 → migration 审计 → 构建并推送 GHCR(sha-<commit>) → SSH 部署
 #       (记录 PREVIOUS_IMAGE → pull → up -d --no-deps sub2api → 健康检查)
 #       失败自动回滚上一镜像 → 独立复核 → GHCR 旧版本清理。
@@ -16,6 +16,10 @@ on:
         description: '部署原因（写入审计日志）'
         required: false
         default: 'manual deploy'
+      legacy_migration_baseline:
+        description: 'Legacy app SHA unknown: explicit migration-only SHA, verified against live DB checksums'
+        required: false
+        default: ''
 
 concurrency:
   group: production
@@ -23,66 +27,66 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
   packages: write
 
 jobs:
-  # ---------------------------------------------------------------------------
-  test: # 与 ci.yml 同等门禁：任一失败则不进入构建与部署
-    name: Gate — Frontend
+  canonical-source:
+    name: Gate — canonical MUC source
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 9
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - name: Install dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-      - name: Lint
-        working-directory: frontend
-        run: pnpm run lint:check
-      - name: i18n check
-        working-directory: frontend
-        run: pnpm run check:i18n
-      - name: Typecheck
-        working-directory: frontend
-        run: pnpm run typecheck
-      - name: Critical tests (upstream gate - make test-frontend-critical)
-        run: make test-frontend-critical
+      - name: Require muc-main and exact commit
+        env:
+          DEPLOY_COMMIT: ${{ github.sha }}
+        run: |
+          test "${{ github.ref }}" = "refs/heads/muc-main" || {
+            echo "Production deployment is restricted to refs/heads/muc-main" >&2
+            exit 1
+          }
+          printf '%s' "$DEPLOY_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || {
+            echo "DEPLOY_COMMIT must be an exact 40-character Git SHA" >&2
+            exit 1
+          }
 
-  test-backend:
-    name: Gate — Backend
+  # ---------------------------------------------------------------------------
+  verified-ci:
+    name: Reuse CI for this exact MUC commit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: backend/go.mod
-          check-latest: false
-          cache: true
-          cache-dependency-path: backend/go.sum
-      - name: Unit tests
-        working-directory: backend
-        run: make test-unit
-      - name: Integration tests
-        working-directory: backend
-        run: make test-integration
+      - name: Require successful canonical CI without rerunning tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 40); do
+            runs=$(gh api "repos/$REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$COMMIT&event=push&per_page=30")
+            state=$(printf '%s' "$runs" | jq -r '[.workflow_runs[] | select(.head_branch == "muc-main")] | sort_by(.id) | last | if . == null then "pending" elif .status != "completed" then "pending" else .conclusion end')
+            if [ "$state" = success ]; then
+              echo "Reusing successful CI for exact commit $COMMIT"
+              exit 0
+            fi
+            if [ "$state" != pending ]; then
+              echo "CI did not pass: $state" >&2
+              exit 1
+            fi
+            echo "Waiting for this commit's existing CI ($attempt/40)"
+            sleep 15
+          done
+          echo "No successful CI for this exact commit; deployment stopped" >&2
+          exit 1
 
   # ---------------------------------------------------------------------------
   preflight:
     name: Migration audit (vs last deployed commit)
     runs-on: ubuntu-latest
     environment: production
-    needs: [test, test-backend]
-    outputs:
-      previous_commit: ${{ steps.state.outputs.previous_commit }}
+    needs: [canonical-source, verified-ci]
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup SSH
         env:
@@ -102,36 +106,80 @@ jobs:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
+          LEGACY_BASELINE: ${{ inputs.legacy_migration_baseline }}
         run: |
-          prev=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
-            "sudo grep '^DEPLOY_COMMIT=' /srv/sub2api/.env.deploy 2>/dev/null | head -1 | cut -d= -f2-" || true)
-          if [ -z "$prev" ] || [ "$prev" = "unknown" ]; then
-            git fetch origin main
-            prev=$(git rev-parse origin/main)
-            echo "首次部署：以 origin/main ($prev) 为 migration 审计基线"
+          set -euo pipefail
+          mkdir -p migration-proof
+          : > migration-proof/image.txt
+          : > migration-proof/ledger.txt
+          prev=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+            "sudo sh -c 'if test -f /srv/sub2api/.env.deploy; then sed -n \"s/^DEPLOY_COMMIT=//p\" /srv/sub2api/.env.deploy; fi'")
+          if printf '%s' "$prev" | grep -Eq '^[0-9a-f]{40}$'; then
+            git cat-file -e "$prev^{commit}"
           else
-            echo "上次部署 commit: $prev"
+            test -z "$prev" || test "$prev" = unknown || { echo 'Invalid legacy state'; exit 1; }
+            printf '%s' "$LEGACY_BASELINE" | grep -Eq '^[0-9a-f]{40}$' || {
+              echo 'Unknown deployed app SHA: supply an explicit migration-only baseline'; exit 1;
+            }
+            ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "sudo bash -s" \
+              < scripts/production-migration-ledger.sh > migration-ledger.tsv
+            python3 scripts/verify-migration-ledger.py "$LEGACY_BASELINE" migration-ledger.tsv
+            image=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "sudo docker inspect sub2api --format '{{.Image}}'")
+            printf '%s' "$image" | grep -Eq '^sha256:[0-9a-f]{64}$'
+            printf '%s\n' "$image" > migration-proof/image.txt
+            sha256sum migration-ledger.tsv | cut -d' ' -f1 > migration-proof/ledger.txt
+            prev="$LEGACY_BASELINE"
           fi
+          echo "Migration baseline: $prev (does not replace unknown legacy app provenance)"
           echo "previous_commit=$prev" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$prev" > migration-proof/baseline.txt
 
       - name: Migration audit
-        run: bash scripts/audit-migrations.sh "${{ steps.state.outputs.previous_commit }}" "${{ github.sha }}"
+        run: |
+          python3 -m unittest discover -s scripts -p test_verify_migration_ledger.py
+          bash scripts/audit-migrations.sh "${{ steps.state.outputs.previous_commit }}" "${{ github.sha }}"
+
+      # Only generated non-credential digests and a Git SHA, never DB rows or env files.
+      # Job-output secret heuristics can suppress arbitrary hashes; artifacts preserve
+      # the exact audited bytes for the same run's deployment recheck.
+      - name: Preserve verified migration proof
+        uses: actions/upload-artifact@v7
+        with:
+          name: migration-proof
+          path: migration-proof/*.txt
+          if-no-files-found: error
+          retention-days: 7
 
   # ---------------------------------------------------------------------------
   build-push:
     name: Build & push image
     runs-on: ubuntu-latest
     needs: [preflight]
-    outputs:
-      image: ${{ steps.image.outputs.name }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download verified migration baseline
+        uses: actions/download-artifact@v8
+        with:
+          name: migration-proof
+          path: migration-proof
 
       - name: Compute image name (lowercase)
         id: image
         run: |
           repo_lc=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "name=ghcr.io/${repo_lc}/sub2api" >> "$GITHUB_OUTPUT"
+
+      - name: Compute immutable release metadata
+        id: metadata
+        run: |
+          timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "build_timestamp=$timestamp" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$timestamp" > build-timestamp.txt
+          echo "version=sha-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          baseline=$(cat migration-proof/baseline.txt)
+          printf '%s' "$baseline" | grep -Eq '^[0-9a-f]{40}$'
+          echo "migration_baseline=$baseline" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -154,19 +202,42 @@ jobs:
             ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
             ${{ steps.image.outputs.name }}:production
           build-args: |
-            VERSION=sha-${{ github.sha }}
+            VERSION=${{ steps.metadata.outputs.version }}
             COMMIT=${{ github.sha }}
+            DATE=${{ steps.metadata.outputs.build_timestamp }}
+            BRAND=muc
+            MIGRATION_BASELINE=${{ steps.metadata.outputs.migration_baseline }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Preserve immutable build timestamp
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-metadata
+          path: build-timestamp.txt
+          if-no-files-found: error
+          retention-days: 7
 
   # ---------------------------------------------------------------------------
   deploy:
     name: Deploy to production (with auto-rollback)
     runs-on: ubuntu-latest
     environment: production
-    needs: [build-push]
+    needs: [preflight, build-push]
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download this run's migration proof
+        uses: actions/download-artifact@v8
+        with:
+          name: migration-proof
+          path: migration-proof
+
+      - name: Download this run's build timestamp
+        uses: actions/download-artifact@v8
+        with:
+          name: build-metadata
+          path: build-metadata
 
       - name: Setup SSH
         env:
@@ -186,10 +257,10 @@ jobs:
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
-          ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "mkdir -p /tmp/sub2api-deploy"
-          for f in production-deploy.sh production-healthcheck.sh production-rollback.sh; do
-            cat "scripts/$f" | ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
-              "cat > /tmp/sub2api-deploy/$f && chmod 700 /tmp/sub2api-deploy/$f"
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "mkdir -p /tmp/sub2api-deploy"
+          for f in production-deploy.sh production-healthcheck.sh production-rollback.sh production-migration-ledger.sh; do
+            ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+              "cat > /tmp/sub2api-deploy/$f && chmod 700 /tmp/sub2api-deploy/$f" < "scripts/$f"
           done
 
       - name: Stage GHCR pull token (temp file, 600, server-side auto-delete)
@@ -203,7 +274,7 @@ jobs:
           # 优先使用最小权限 read-only PAT；未配置时退回本次运行的临时 GITHUB_TOKEN。
           # secret 只进 env 与 600 临时文件，绝不写入 output/日志/命令行。
           if [ -n "$GHCR_PULL_TOKEN" ]; then token="$GHCR_PULL_TOKEN"; else token="$GITHUB_TOKEN"; fi
-          printf '%s' "$token" | ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+          printf '%s' "$token" | ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "umask 077; cat > /tmp/sub2api-deploy/.ghcr-token"
 
       - name: Run production deploy
@@ -213,11 +284,28 @@ jobs:
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
+          proof_image=$(cat migration-proof/image.txt)
+          proof_ledger=$(cat migration-proof/ledger.txt)
+          migration_baseline=$(cat migration-proof/baseline.txt)
+          build_timestamp=$(cat build-metadata/build-timestamp.txt)
+          printf '%s' "$migration_baseline" | grep -Eq '^[0-9a-f]{40}$'
+          printf '%s' "$build_timestamp" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/sub2api"
+          if [ -n "$proof_image$proof_ledger" ]; then
+            printf '%s' "$proof_image" | grep -Eq '^sha256:[0-9a-f]{64}$'
+            printf '%s' "$proof_ledger" | grep -Eq '^[0-9a-f]{64}$'
+          fi
           set +e
-          ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "sudo bash /tmp/sub2api-deploy/production-deploy.sh \
-               --image '${{ needs.build-push.outputs.image }}:sha-${{ github.sha }}' \
+               --image '$image:sha-${{ github.sha }}' \
                --commit '${{ github.sha }}' \
+               --version 'sha-${{ github.sha }}' \
+               --build-timestamp '$build_timestamp' \
+               --migration-baseline '$migration_baseline' \
+               --brand 'muc' \
+               --expected-legacy-image '$proof_image' \
+               --expected-legacy-ledger '$proof_ledger' \
                --token-file /tmp/sub2api-deploy/.ghcr-token \
                --ghcr-user '${{ github.repository_owner }}'"
           code=$?
@@ -240,7 +328,7 @@ jobs:
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
-          ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "sudo bash /tmp/sub2api-deploy/production-healthcheck.sh --expect-commit '${{ github.sha }}' --retries 6 --interval 5"
 
       - name: External URL check (admin.wuxuexi.top，网络原因失败仅告警不回滚)
@@ -261,7 +349,7 @@ jobs:
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
-          ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "rm -rf /tmp/sub2api-deploy" || true
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "rm -rf /tmp/sub2api-deploy" || true
 
   # ---------------------------------------------------------------------------
   cleanup-ghcr:

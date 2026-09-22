@@ -50,19 +50,6 @@ function injectBranding(html: string, config: { site_name?: string; site_logo?: 
  * Vite 插件：开发模式下注入公开配置到 index.html
  * 与生产模式的后端注入行为保持一致，消除闪烁
  */
-// 校园品牌：index.html 初始标题随品牌（构建期；运行时仍由后端设置覆盖）
-function brandHtmlTitle(brandName: string): Plugin {
-  return {
-    name: 'campus-brand-title',
-    transformIndexHtml(html) {
-      return html.replace(
-        /<title>[^<]*<\/title>/i,
-        `<title>${brandName} AI 服务平台</title>`,
-      )
-    },
-  }
-}
-
 function injectPublicSettings(backendUrl: string): Plugin {
   return {
     name: 'inject-public-settings',
@@ -94,7 +81,9 @@ export default defineConfig(({ mode }) => {
   // 加载环境变量
   const env = loadEnv(mode, process.cwd(), '')
   const backendUrl = env.VITE_DEV_PROXY_TARGET || 'http://localhost:8080'
-  const brandName = (process.env.BRAND || env.VITE_BRAND || 'muc') === 'hubu' ? '湖北大学' : '中央民族大学'
+  const campusBrand = process.env.BRAND || env.VITE_BRAND || 'muc'
+  if (!['muc', 'hubu'].includes(campusBrand)) throw new Error('Unknown campus brand')
+  process.env.BRAND = campusBrand
   const devPort = Number(env.VITE_DEV_PORT || 3000)
 
   return {
@@ -103,7 +92,11 @@ export default defineConfig(({ mode }) => {
       checker({
         vueTsc: true
       }),
-      injectPublicSettings(backendUrl), brandHtmlTitle(brandName)
+      injectPublicSettings(backendUrl),
+      { name: 'campus-brand-title', transformIndexHtml: (html: string) => {
+        const branded = html.replace(/<title>[^<]*<\/title>/i, `<title>${campusBrand === 'hubu' ? '湖北大学' : '中央民族大学'} AI 服务平台</title>`)
+        return branded.replace('<html lang="zh-CN">', `<html lang="zh-CN" class="dark" data-campus-brand="${campusBrand}">`)
+      } }
     ],
   resolve: {
     alias: {
@@ -116,8 +109,7 @@ export default defineConfig(({ mode }) => {
     // 启用 vue-i18n JIT 编译，在 CSP 环境下处理消息插值
     // JIT 编译器生成 AST 对象而非 JS 代码，无需 unsafe-eval
     __INTLIFY_JIT_COMPILATION__: true,
-    // 校园品牌（BRAND env，默认 muc；与 tailwind.config.js 保持同源）
-    'import.meta.env.VITE_BRAND': JSON.stringify(process.env.BRAND || env.VITE_BRAND || 'muc')
+    'import.meta.env.VITE_BRAND': JSON.stringify(campusBrand)
   },
   build: {
     outDir: '../backend/internal/web/dist',
@@ -174,6 +166,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: devPort,
       proxy: {
+        '/campus-assets': { target: backendUrl, changeOrigin: true },
+        '/downloads': { target: backendUrl, changeOrigin: true },
         '/api': {
           target: backendUrl,
           changeOrigin: true

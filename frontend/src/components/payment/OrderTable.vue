@@ -23,6 +23,14 @@
         </div>
       </div>
     </template>
+    <template v-if="showType" #cell-order_type="{ value }">
+      <span
+        class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium"
+        :class="orderTypeClass(value)"
+      >
+        {{ t(orderTypeKey(value)) }}
+      </span>
+    </template>
     <template #cell-payment_type="{ value }">
       <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('payment.methods.' + value, value) }}</span>
     </template>
@@ -49,13 +57,39 @@ import { currencySymbol } from '@/components/payment/currency'
 
 const { t } = useI18n()
 
-const props = defineProps<{
-  orders: PaymentOrder[]
-  loading: boolean
-  showUser?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    orders: PaymentOrder[]
+    loading: boolean
+    showUser?: boolean
+    /** 显示订单类型列（购买/充值/套餐升级） */
+    showType?: boolean
+  }>(),
+  { showUser: false, showType: false }
+)
 
 function formatDate(dateStr: string) { return new Date(dateStr).toLocaleString() }
+
+const ORDER_TYPE_KEYS: Record<string, string> = {
+  balance: 'payment.orders.type_balance',
+  subscription: 'payment.orders.type_subscription',
+  plan_change: 'payment.orders.type_plan_change'
+}
+
+function orderTypeKey(type: string): string {
+  return ORDER_TYPE_KEYS[type] ?? 'payment.orders.type_subscription'
+}
+
+function orderTypeClass(type: string): string {
+  switch (type) {
+    case 'plan_change':
+      return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+    case 'balance':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
+    default:
+      return 'border-gray-200 bg-gray-50 text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300'
+  }
+}
 
 const creditedAmountSymbol = currencySymbol('USD')
 
@@ -70,6 +104,9 @@ const columns = computed((): Column[] => {
   ]
   if (props.showUser) {
     cols.push({ key: 'user_email', label: t('payment.admin.colUser') })
+  }
+  if (props.showType) {
+    cols.push({ key: 'order_type', label: t('payment.orders.type') })
   }
   cols.push(
     { key: 'pay_amount', label: t('payment.orders.payAmount') },

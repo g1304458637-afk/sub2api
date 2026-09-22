@@ -15,13 +15,13 @@ import (
 )
 
 var authProviderTypes = map[string]struct{}{
-	"email":    {},
-	"github":   {},
-	"google":   {},
-	"linuxdo":  {},
-	"oidc":     {},
-	"wechat":   {},
-	"dingtalk": {},
+	"email":           {},
+	"github":          {},
+	"google":          {},
+	"linuxdo":         {},
+	"oidc":            {},
+	"wechat":          {},
+	"dingtalk":        {},
 	"education_email": {},
 }
 

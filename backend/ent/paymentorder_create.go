@@ -239,6 +239,20 @@ func (_c *PaymentOrderCreate) SetNillableProviderKey(v *string) *PaymentOrderCre
 	return _c
 }
 
+// SetPlanChangeID sets the "plan_change_id" field.
+func (_c *PaymentOrderCreate) SetPlanChangeID(v int64) *PaymentOrderCreate {
+	_c.mutation.SetPlanChangeID(v)
+	return _c
+}
+
+// SetNillablePlanChangeID sets the "plan_change_id" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillablePlanChangeID(v *int64) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetPlanChangeID(*v)
+	}
+	return _c
+}
+
 // SetProviderSnapshot sets the "provider_snapshot" field.
 func (_c *PaymentOrderCreate) SetProviderSnapshot(v map[string]interface{}) *PaymentOrderCreate {
 	_c.mutation.SetProviderSnapshot(v)
@@ -777,6 +791,10 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 		_spec.SetField(paymentorder.FieldProviderKey, field.TypeString, value)
 		_node.ProviderKey = &value
 	}
+	if value, ok := _c.mutation.PlanChangeID(); ok {
+		_spec.SetField(paymentorder.FieldPlanChangeID, field.TypeInt64, value)
+		_node.PlanChangeID = &value
+	}
 	if value, ok := _c.mutation.ProviderSnapshot(); ok {
 		_spec.SetField(paymentorder.FieldProviderSnapshot, field.TypeJSON, value)
 		_node.ProviderSnapshot = value
@@ -1249,6 +1267,30 @@ func (u *PaymentOrderUpsert) UpdateProviderKey() *PaymentOrderUpsert {
 // ClearProviderKey clears the value of the "provider_key" field.
 func (u *PaymentOrderUpsert) ClearProviderKey() *PaymentOrderUpsert {
 	u.SetNull(paymentorder.FieldProviderKey)
+	return u
+}
+
+// SetPlanChangeID sets the "plan_change_id" field.
+func (u *PaymentOrderUpsert) SetPlanChangeID(v int64) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldPlanChangeID, v)
+	return u
+}
+
+// UpdatePlanChangeID sets the "plan_change_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdatePlanChangeID() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldPlanChangeID)
+	return u
+}
+
+// AddPlanChangeID adds v to the "plan_change_id" field.
+func (u *PaymentOrderUpsert) AddPlanChangeID(v int64) *PaymentOrderUpsert {
+	u.Add(paymentorder.FieldPlanChangeID, v)
+	return u
+}
+
+// ClearPlanChangeID clears the value of the "plan_change_id" field.
+func (u *PaymentOrderUpsert) ClearPlanChangeID() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldPlanChangeID)
 	return u
 }
 
@@ -1967,6 +2009,34 @@ func (u *PaymentOrderUpsertOne) UpdateProviderKey() *PaymentOrderUpsertOne {
 func (u *PaymentOrderUpsertOne) ClearProviderKey() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearProviderKey()
+	})
+}
+
+// SetPlanChangeID sets the "plan_change_id" field.
+func (u *PaymentOrderUpsertOne) SetPlanChangeID(v int64) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetPlanChangeID(v)
+	})
+}
+
+// AddPlanChangeID adds v to the "plan_change_id" field.
+func (u *PaymentOrderUpsertOne) AddPlanChangeID(v int64) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddPlanChangeID(v)
+	})
+}
+
+// UpdatePlanChangeID sets the "plan_change_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdatePlanChangeID() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdatePlanChangeID()
+	})
+}
+
+// ClearPlanChangeID clears the value of the "plan_change_id" field.
+func (u *PaymentOrderUpsertOne) ClearPlanChangeID() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearPlanChangeID()
 	})
 }
 
@@ -2899,6 +2969,34 @@ func (u *PaymentOrderUpsertBulk) UpdateProviderKey() *PaymentOrderUpsertBulk {
 func (u *PaymentOrderUpsertBulk) ClearProviderKey() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearProviderKey()
+	})
+}
+
+// SetPlanChangeID sets the "plan_change_id" field.
+func (u *PaymentOrderUpsertBulk) SetPlanChangeID(v int64) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetPlanChangeID(v)
+	})
+}
+
+// AddPlanChangeID adds v to the "plan_change_id" field.
+func (u *PaymentOrderUpsertBulk) AddPlanChangeID(v int64) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddPlanChangeID(v)
+	})
+}
+
+// UpdatePlanChangeID sets the "plan_change_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdatePlanChangeID() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdatePlanChangeID()
+	})
+}
+
+// ClearPlanChangeID clears the value of the "plan_change_id" field.
+func (u *PaymentOrderUpsertBulk) ClearPlanChangeID() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearPlanChangeID()
 	})
 }
 

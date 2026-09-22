@@ -1,3 +1,4 @@
+import { applyPublicBrand } from '@/brand'
 import { DEFAULT_SITE_NAME, resolveSiteName } from '@/utils/branding'
 /**
  * Application State Store
@@ -291,6 +292,7 @@ export const useAppStore = defineStore('app', () => {
    * Apply settings to store state (internal helper to avoid code duplication)
    */
   function applySettings(config: PublicSettings): void {
+    applyPublicBrand(config.campus_brand)
     if (typeof window !== 'undefined') {
       window.__APP_CONFIG__ = { ...config }
     }

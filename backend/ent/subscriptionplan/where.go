@@ -114,6 +114,11 @@ func SortOrder(v int) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSortOrder, v))
 }
 
+// TierRank applies equality check predicate on the "tier_rank" field. It's identical to TierRankEQ.
+func TierRank(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldTierRank, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldCreatedAt, v))
@@ -732,6 +737,46 @@ func SortOrderLT(v int) predicate.SubscriptionPlan {
 // SortOrderLTE applies the LTE predicate on the "sort_order" field.
 func SortOrderLTE(v int) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldLTE(FieldSortOrder, v))
+}
+
+// TierRankEQ applies the EQ predicate on the "tier_rank" field.
+func TierRankEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldTierRank, v))
+}
+
+// TierRankNEQ applies the NEQ predicate on the "tier_rank" field.
+func TierRankNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldTierRank, v))
+}
+
+// TierRankIn applies the In predicate on the "tier_rank" field.
+func TierRankIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldTierRank, vs...))
+}
+
+// TierRankNotIn applies the NotIn predicate on the "tier_rank" field.
+func TierRankNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldTierRank, vs...))
+}
+
+// TierRankGT applies the GT predicate on the "tier_rank" field.
+func TierRankGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldTierRank, v))
+}
+
+// TierRankGTE applies the GTE predicate on the "tier_rank" field.
+func TierRankGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldTierRank, v))
+}
+
+// TierRankLT applies the LT predicate on the "tier_rank" field.
+func TierRankLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldTierRank, v))
+}
+
+// TierRankLTE applies the LTE predicate on the "tier_rank" field.
+func TierRankLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldTierRank, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

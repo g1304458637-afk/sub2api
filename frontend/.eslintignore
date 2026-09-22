@@ -12,3 +12,10 @@ dist/
 # 忽略缓存
 .cache/
 .vite/
+
+# 样式文件不走 js lint
+src/style.css
+src/styles/*.css
+
+# Supplied artwork includes a precompiled MIT Three.js renderer.
+src/assets/backgrounds/particles.js

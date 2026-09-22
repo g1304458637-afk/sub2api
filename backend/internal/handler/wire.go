@@ -1,6 +1,7 @@
 package handler
 
 import (
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/muccode"
@@ -62,6 +63,8 @@ func ProvideAdminHandlers(
 	complianceHandler *admin.ComplianceHandler,
 	auditLogHandler *admin.AuditLogHandler,
 	researchHandler *admin.ResearchHandler,
+	resetEventHandler *admin.AdminResetEventHandler,
+	resetCardHandler *admin.AdminSubscriptionResetHandler,
 	rewardGrantHandler *admin.RewardGrantHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
@@ -106,8 +109,26 @@ func ProvideAdminHandlers(
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
 		Research:               researchHandler,
+		ResetEvent:             resetEventHandler,
+		ResetCard:              resetCardHandler,
 		RewardGrant:            rewardGrantHandler,
 	}
+}
+
+// ProvideWalletLedgerHandler Final Frontend CLOSURE：钱包流水 + Reward 审计 + 套餐变更审计。
+func ProvideWalletLedgerHandler(
+	ledger *service.WalletLedgerService,
+	planChanges *service.PlanChangeService,
+) *WalletLedgerHandler {
+	return NewWalletLedgerHandler(ledger, planChanges)
+}
+
+// ProvideWalletLedgerService 钱包流水只读服务（组合既有事实表）。
+func ProvideWalletLedgerService(
+	entClient *dbent.Client,
+	rewardRepo service.RewardGrantRepository,
+) *service.WalletLedgerService {
+	return service.NewWalletLedgerService(entClient, rewardRepo)
 }
 
 func ProvideGatewayHandler(
@@ -127,11 +148,13 @@ func ProvideGatewayHandler(
 	cfg *config.Config,
 	settingService *service.SettingService,
 	coordinator *securityaudit.Coordinator,
+	accountStatus *service.AccountStatusService,
 ) *GatewayHandler {
 	h := NewGatewayHandler(gatewayService, openAIGatewayService, geminiCompatService, antigravityGatewayService,
 		userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool,
 		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService)
 	h.securityAuditCoordinator = coordinator
+	h.accountStatus = accountStatus
 	return h
 }
 
@@ -219,6 +242,8 @@ func ProvideHandlers(
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
+	planChangeHandler *PlanChangeHandler,
+	walletLedgerHandler *WalletLedgerHandler,
 ) *Handlers {
 	return &Handlers{
 		Auth:             authHandler,
@@ -246,6 +271,8 @@ func ProvideHandlers(
 		BatchImage:       batchImageHandler,
 		CampusConnect:    campusConnectHandlers,
 		Research:         researchHandler,
+		PlanChange:       planChangeHandler,
+		WalletLedger:     walletLedgerHandler,
 	}
 }
 
@@ -258,6 +285,11 @@ var ProviderSet = wire.NewSet(
 	NewUsageHandler,
 	NewRedeemHandler,
 	NewSubscriptionHandler,
+	NewPlanChangeHandler,
+	ProvideWalletLedgerHandler,
+	ProvideWalletLedgerService,
+	admin.NewAdminSubscriptionResetHandler,
+	admin.NewAdminResetEventHandler,
 	NewAnnouncementHandler,
 	NewChannelMonitorUserHandler,
 	NewChannelMonitorV2Handler,
@@ -277,7 +309,6 @@ var ProviderSet = wire.NewSet(
 	ProvideCampusConnectHandlers,
 	// 科研优惠登记：DATA_DIR 在 handler 装配层解析（见 ProvideResearchApplicationService）
 	ProvideResearchApplicationService,
-	wire.Bind(new(service.ResearchRedeemIssuer), new(*service.RedeemService)),
 	NewResearchApplicationHandler,
 	admin.NewResearchHandler,
 	muccode.NewCodeStore,

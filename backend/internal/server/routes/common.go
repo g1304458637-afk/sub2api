@@ -19,9 +19,12 @@ func RegisterCommonRoutes(r *gin.Engine) {
 	// 数据库就绪由启动流程保证（迁移失败进程直接退出，容器变为 unhealthy）。
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status":  "ok",
-			"version": buildinfo.Version,
-			"commit":  buildinfo.Commit,
+			"status":             "ok",
+			"version":            buildinfo.Version,
+			"commit":             buildinfo.Commit,
+			"build_timestamp":    buildinfo.Date,
+			"brand":              buildinfo.Brand,
+			"migration_baseline": buildinfo.MigrationBaseline,
 		})
 	})
 

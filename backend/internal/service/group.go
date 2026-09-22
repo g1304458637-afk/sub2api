@@ -34,9 +34,11 @@ type Group struct {
 	// an already committed one-click copy. It must never be mapped to API DTOs.
 	DuplicateOperationID string
 
-	SubscriptionType    string
-	DailyLimitUSD       *float64
-	WeeklyLimitUSD      *float64
+	SubscriptionType string
+	DailyLimitUSD    *float64
+	WeeklyLimitUSD   *float64
+	// ConcurrencyOverride 并发权益覆盖（Phase 1 列；NULL = 不提供额外并发权益）
+	ConcurrencyOverride *int
 	MonthlyLimitUSD     *float64
 	DefaultValidityDays int
 

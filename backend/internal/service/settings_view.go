@@ -1,6 +1,10 @@
 package service
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/campus"
+)
 
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
@@ -338,6 +342,7 @@ type DefaultSubscriptionSetting struct {
 }
 
 type PublicSettings struct {
+	CampusBrand                         campus.Brand
 	RegistrationEnabled                 bool
 	EmailVerifyEnabled                  bool
 	ForceEmailOnThirdPartySignup        bool

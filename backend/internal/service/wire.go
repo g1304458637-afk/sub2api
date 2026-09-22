@@ -912,6 +912,12 @@ var ProviderSet = wire.NewSet(
 	// Subscription V1: inject the unified Reset Core event-application repository
 	ProvideSubscriptionServiceWithReset,
 	wire.Bind(new(DefaultSubscriptionAssigner), new(*SubscriptionService)),
+	wire.Bind(new(SubscriptionWindowMaintainer), new(*SubscriptionService)),
+	ProvideAccountStatusService,
+	ProvidePlanChangeService,
+	ProvideResetCardService,
+	ProvideResetEventService,
+	wire.Bind(new(WeeklyResetCore), new(*SubscriptionService)),
 	ProvideConcurrencyService,
 	ProvideUserMessageQueueService,
 	NewUsageRecordWorkerPool,
@@ -985,9 +991,10 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService) *PaymentService {
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, planChanges *PlanChangeService, planStore PlanChangeStore, terms TermStore) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService)
 	svc.SetNotificationEmailService(notificationEmailService)
+	svc.SetPlanChangeService(planChanges, planStore, terms)
 	return svc
 }
 
@@ -1053,4 +1060,30 @@ func ProvideChannelMonitorV2Aggregator(repo ChannelMonitorV2Repository, db *sql.
 	}
 	aggregator.Start()
 	return aggregator
+}
+
+// Providers retain all runtime wiring in source; wire_gen.go is disposable.
+func ProvideAccountStatusService(users UserRepository, subs UserSubscriptionRepository, groups GroupRepository, maintainer *SubscriptionService, cards SubscriptionResetCardReader, plans PlanService) *AccountStatusService {
+	svc := NewAccountStatusService(users, subs, groups, maintainer, cards, false)
+	svc.SetNextRenewalResolver(subs, plans)
+	return svc
+}
+
+func ProvidePlanChangeService(store PlanChangeStore, terms TermStore, plans PlanService, subs UserSubscriptionRepository, groups GroupRepository, keys APIKeyGroupMigrator, status *AccountStatusService, client *dbent.Client, subscriptions *SubscriptionService) *PlanChangeService {
+	svc := NewPlanChangeService(store, terms, plans, subs, groups, keys, status, client)
+	subscriptions.SetScheduledChangeSuperseder(svc)
+	svc.SetCacheInvalidator(subscriptions.InvalidateSubCacheSync)
+	return svc
+}
+
+func ProvideResetCardService(store ResetCardStore, subs UserSubscriptionRepository, groups GroupRepository, reset WeeklyResetCore, targets ResetTargetResolver, client *dbent.Client, _ *IdempotencyCoordinator) *ResetCardService {
+	return NewResetCardService(store, subs, groups, reset, targets, client)
+}
+
+func ProvideResetEventService(store ResetEventStore, targets ResetTargetResolver, reset WeeklyResetCore, subs UserSubscriptionRepository, client *dbent.Client, _ *IdempotencyCoordinator) *ResetEventService {
+	svc := NewResetEventService(store, targets, reset, subs, client)
+	ctx, cancel := context.WithCancel(context.Background())
+	svc.stopWorker = cancel
+	svc.StartWorker(ctx, 30*time.Second)
+	return svc
 }

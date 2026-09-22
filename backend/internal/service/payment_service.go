@@ -84,6 +84,7 @@ type CreateOrderRequest struct {
 	PaymentSource   string
 	OrderType       string
 	PlanID          int64
+	PlanChangeID    int64 // order_type=plan_change：冻结报价行（金额唯一来源）
 	Locale          string
 }
 
@@ -198,6 +199,9 @@ type PaymentService struct {
 	resumeService            *PaymentResumeService
 	affiliateService         *AffiliateService
 	notificationEmailService *NotificationEmailService
+	planChanges              *PlanChangeService
+	planChangeStore          PlanChangeStore
+	termStore                TermStore
 }
 
 func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService) *PaymentService {
@@ -382,4 +386,11 @@ func applyPagination(pageSize, page int) (size, pg int) {
 		pg = 1
 	}
 	return size, pg
+}
+
+// SetPlanChangeService 注入 Plan Change Runtime（wire 使用，避免构造器签名变更）。
+func (s *PaymentService) SetPlanChangeService(planChanges *PlanChangeService, store PlanChangeStore, terms TermStore) {
+	s.planChanges = planChanges
+	s.planChangeStore = store
+	s.termStore = terms
 }

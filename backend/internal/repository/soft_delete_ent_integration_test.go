@@ -197,6 +197,9 @@ func TestEntSoftDelete_UserSubscription_ListExcludesDeleted(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, sub1), "create subscription 1")
 
+	// 软删除 sub1
+	require.NoError(t, repo.Delete(ctx, sub1.ID), "soft delete subscription 1")
+
 	sub2 := &service.UserSubscription{
 		UserID:    u.ID,
 		GroupID:   g2.ID,
@@ -204,9 +207,6 @@ func TestEntSoftDelete_UserSubscription_ListExcludesDeleted(t *testing.T) {
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
 	require.NoError(t, repo.Create(ctx, sub2), "create subscription 2")
-
-	// 软删除 sub1
-	require.NoError(t, repo.Delete(ctx, sub1.ID), "soft delete subscription 1")
 
 	// ListByUserID 应只返回未删除的订阅
 	subs, err := repo.ListByUserID(ctx, u.ID)

@@ -16,6 +16,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionterm"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -220,6 +221,9 @@ func (s *PaymentService) executeFulfillment(ctx context.Context, oid int64) erro
 	}
 	if o.OrderType == payment.OrderTypeSubscription {
 		return s.ExecuteSubscriptionFulfillment(ctx, oid)
+	}
+	if o.OrderType == payment.OrderTypePlanChange {
+		return s.ExecutePlanChangeFulfillment(ctx, oid)
 	}
 	return s.ExecuteBalanceFulfillment(ctx, oid)
 }
@@ -566,29 +570,91 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 
 	txCtx := dbent.NewTxContext(ctx, tx)
 	txClient := tx.Client()
+	// 单主套餐不变量（RULE 1）履约前置：先把该用户惰性到期的行（status=active 但已过
+	// expires_at）翻为 expired，避免迁移 242 的 partial unique index 拒绝合法新购买。
+	// 索引本身是最后防线：并发双购买时后到者在此处约束冲突 → 订单 failed（幂等重放安全）。
+	if guard, ok := s.subscriptionSvc.userSubRepo.(SubscriptionSingleActiveGuard); ok {
+		if _, err := guard.ExpireLapsedByUser(txCtx, o.UserID, time.Now()); err != nil {
+			return fmt.Errorf("expire lapsed subscriptions before assignment: %w", err)
+		}
+	}
 	alreadyAssigned, err := hasPaymentSubscriptionAssignmentAudit(txCtx, txClient, o.ID)
 	if err != nil {
 		return fmt.Errorf("check subscription assignment audit: %w", err)
 	}
 
 	recoveredFromNote := false
+	var assignedSubID int64
 	if !alreadyAssigned {
 		orderNote := paymentSubscriptionOrderNote(o.ID)
 		existing, lookupErr := s.subscriptionSvc.userSubRepo.GetByUserIDAndGroupID(txCtx, o.UserID, groupID)
+		if lookupErr == nil && existing != nil {
+			// The previous end must come from the same locked row used by renewal.
+			existing, lookupErr = s.subscriptionSvc.userSubRepo.GetByIDForUpdate(txCtx, existing.ID)
+		}
 		switch {
 		case lookupErr == nil && existing != nil && hasPaymentSubscriptionOrderNote(existing.Notes, orderNote):
 			recoveredFromNote = true
+			assignedSubID = existing.ID
+			// 旧版本遗留的订单必须已有权威 term；缺失时要求对账，不能猜测时间窗。
+
 		case lookupErr != nil && !errors.Is(lookupErr, ErrSubscriptionNotFound):
 			return fmt.Errorf("check existing subscription assignment: %w", lookupErr)
 		default:
-			if _, _, err := s.subscriptionSvc.assignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
+			sub, _, err := s.subscriptionSvc.assignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
 				UserID:       o.UserID,
 				GroupID:      groupID,
 				ValidityDays: days,
 				AssignedBy:   0,
 				Notes:        orderNote,
-			}, true); err != nil {
+				PlanID:       o.PlanID,
+			}, true)
+			if err != nil {
 				return fmt.Errorf("assign subscription: %w", err)
+			}
+			// Gate 1/2：新购买/续费落 plan identity + 已付 term 快照（升级价格真相）
+			if sub != nil && o.PlanID != nil && s.termStore != nil {
+				termStart, termEnd, source := paidSubscriptionTermWindow(existing, sub)
+				planID := *o.PlanID
+				orderID := o.ID
+				if err := s.termStore.RecordTerm(txCtx, &SubscriptionTermRecord{
+					SubscriptionID: sub.ID,
+					OrderID:        &orderID,
+					PlanID:         &planID,
+					PricePaid:      o.Amount,
+					Currency:       planCurrencyOf(o),
+					Days:           days,
+					TermStart:      termStart,
+					TermEnd:        termEnd,
+					Source:         source,
+				}); err != nil {
+					return fmt.Errorf("record subscription term: %w", err)
+				}
+			}
+			if sub != nil {
+				assignedSubID = sub.ID
+			}
+		}
+
+		// Phase 11B（预付费固定周期制）：用户付费成功才允许清除"下次续费"偏好；
+		// 到期/维护/对账等系统任务绝无此权限。无偏好时为 no-op。
+		if assignedSubID > 0 {
+			if err := s.subscriptionSvc.ClosePendingChangeOnPaidRenewal(txCtx, o.UserID); err != nil {
+				return fmt.Errorf("close pending change on paid renewal: %w", err)
+			}
+		}
+
+		// Phase 11B 支付硬约束（RULE 12）：每个新付费周期必须能追溯到本订单。
+		// 订阅激活成功但订单链的 term 快照缺失 = 无来源授予，整体失败回滚。
+		if assignedSubID > 0 && o.PlanID != nil {
+			exists, err := s.termStoreHasOrderTerm(txCtx, o.ID)
+			if err != nil {
+				return fmt.Errorf("verify order-linked term: %w", err)
+			}
+			if !exists {
+				// A legacy note proves the order was processed, not when its
+				// paid entitlement started. Never invent a new now-based term.
+				return errors.New("paid subscription period missing authoritative order-linked term; reconciliation required")
 			}
 		}
 
@@ -625,6 +691,17 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 		return fmt.Errorf("invalidate subscription cache after fulfillment: %w", err)
 	}
 	return nil
+}
+
+// termStoreHasOrderTerm 校验订单链的已付 term 快照是否落库（必须在履约事务内调用）。
+func (s *PaymentService) termStoreHasOrderTerm(ctx context.Context, orderID int64) (bool, error) {
+	tx := dbent.TxFromContext(ctx)
+	if tx == nil {
+		return false, errors.New("order term check requires an active transaction")
+	}
+	return tx.Client().SubscriptionTerm.Query().
+		Where(subscriptionterm.OrderIDEQ(orderID)).
+		Exist(ctx)
 }
 
 func hasPaymentSubscriptionAssignmentAudit(ctx context.Context, client *dbent.Client, orderID int64) (bool, error) {
@@ -884,4 +961,88 @@ func (s *PaymentService) RetryFulfillment(ctx context.Context, oid int64) error 
 	}
 	s.writeAuditLog(ctx, oid, "RECHARGE_RETRY", "admin", map[string]any{"detail": "admin manual retry"})
 	return s.executeFulfillment(ctx, oid)
+}
+
+// ExecutePlanChangeFulfillment 升级订单履约：paid → quote 标记 paid → PlanChange
+// 单事务切换（订阅切组 + Key 迁移 + term + 审计）；任何失败走既有 markFailed/租约重试。
+func (s *PaymentService) ExecutePlanChangeFulfillment(ctx context.Context, oid int64) error {
+	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
+	if err != nil {
+		return infraerrors.NotFound("NOT_FOUND", "order not found")
+	}
+	if o.Status == OrderStatusCompleted {
+		return nil
+	}
+	if psIsRefundStatus(o.Status) {
+		return infraerrors.BadRequest("INVALID_STATUS", "refund-related order cannot fulfill")
+	}
+	if o.Status != OrderStatusPaid && o.Status != OrderStatusFailed && o.Status != OrderStatusRecharging {
+		return infraerrors.BadRequest("INVALID_STATUS", "order cannot fulfill in status "+o.Status)
+	}
+	// FAILED also includes provider order-creation failures. Only a paid failure
+	// may resume fulfillment; a failed checkout must never grant an upgrade.
+	if o.Status != OrderStatusPaid && o.PaidAt == nil {
+		return infraerrors.BadRequest("INVALID_STATUS", "order is not paid")
+	}
+	if o.OrderType != payment.OrderTypePlanChange {
+		return infraerrors.BadRequest("INVALID_STATUS", "order is not a plan change")
+	}
+	if o.PlanChangeID == nil {
+		return infraerrors.BadRequest("INVALID_STATUS", "plan change order missing plan_change_id")
+	}
+	lease, err := s.acquirePaymentFulfillmentLease(ctx, o)
+	if err != nil {
+		return err
+	}
+	if lease == nil {
+		return nil
+	}
+
+	if s.planChanges == nil {
+		return errors.New("plan change service is unavailable")
+	}
+	change, err := s.planChangeStore.GetByID(ctx, *o.PlanChangeID)
+	if err != nil || change == nil || change.UserID != o.UserID || change.OrderID == nil || *change.OrderID != o.ID || change.AmountDue != o.Amount {
+		err = errors.New("plan change order does not match its frozen quote")
+		s.markFailed(ctx, oid, lease, err)
+		return err
+	}
+	// quote → paid（幂等：paid/fulfilled 均放行）
+	if err := s.planChangeStore.MarkPaid(ctx, *o.PlanChangeID); err != nil {
+		s.markFailed(ctx, oid, lease, err)
+		return err
+	}
+	if err := s.planChanges.FulfillUpgrade(ctx, *o.PlanChangeID); err != nil {
+		s.markFailed(ctx, oid, lease, err)
+		return err
+	}
+	s.writeAuditLog(ctx, o.ID, "PLAN_CHANGE_SUCCESS", "system", map[string]any{
+		"plan_change_id": *o.PlanChangeID,
+	})
+	return s.markCompleted(ctx, o, lease, "PLAN_CHANGE_SUCCESS")
+}
+
+// planCurrencyOf 订单币种（plan.currency 未随订单快照；V1 使用 CNY 直付语义）。
+func planCurrencyOf(o *dbent.PaymentOrder) string {
+	if o.ProviderSnapshot != nil {
+		if c, ok := o.ProviderSnapshot["currency"].(string); ok && c != "" {
+			return c
+		}
+	}
+	return "CNY"
+}
+
+// paidSubscriptionTermWindow uses the locked prior entitlement and the actual
+// assigned result. Early renewal starts at old expiry; expired/new purchases
+// start at the newly assigned starts_at. This also respects expiry clamping.
+func paidSubscriptionTermWindow(previous, assigned *UserSubscription) (time.Time, time.Time, string) {
+	start := assigned.StartsAt
+	source := "purchase"
+	if previous != nil {
+		source = "renewal"
+		if previous.ExpiresAt.After(start) {
+			start = previous.ExpiresAt
+		}
+	}
+	return start, assigned.ExpiresAt, source
 }
