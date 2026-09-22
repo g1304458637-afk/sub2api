@@ -389,8 +389,11 @@ func validateCreateParams(p ChannelMonitorCreateParams) error {
 	usesQuota := monitorCheckModeUsesQuota(checkMode)
 	// probe 分支（含 quota_probe 的探活部分）仍需 endpoint + api_key；
 	// quota 模式 endpoint/api_key 留空，避免要求用户填无意义的占位值。
+	// 这里只做 endpoint 的静态格式校验；DNS 探活放在全部静态校验之后——
+	// 探活结果取决于部署环境的网络（如境内解析不到 api.openai.com），
+	// 若排在前面会用"端点不可达"遮蔽缺 api_key/缺主模型这类用户可自行修复的错误。
 	if checkMode != MonitorCheckModeQuota {
-		if err := validateEndpoint(p.Endpoint); err != nil {
+		if err := validateEndpointFormat(p.Endpoint); err != nil {
 			return err
 		}
 		if strings.TrimSpace(p.APIKey) == "" {
@@ -402,6 +405,11 @@ func validateCreateParams(p ChannelMonitorCreateParams) error {
 	}
 	if normalizeMonitorPrimaryModel(p.Provider, checkMode, p.PrimaryModel) == "" {
 		return ErrChannelMonitorMissingPrimaryModel
+	}
+	if checkMode != MonitorCheckModeQuota {
+		if err := validateEndpointReachability(p.Endpoint); err != nil {
+			return err
+		}
 	}
 	return nil
 }
