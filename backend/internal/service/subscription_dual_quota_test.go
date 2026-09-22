@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -70,4 +71,11 @@ func TestDualQuotaExpiredRenewalStartsFreshTerm(t *testing.T) {
 	require.Zero(t, renewed.WeeklyUsageUSD)
 	require.Equal(t, now, *renewed.ShortWindowStart)
 	require.Equal(t, 10.0, old.ShortUsageUSD)
+}
+
+// Legacy window tests now need an explicit policy lookup dependency.
+type legacyQuotaGroupRepo struct{ groupRepoNoop }
+
+func (legacyQuotaGroupRepo) GetByID(_ context.Context, id int64) (*Group, error) {
+	return &Group{ID: id, QuotaPolicy: "legacy"}, nil
 }

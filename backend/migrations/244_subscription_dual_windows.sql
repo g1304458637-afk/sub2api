@@ -20,7 +20,9 @@ DECLARE
 BEGIN
     SELECT * INTO s FROM user_subscriptions WHERE id = p_id AND deleted_at IS NULL FOR UPDATE;
     IF NOT FOUND THEN RETURN; END IF;
-    SELECT quota_policy INTO policy FROM groups WHERE id = s.group_id;
+    -- Hold policy stable through the caller's settlement transaction.
+    -- A policy migration cannot split advancement and charging across policies.
+    SELECT quota_policy INTO policy FROM groups WHERE id = s.group_id FOR SHARE;
     IF policy IS DISTINCT FROM 'dual_window_v1' THEN RETURN; END IF;
     -- Late settlements remain accountable in the final valid window.
     effective_now := LEAST(p_now, s.expires_at - INTERVAL '1 microsecond');

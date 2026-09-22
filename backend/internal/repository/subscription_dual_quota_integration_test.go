@@ -265,3 +265,29 @@ func TestDualQuotaConcurrentResetSettlementConservesUsage(t *testing.T) {
 	require.Equal(t, 13.0, phase0QueryFloat(t, "SELECT monthly_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
 	require.Equal(t, current, phase0QueryFloat(t, "SELECT weekly_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
 }
+
+func TestDualQuotaMigrationCannotSplitSettlementPolicy(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	limit := 50.0
+	_, group, sub, _, _ := phase0MustSubscriptionStack(t, client, 0, &limit)
+	phase0SetWeeklyWindow(t, sub.ID, time.Now().Add(-time.Hour), 0)
+	billing, err := integrationDB.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	defer billing.Rollback()
+	require.NoError(t, incrementUsageBillingSubscription(ctx, billing, sub.ID, 1))
+	migration, err := integrationDB.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	_, err = migration.ExecContext(ctx, "SET LOCAL lock_timeout='50ms'")
+	require.NoError(t, err)
+	_, err = migration.ExecContext(ctx, "UPDATE groups SET quota_policy='dual_window_v1',short_limit_usd=10 WHERE id=$1", group.ID)
+	require.Error(t, err, "policy update must wait for the old-policy settlement")
+	require.Contains(t, err.Error(), "lock timeout")
+	require.NoError(t, migration.Rollback())
+	require.NoError(t, billing.Commit())
+	_, err = integrationDB.ExecContext(ctx, "UPDATE groups SET quota_policy='dual_window_v1',short_limit_usd=10 WHERE id=$1", group.ID)
+	require.NoError(t, err)
+	require.NoError(t, NewUserSubscriptionRepository(client).IncrementUsage(ctx, sub.ID, 1))
+	require.Equal(t, 1.0, phase0QueryFloat(t, "SELECT short_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
+	require.Equal(t, 2.0, phase0QueryFloat(t, "SELECT weekly_usage_usd FROM user_subscriptions WHERE id=$1", sub.ID))
+}

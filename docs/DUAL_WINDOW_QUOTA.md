@@ -24,7 +24,7 @@ Migration 244 is additive. It creates short-window columns, policy configuration
 
 With `apply=1`, the script copies each selected legacy group's positive daily limit into its 5-hour limit and retains its weekly limit. Existing subscription usage/anchors are untouched; new short columns start NULL/0. The change is audited and repeated execution does not grant additional quota. Restart/invalidate auth and subscription caches after an approved production switch.
 
-Deploy the dual-window-capable backend before switching policies. Deploy matching website/client builds before allowing users to consume dual resets. HUBU remains a separate local-only product line. Rollback must retain a dual-window-capable backend for any converted groups; do not silently revert them to daily/monthly enforcement.
+Deploy the dual-window-capable backend before switching policies. Deploy matching website/client builds before allowing users to consume dual resets. MUC and HUBU deploy independently: admin.wuxuexi.top uses /srv/sub2api, while hubu.wuxuexi.top uses /srv/sub2api-hubu, with separate databases, caches, brand configuration and desktop download manifests. Rollback must retain a dual-window-capable backend for any converted groups; do not silently revert them to daily/monthly enforcement.
 
 ## Limits of this change
 

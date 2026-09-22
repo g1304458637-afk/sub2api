@@ -74,7 +74,7 @@ type Handlers struct {
 	AsyncImage       *AsyncImageHandler
 	MusicTask        *AsyncMusicHandler
 	BatchImage       *BatchImageHandler
-	CampusConnect    CampusConnectHandlers
+	MucConnect       *MucConnectHandler
 	Research         *ResearchApplicationHandler
 	PlanChange       *PlanChangeHandler
 	WalletLedger     *WalletLedgerHandler

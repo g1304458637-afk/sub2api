@@ -1011,6 +1011,9 @@ func (s *SubscriptionService) checkAndActivateWindowAt(ctx context.Context, sub 
 //   - 极端场景下 core 的 stale 守卫（anchor >= now）只会跳过一次本来就不会
 //     改变任何值的重复重置（usage 已为 0、anchor 已等于 now），终态一致。
 func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool) (*UserSubscription, error) {
+	if !resetDaily && !resetWeekly && !resetMonthly {
+		return nil, ErrInvalidInput
+	}
 	current, err := s.userSubRepo.GetByID(ctx, subscriptionID)
 	if err != nil {
 		return nil, err
