@@ -92,6 +92,8 @@ type GrantResetCardsResult struct {
 
 // ConsumeResetCardResult 消费结果。
 type ConsumeResetCardResult struct {
+	ShortPeriodEndsAt  *time.Time
+	QuotaPolicy        string
 	CardID             int64
 	SubscriptionID     int64
 	Applied            bool
@@ -325,7 +327,7 @@ func (s *ResetCardService) RevokeResetCard(ctx context.Context, cardID int64) er
 }
 
 // ConsumeForSubscription 用户消费一张可用卡重置指定订阅的周周期（单事务：卡 CAS + Reset Core）。
-func (s *ResetCardService) ConsumeForSubscription(ctx context.Context, userID, subscriptionID int64, idempotencyKey string) (*ConsumeResetCardResult, error) {
+func (s *ResetCardService) ConsumeForSubscription(ctx context.Context, userID, subscriptionID int64, idempotencyKey string, contractVersion ...int) (*ConsumeResetCardResult, error) {
 	if idempotencyKey == "" {
 		return nil, ErrIdempotencyKeyRequired
 	}
@@ -342,7 +344,7 @@ func (s *ResetCardService) ConsumeForSubscription(ctx context.Context, userID, s
 		Payload:        map[string]any{"user_id": userID, "subscription_id": subscriptionID},
 		RequireKey:     true,
 	}, func(ctx context.Context) (any, error) {
-		return s.consumeOnce(ctx, userID, subscriptionID, idempotencyKey)
+		return s.consumeOnce(ctx, userID, subscriptionID, idempotencyKey, contractVersion...)
 	})
 	if err != nil {
 		return nil, err
@@ -350,7 +352,7 @@ func (s *ResetCardService) ConsumeForSubscription(ctx context.Context, userID, s
 	return decodeSubscriptionOperationResult[ConsumeResetCardResult](execRes.Data)
 }
 
-func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscriptionID int64, key string) (*ConsumeResetCardResult, error) {
+func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscriptionID int64, key string, contractVersion ...int) (*ConsumeResetCardResult, error) {
 	if s.entClient == nil {
 		return nil, errors.New("reset card: storage unavailable")
 	}
@@ -392,6 +394,9 @@ func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscription
 		return nil, ErrResetCardUnmetered
 	}
 
+	if group.UsesDualWindows() && (len(contractVersion) == 0 || contractVersion[0] < 2) {
+		return nil, infraerrors.Conflict("CLIENT_UPGRADE_REQUIRED", "请更新客户端后使用双周期重置卡")
+	}
 	// 2) FIFO 锁定最早可用卡（最早到期 → 最早创建 → 最小 id）
 	card, err := s.store.GetAvailableForUserForUpdate(txCtx, userID, now)
 	if err != nil {
@@ -408,6 +413,7 @@ func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscription
 		UserSubscriptionID: subscriptionID,
 		EffectiveAt:        now,
 		Source:             domain.WeeklyResetSourceResetCard,
+		DualWindows:        group.UsesDualWindows(),
 		ResetCardID:        &card.ID,
 	})
 	if err != nil {
@@ -422,6 +428,17 @@ func (s *ResetCardService) consumeOnce(ctx context.Context, userID, subscription
 		periodEnds = result.Subscription.WeeklyResetTime()
 	}
 	receipt := &ConsumeResetCardResult{CardID: card.ID, SubscriptionID: subscriptionID, Applied: true, WeeklyPeriodEndsAt: periodEnds}
+	receipt.QuotaPolicy = group.QuotaPolicy
+	if group.UsesDualWindows() {
+		end := now.Add(5 * time.Hour)
+		if end.After(sub.ExpiresAt) {
+			end = sub.ExpiresAt
+		}
+		receipt.ShortPeriodEndsAt = &end
+	}
+	if receipt.WeeklyPeriodEndsAt != nil && receipt.WeeklyPeriodEndsAt.After(sub.ExpiresAt) {
+		receipt.WeeklyPeriodEndsAt = &sub.ExpiresAt
+	}
 	if err := s.store.CompleteOperation(txCtx, userID, key, receipt); err != nil {
 		return nil, err
 	}

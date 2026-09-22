@@ -50,6 +50,10 @@ var (
 
 // PlanChangeQuote 服务端权威报价（可返回给用户；含金额但不泄露内部 USD quota）。
 type PlanChangeQuote struct {
+	ShortRemainingPercentBefore *float64 `json:"short_remaining_percent_before,omitempty"`
+	ShortRemainingPercentAfter  *float64 `json:"short_remaining_percent_after,omitempty"`
+	WeeklyRemainingPercentAfter *float64 `json:"weekly_remaining_percent_after,omitempty"`
+
 	SubscriptionID           int64       `json:"subscription_id"`
 	ChangeType               string      `json:"change_type"` // upgrade / scheduled_downgrade
 	FromPlanID               int64       `json:"from_plan_id"`
@@ -350,6 +354,20 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 		}
 	}
 
+	if s.groupRepo != nil {
+		fromGroup, err := s.groupRepo.GetByID(ctx, sub.GroupID)
+		if err != nil {
+			return nil, nil, err
+		}
+		toGroup, err := s.groupRepo.GetByID(ctx, toPlan.GroupID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := validateQuotaUpgrade(fromGroup, toGroup); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	// Gate 2/3：价格真相 = 未消费 term 实付；逐段折算
 	now := s.now()
 	terms, err := s.terms.UnconsumedTerms(ctx, subscriptionID, now)
@@ -443,10 +461,19 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 		Currency:         currency,
 	}
 
+	if sub.Group.UsesDualWindows() {
+		copy := *sub
+		sub = &copy
+		projectDualWindows(sub, now)
+	}
 	// 升级后百分比（usage 绝对值不变，额度换新组）
 	if s.status != nil {
 		if st, err := s.status.GetGroupSubscriptionStatus(ctx, userID, sub.GroupID); err == nil && st != nil {
 			quote.WeeklyUsagePercentBefore = st.WeeklyUsagePercent
+			if st.ShortWindow != nil {
+				v := st.ShortWindow.RemainingPercent
+				quote.ShortRemainingPercentBefore = &v
+			}
 		}
 		group, err := s.groupRepo.GetByID(ctx, toPlan.GroupID)
 		if err == nil && group != nil && group.HasWeeklyLimit() && sub.Group != nil && sub.Group.HasWeeklyLimit() {
@@ -454,6 +481,17 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 			after := UserDisplayPercent(raw)
 			quote.WeeklyUsagePercentAfter = &after
 			quote.UsageStatusAfter = ClassifyUsageStatus(raw)
+			rem := remainingPercent(sub.WeeklyUsageUSD, *group.WeeklyLimitUSD)
+			quote.WeeklyRemainingPercentAfter = &rem
+			if group.ValidDualLimits() {
+				short := sub.ShortUsageUSD
+				if sub.ShortWindowStart == nil || !now.Before(sub.ShortWindowStart.Add(5*time.Hour)) {
+					short = 0
+				}
+				v := remainingPercent(short, *group.ShortLimitUSD)
+				quote.ShortRemainingPercentAfter = &v
+				quote.UsageStatusAfter = ClassifyUsageStatus(100 - math.Min(v, rem))
+			}
 		}
 	}
 	if s.apiKeys != nil {
@@ -569,6 +607,14 @@ func (s *PlanChangeService) FulfillUpgrade(ctx context.Context, changeID int64) 
 	}
 	if toGroup == nil || toGroup.Status != StatusActive || !toGroup.IsSubscriptionType() {
 		return ErrPlanTargetGroupActive
+	}
+
+	fromGroup, err := s.groupRepo.GetByID(txCtx, sub.GroupID)
+	if err != nil {
+		return err
+	}
+	if err := validateQuotaUpgrade(fromGroup, toGroup); err != nil {
+		return err
 	}
 
 	// 切组保字段：usage / anchor / starts_at / expires_at / fallback 全部不动（无隐藏 Reset）
@@ -873,4 +919,14 @@ func frozenUpgradeQuote(rec *PlanChangeRecord) *PlanChangeQuote {
 		q.NewExpiry = *rec.TermEnd
 	}
 	return q
+}
+
+func validateQuotaUpgrade(from, to *Group) error {
+	if from.UsesDualWindows() != to.UsesDualWindows() {
+		return infraerrors.Conflict("QUOTA_POLICY_MISMATCH", "plans must use the same quota policy")
+	}
+	if from.UsesDualWindows() && (!from.ValidDualLimits() || !to.ValidDualLimits() || *to.ShortLimitUSD < *from.ShortLimitUSD || *to.WeeklyLimitUSD < *from.WeeklyLimitUSD) {
+		return infraerrors.Conflict("QUOTA_UPGRADE_INVALID", "upgrade must not reduce either quota limit")
+	}
+	return nil
 }

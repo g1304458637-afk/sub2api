@@ -65,40 +65,8 @@
               </span>
             </div>
 
-            <!-- Weekly usage: server-computed integer percent; unmetered shows a badge -->
-            <div class="space-y-1.5">
-              <div
-                v-if="subscription.usage_status === 'unmetered'"
-                class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-50 to-primary-50 px-2.5 py-1.5 dark:from-emerald-900/20 dark:to-primary-900/20"
-              >
-                <span class="text-lg text-emerald-600 dark:text-emerald-400">∞</span>
-                <span class="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                  {{ t('subscriptionProgress.usageStatus.unmetered') }}
-                </span>
-              </div>
+            <QuotaRemaining :subscription="subscription" />
 
-              <template v-else>
-                <div class="flex items-center gap-2">
-                  <span class="w-8 flex-shrink-0 text-[10px] text-gray-500">{{
-                    t('subscriptionProgress.weekly')
-                  }}</span>
-                  <div class="h-1.5 min-w-0 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
-                    <div
-                      class="h-1.5 rounded-full transition-all"
-                      :class="getProgressBarClass(subscription)"
-                      :style="{ width: getProgressWidth(subscription) }"
-                    ></div>
-                  </div>
-                  <span class="w-24 flex-shrink-0 text-right text-[10px] text-gray-500">
-                    {{ getUsageStatusLabel(subscription) }}
-                  </span>
-                </div>
-                <div class="flex items-center justify-between text-[10px] text-gray-400">
-                  <span>{{ t('subscriptionProgress.weeklyUsage') }}</span>
-                  <span>{{ subscription.weekly_usage_percent }}%</span>
-                </div>
-              </template>
-            </div>
           </div>
         </div>
 
@@ -117,6 +85,7 @@
 </template>
 
 <script setup lang="ts">
+import QuotaRemaining from '@/components/subscription/QuotaRemaining.vue'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
@@ -161,13 +130,7 @@ function formatDate(iso: string): string {
   }
 }
 
-function getUsageStatusLabel(sub: AccountSubscriptionStatus): string {
-  const key = String(sub.usage_status)
-  const path = `subscriptionProgress.usageStatus.${key}`
-  const translated = t(path)
-  // 未配置的键会原样返回路径；此时回退为整数百分比
-  return translated === path ? `${sub.weekly_usage_percent}%` : translated
-}
+
 
 function getProgressDotClass(sub: AccountSubscriptionStatus): string {
   // unmetered subscriptions get a special color
@@ -180,18 +143,9 @@ function getProgressDotClass(sub: AccountSubscriptionStatus): string {
   return 'bg-green-500'
 }
 
-function getProgressBarClass(sub: AccountSubscriptionStatus): string {
-  if (sub.usage_status === 'unmetered') return 'bg-gray-400'
-  const pct = sub.weekly_usage_percent ?? 0
-  if (pct >= 90) return 'bg-red-500'
-  if (pct >= 70) return 'bg-orange-500'
-  return 'bg-green-500'
-}
 
-function getProgressWidth(sub: AccountSubscriptionStatus): string {
-  const pct = sub.weekly_usage_percent ?? 0
-  return `${Math.min(pct, 100)}%`
-}
+
+
 
 function formatDaysRemaining(expiresAt: string): string {
   const now = new Date()

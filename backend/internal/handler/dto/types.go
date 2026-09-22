@@ -102,6 +102,8 @@ type Group struct {
 	Status         string  `json:"status"`
 
 	SubscriptionType          string   `json:"subscription_type"`
+	QuotaPolicy               string   `json:"quota_policy"`
+	ShortLimitUSD             *float64 `json:"short_limit_usd"`
 	DailyLimitUSD             *float64 `json:"daily_limit_usd"`
 	WeeklyLimitUSD            *float64 `json:"weekly_limit_usd"`
 	ConcurrencyOverride       *int     `json:"concurrency_override,omitempty"`
@@ -762,9 +764,11 @@ type UserSubscription struct {
 	WeeklyWindowStart  *time.Time `json:"weekly_window_start"`
 	MonthlyWindowStart *time.Time `json:"monthly_window_start"`
 
-	DailyUsageUSD   float64 `json:"daily_usage_usd"`
-	WeeklyUsageUSD  float64 `json:"weekly_usage_usd"`
-	MonthlyUsageUSD float64 `json:"monthly_usage_usd"`
+	ShortUsageUSD    float64    `json:"short_usage_usd"`
+	ShortWindowStart *time.Time `json:"short_window_start"`
+	DailyUsageUSD    float64    `json:"daily_usage_usd"`
+	WeeklyUsageUSD   float64    `json:"weekly_usage_usd"`
+	MonthlyUsageUSD  float64    `json:"monthly_usage_usd"`
 
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`

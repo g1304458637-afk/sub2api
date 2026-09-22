@@ -46,6 +46,10 @@ const (
 	FieldPlatform = "platform"
 	// FieldSubscriptionType holds the string denoting the subscription_type field in the database.
 	FieldSubscriptionType = "subscription_type"
+	// FieldQuotaPolicy holds the string denoting the quota_policy field in the database.
+	FieldQuotaPolicy = "quota_policy"
+	// FieldShortLimitUsd holds the string denoting the short_limit_usd field in the database.
+	FieldShortLimitUsd = "short_limit_usd"
 	// FieldDailyLimitUsd holds the string denoting the daily_limit_usd field in the database.
 	FieldDailyLimitUsd = "daily_limit_usd"
 	// FieldWeeklyLimitUsd holds the string denoting the weekly_limit_usd field in the database.
@@ -242,6 +246,8 @@ var Columns = []string{
 	FieldDuplicateOperationID,
 	FieldPlatform,
 	FieldSubscriptionType,
+	FieldQuotaPolicy,
+	FieldShortLimitUsd,
 	FieldDailyLimitUsd,
 	FieldWeeklyLimitUsd,
 	FieldMonthlyLimitUsd,
@@ -362,6 +368,8 @@ var (
 	DefaultSubscriptionType string
 	// SubscriptionTypeValidator is a validator for the "subscription_type" field. It is called by the builders before save.
 	SubscriptionTypeValidator func(string) error
+	// DefaultQuotaPolicy holds the default value on creation for the "quota_policy" field.
+	DefaultQuotaPolicy string
 	// DefaultDefaultValidityDays holds the default value on creation for the "default_validity_days" field.
 	DefaultDefaultValidityDays int
 	// ConcurrencyOverrideValidator is a validator for the "concurrency_override" field. It is called by the builders before save.
@@ -527,6 +535,16 @@ func ByPlatform(opts ...sql.OrderTermOption) OrderOption {
 // BySubscriptionType orders the results by the subscription_type field.
 func BySubscriptionType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionType, opts...).ToFunc()
+}
+
+// ByQuotaPolicy orders the results by the quota_policy field.
+func ByQuotaPolicy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuotaPolicy, opts...).ToFunc()
+}
+
+// ByShortLimitUsd orders the results by the short_limit_usd field.
+func ByShortLimitUsd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShortLimitUsd, opts...).ToFunc()
 }
 
 // ByDailyLimitUsd orders the results by the daily_limit_usd field.

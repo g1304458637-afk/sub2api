@@ -1205,6 +1205,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatRemainingPercent } from '@/utils/quotaDisplay'
 	import { ref, reactive, computed, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 	import { useI18n } from 'vue-i18n'
 	import { useAppStore } from '@/stores/app'
@@ -2112,8 +2113,9 @@ async function loadEntitlements() {
     const status = await getAccountStatus()
     const map: Record<number, string> = {}
     for (const sub of status.subscriptions) {
-      map[sub.group_id] =
-        sub.weekly_usage_percent === null
+      map[sub.group_id] = sub.quota_policy === 'dual_window_v1'
+        ? `${sub.display_name} · 5 小时剩余 ${formatRemainingPercent(sub.short_window?.remaining_percent)} · 本周剩余 ${formatRemainingPercent(sub.weekly_window?.remaining_percent)}`
+        : sub.weekly_usage_percent === null
           ? `${sub.display_name} · ${t('keys.entitlementUnmetered')}`
           : `${sub.display_name} · ${sub.weekly_usage_percent}% · ${t('keys.entitlementStatus.' + sub.usage_status)}`
     }

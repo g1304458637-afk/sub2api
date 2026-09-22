@@ -22112,6 +22112,9 @@ type GroupMutation struct {
 	duplicate_operation_id                  *string
 	platform                                *string
 	subscription_type                       *string
+	quota_policy                            *string
+	short_limit_usd                         *float64
+	addshort_limit_usd                      *float64
 	daily_limit_usd                         *float64
 	adddaily_limit_usd                      *float64
 	weekly_limit_usd                        *float64
@@ -22934,6 +22937,112 @@ func (m *GroupMutation) OldSubscriptionType(ctx context.Context) (v string, err 
 // ResetSubscriptionType resets all changes to the "subscription_type" field.
 func (m *GroupMutation) ResetSubscriptionType() {
 	m.subscription_type = nil
+}
+
+// SetQuotaPolicy sets the "quota_policy" field.
+func (m *GroupMutation) SetQuotaPolicy(s string) {
+	m.quota_policy = &s
+}
+
+// QuotaPolicy returns the value of the "quota_policy" field in the mutation.
+func (m *GroupMutation) QuotaPolicy() (r string, exists bool) {
+	v := m.quota_policy
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotaPolicy returns the old "quota_policy" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldQuotaPolicy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotaPolicy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotaPolicy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotaPolicy: %w", err)
+	}
+	return oldValue.QuotaPolicy, nil
+}
+
+// ResetQuotaPolicy resets all changes to the "quota_policy" field.
+func (m *GroupMutation) ResetQuotaPolicy() {
+	m.quota_policy = nil
+}
+
+// SetShortLimitUsd sets the "short_limit_usd" field.
+func (m *GroupMutation) SetShortLimitUsd(f float64) {
+	m.short_limit_usd = &f
+	m.addshort_limit_usd = nil
+}
+
+// ShortLimitUsd returns the value of the "short_limit_usd" field in the mutation.
+func (m *GroupMutation) ShortLimitUsd() (r float64, exists bool) {
+	v := m.short_limit_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldShortLimitUsd returns the old "short_limit_usd" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldShortLimitUsd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldShortLimitUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldShortLimitUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldShortLimitUsd: %w", err)
+	}
+	return oldValue.ShortLimitUsd, nil
+}
+
+// AddShortLimitUsd adds f to the "short_limit_usd" field.
+func (m *GroupMutation) AddShortLimitUsd(f float64) {
+	if m.addshort_limit_usd != nil {
+		*m.addshort_limit_usd += f
+	} else {
+		m.addshort_limit_usd = &f
+	}
+}
+
+// AddedShortLimitUsd returns the value that was added to the "short_limit_usd" field in this mutation.
+func (m *GroupMutation) AddedShortLimitUsd() (r float64, exists bool) {
+	v := m.addshort_limit_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearShortLimitUsd clears the value of the "short_limit_usd" field.
+func (m *GroupMutation) ClearShortLimitUsd() {
+	m.short_limit_usd = nil
+	m.addshort_limit_usd = nil
+	m.clearedFields[group.FieldShortLimitUsd] = struct{}{}
+}
+
+// ShortLimitUsdCleared returns if the "short_limit_usd" field was cleared in this mutation.
+func (m *GroupMutation) ShortLimitUsdCleared() bool {
+	_, ok := m.clearedFields[group.FieldShortLimitUsd]
+	return ok
+}
+
+// ResetShortLimitUsd resets all changes to the "short_limit_usd" field.
+func (m *GroupMutation) ResetShortLimitUsd() {
+	m.short_limit_usd = nil
+	m.addshort_limit_usd = nil
+	delete(m.clearedFields, group.FieldShortLimitUsd)
 }
 
 // SetDailyLimitUsd sets the "daily_limit_usd" field.
@@ -26079,7 +26188,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 68)
+	fields := make([]string, 0, 70)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26124,6 +26233,12 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.subscription_type != nil {
 		fields = append(fields, group.FieldSubscriptionType)
+	}
+	if m.quota_policy != nil {
+		fields = append(fields, group.FieldQuotaPolicy)
+	}
+	if m.short_limit_usd != nil {
+		fields = append(fields, group.FieldShortLimitUsd)
 	}
 	if m.daily_limit_usd != nil {
 		fields = append(fields, group.FieldDailyLimitUsd)
@@ -26322,6 +26437,10 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.Platform()
 	case group.FieldSubscriptionType:
 		return m.SubscriptionType()
+	case group.FieldQuotaPolicy:
+		return m.QuotaPolicy()
+	case group.FieldShortLimitUsd:
+		return m.ShortLimitUsd()
 	case group.FieldDailyLimitUsd:
 		return m.DailyLimitUsd()
 	case group.FieldWeeklyLimitUsd:
@@ -26467,6 +26586,10 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldPlatform(ctx)
 	case group.FieldSubscriptionType:
 		return m.OldSubscriptionType(ctx)
+	case group.FieldQuotaPolicy:
+		return m.OldQuotaPolicy(ctx)
+	case group.FieldShortLimitUsd:
+		return m.OldShortLimitUsd(ctx)
 	case group.FieldDailyLimitUsd:
 		return m.OldDailyLimitUsd(ctx)
 	case group.FieldWeeklyLimitUsd:
@@ -26686,6 +26809,20 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSubscriptionType(v)
+		return nil
+	case group.FieldQuotaPolicy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaPolicy(v)
+		return nil
+	case group.FieldShortLimitUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetShortLimitUsd(v)
 		return nil
 	case group.FieldDailyLimitUsd:
 		v, ok := value.(float64)
@@ -27072,6 +27209,9 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addpeak_rate_multiplier != nil {
 		fields = append(fields, group.FieldPeakRateMultiplier)
 	}
+	if m.addshort_limit_usd != nil {
+		fields = append(fields, group.FieldShortLimitUsd)
+	}
 	if m.adddaily_limit_usd != nil {
 		fields = append(fields, group.FieldDailyLimitUsd)
 	}
@@ -27165,6 +27305,8 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedRateMultiplier()
 	case group.FieldPeakRateMultiplier:
 		return m.AddedPeakRateMultiplier()
+	case group.FieldShortLimitUsd:
+		return m.AddedShortLimitUsd()
 	case group.FieldDailyLimitUsd:
 		return m.AddedDailyLimitUsd()
 	case group.FieldWeeklyLimitUsd:
@@ -27241,6 +27383,13 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddPeakRateMultiplier(v)
+		return nil
+	case group.FieldShortLimitUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddShortLimitUsd(v)
 		return nil
 	case group.FieldDailyLimitUsd:
 		v, ok := value.(float64)
@@ -27448,6 +27597,9 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldDuplicateOperationID) {
 		fields = append(fields, group.FieldDuplicateOperationID)
 	}
+	if m.FieldCleared(group.FieldShortLimitUsd) {
+		fields = append(fields, group.FieldShortLimitUsd)
+	}
 	if m.FieldCleared(group.FieldDailyLimitUsd) {
 		fields = append(fields, group.FieldDailyLimitUsd)
 	}
@@ -27533,6 +27685,9 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldDuplicateOperationID:
 		m.ClearDuplicateOperationID()
+		return nil
+	case group.FieldShortLimitUsd:
+		m.ClearShortLimitUsd()
 		return nil
 	case group.FieldDailyLimitUsd:
 		m.ClearDailyLimitUsd()
@@ -27649,6 +27804,12 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldSubscriptionType:
 		m.ResetSubscriptionType()
+		return nil
+	case group.FieldQuotaPolicy:
+		m.ResetQuotaPolicy()
+		return nil
+	case group.FieldShortLimitUsd:
+		m.ResetShortLimitUsd()
 		return nil
 	case group.FieldDailyLimitUsd:
 		m.ResetDailyLimitUsd()
@@ -65592,6 +65753,9 @@ type UserSubscriptionMutation struct {
 	starts_at                  *time.Time
 	expires_at                 *time.Time
 	status                     *string
+	short_window_start         *time.Time
+	short_usage_usd            *float64
+	addshort_usage_usd         *float64
 	daily_window_start         *time.Time
 	weekly_window_start        *time.Time
 	monthly_window_start       *time.Time
@@ -66029,6 +66193,111 @@ func (m *UserSubscriptionMutation) OldStatus(ctx context.Context) (v string, err
 // ResetStatus resets all changes to the "status" field.
 func (m *UserSubscriptionMutation) ResetStatus() {
 	m.status = nil
+}
+
+// SetShortWindowStart sets the "short_window_start" field.
+func (m *UserSubscriptionMutation) SetShortWindowStart(t time.Time) {
+	m.short_window_start = &t
+}
+
+// ShortWindowStart returns the value of the "short_window_start" field in the mutation.
+func (m *UserSubscriptionMutation) ShortWindowStart() (r time.Time, exists bool) {
+	v := m.short_window_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldShortWindowStart returns the old "short_window_start" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldShortWindowStart(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldShortWindowStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldShortWindowStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldShortWindowStart: %w", err)
+	}
+	return oldValue.ShortWindowStart, nil
+}
+
+// ClearShortWindowStart clears the value of the "short_window_start" field.
+func (m *UserSubscriptionMutation) ClearShortWindowStart() {
+	m.short_window_start = nil
+	m.clearedFields[usersubscription.FieldShortWindowStart] = struct{}{}
+}
+
+// ShortWindowStartCleared returns if the "short_window_start" field was cleared in this mutation.
+func (m *UserSubscriptionMutation) ShortWindowStartCleared() bool {
+	_, ok := m.clearedFields[usersubscription.FieldShortWindowStart]
+	return ok
+}
+
+// ResetShortWindowStart resets all changes to the "short_window_start" field.
+func (m *UserSubscriptionMutation) ResetShortWindowStart() {
+	m.short_window_start = nil
+	delete(m.clearedFields, usersubscription.FieldShortWindowStart)
+}
+
+// SetShortUsageUsd sets the "short_usage_usd" field.
+func (m *UserSubscriptionMutation) SetShortUsageUsd(f float64) {
+	m.short_usage_usd = &f
+	m.addshort_usage_usd = nil
+}
+
+// ShortUsageUsd returns the value of the "short_usage_usd" field in the mutation.
+func (m *UserSubscriptionMutation) ShortUsageUsd() (r float64, exists bool) {
+	v := m.short_usage_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldShortUsageUsd returns the old "short_usage_usd" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldShortUsageUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldShortUsageUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldShortUsageUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldShortUsageUsd: %w", err)
+	}
+	return oldValue.ShortUsageUsd, nil
+}
+
+// AddShortUsageUsd adds f to the "short_usage_usd" field.
+func (m *UserSubscriptionMutation) AddShortUsageUsd(f float64) {
+	if m.addshort_usage_usd != nil {
+		*m.addshort_usage_usd += f
+	} else {
+		m.addshort_usage_usd = &f
+	}
+}
+
+// AddedShortUsageUsd returns the value that was added to the "short_usage_usd" field in this mutation.
+func (m *UserSubscriptionMutation) AddedShortUsageUsd() (r float64, exists bool) {
+	v := m.addshort_usage_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetShortUsageUsd resets all changes to the "short_usage_usd" field.
+func (m *UserSubscriptionMutation) ResetShortUsageUsd() {
+	m.short_usage_usd = nil
+	m.addshort_usage_usd = nil
 }
 
 // SetDailyWindowStart sets the "daily_window_start" field.
@@ -67000,7 +67269,7 @@ func (m *UserSubscriptionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSubscriptionMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 22)
 	if m.created_at != nil {
 		fields = append(fields, usersubscription.FieldCreatedAt)
 	}
@@ -67024,6 +67293,12 @@ func (m *UserSubscriptionMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, usersubscription.FieldStatus)
+	}
+	if m.short_window_start != nil {
+		fields = append(fields, usersubscription.FieldShortWindowStart)
+	}
+	if m.short_usage_usd != nil {
+		fields = append(fields, usersubscription.FieldShortUsageUsd)
 	}
 	if m.daily_window_start != nil {
 		fields = append(fields, usersubscription.FieldDailyWindowStart)
@@ -67085,6 +67360,10 @@ func (m *UserSubscriptionMutation) Field(name string) (ent.Value, bool) {
 		return m.ExpiresAt()
 	case usersubscription.FieldStatus:
 		return m.Status()
+	case usersubscription.FieldShortWindowStart:
+		return m.ShortWindowStart()
+	case usersubscription.FieldShortUsageUsd:
+		return m.ShortUsageUsd()
 	case usersubscription.FieldDailyWindowStart:
 		return m.DailyWindowStart()
 	case usersubscription.FieldWeeklyWindowStart:
@@ -67134,6 +67413,10 @@ func (m *UserSubscriptionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldExpiresAt(ctx)
 	case usersubscription.FieldStatus:
 		return m.OldStatus(ctx)
+	case usersubscription.FieldShortWindowStart:
+		return m.OldShortWindowStart(ctx)
+	case usersubscription.FieldShortUsageUsd:
+		return m.OldShortUsageUsd(ctx)
 	case usersubscription.FieldDailyWindowStart:
 		return m.OldDailyWindowStart(ctx)
 	case usersubscription.FieldWeeklyWindowStart:
@@ -67222,6 +67505,20 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case usersubscription.FieldShortWindowStart:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetShortWindowStart(v)
+		return nil
+	case usersubscription.FieldShortUsageUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetShortUsageUsd(v)
 		return nil
 	case usersubscription.FieldDailyWindowStart:
 		v, ok := value.(time.Time)
@@ -67315,6 +67612,9 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 // this mutation.
 func (m *UserSubscriptionMutation) AddedFields() []string {
 	var fields []string
+	if m.addshort_usage_usd != nil {
+		fields = append(fields, usersubscription.FieldShortUsageUsd)
+	}
 	if m.adddaily_usage_usd != nil {
 		fields = append(fields, usersubscription.FieldDailyUsageUsd)
 	}
@@ -67338,6 +67638,8 @@ func (m *UserSubscriptionMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *UserSubscriptionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case usersubscription.FieldShortUsageUsd:
+		return m.AddedShortUsageUsd()
 	case usersubscription.FieldDailyUsageUsd:
 		return m.AddedDailyUsageUsd()
 	case usersubscription.FieldWeeklyUsageUsd:
@@ -67357,6 +67659,13 @@ func (m *UserSubscriptionMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *UserSubscriptionMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case usersubscription.FieldShortUsageUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddShortUsageUsd(v)
+		return nil
 	case usersubscription.FieldDailyUsageUsd:
 		v, ok := value.(float64)
 		if !ok {
@@ -67403,6 +67712,9 @@ func (m *UserSubscriptionMutation) ClearedFields() []string {
 	if m.FieldCleared(usersubscription.FieldDeletedAt) {
 		fields = append(fields, usersubscription.FieldDeletedAt)
 	}
+	if m.FieldCleared(usersubscription.FieldShortWindowStart) {
+		fields = append(fields, usersubscription.FieldShortWindowStart)
+	}
 	if m.FieldCleared(usersubscription.FieldDailyWindowStart) {
 		fields = append(fields, usersubscription.FieldDailyWindowStart)
 	}
@@ -67440,6 +67752,9 @@ func (m *UserSubscriptionMutation) ClearField(name string) error {
 	switch name {
 	case usersubscription.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case usersubscription.FieldShortWindowStart:
+		m.ClearShortWindowStart()
 		return nil
 	case usersubscription.FieldDailyWindowStart:
 		m.ClearDailyWindowStart()
@@ -67493,6 +67808,12 @@ func (m *UserSubscriptionMutation) ResetField(name string) error {
 		return nil
 	case usersubscription.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case usersubscription.FieldShortWindowStart:
+		m.ResetShortWindowStart()
+		return nil
+	case usersubscription.FieldShortUsageUsd:
+		m.ResetShortUsageUsd()
 		return nil
 	case usersubscription.FieldDailyWindowStart:
 		m.ResetDailyWindowStart()

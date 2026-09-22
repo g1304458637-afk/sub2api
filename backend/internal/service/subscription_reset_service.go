@@ -169,7 +169,7 @@ func (s *SubscriptionService) resetWeeklyPeriodInTx(ctx context.Context, in *Wee
 	previousUsage := sub.WeeklyUsageUSD
 
 	// 统一 stale invariant（含相等）：绝不回拨、绝不二次清零新周期内的消费
-	if previousStart != nil && !previousStart.Before(in.EffectiveAt) {
+	if (previousStart != nil && !previousStart.Before(in.EffectiveAt)) || (in.DualWindows && sub.ShortWindowStart != nil && !sub.ShortWindowStart.Before(in.EffectiveAt)) {
 		if claimedAppID != 0 {
 			if ferr := s.resetAppRepo.FinalizeClaimedWeeklyResetApplication(
 				ctx, claimedAppID, previousStart, &previousUsage, now,
@@ -191,7 +191,15 @@ func (s *SubscriptionService) resetWeeklyPeriodInTx(ctx context.Context, in *Wee
 	// CAS 重置：复用既有 repo 原子操作（Phase 0 锁定其行为），不另造无守卫 UPDATE。
 	// 行锁在手，expected 即锁内快照；previousStart=nil（窗口未激活）由 repo 的
 	// IS NULL 条件分支处理。
-	if err := s.userSubRepo.ResetWeeklyUsage(ctx, in.UserSubscriptionID, previousStart, in.EffectiveAt); err != nil {
+	if in.DualWindows {
+		repo, ok := s.userSubRepo.(DualWindowRepository)
+		if !ok {
+			return nil, errors.New("dual-window repository unavailable")
+		}
+		if err := repo.ResetDualWindows(ctx, in); err != nil {
+			return nil, err
+		}
+	} else if err := s.userSubRepo.ResetWeeklyUsage(ctx, in.UserSubscriptionID, previousStart, in.EffectiveAt); err != nil {
 		return nil, err
 	}
 

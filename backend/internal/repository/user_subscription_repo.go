@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -32,6 +33,8 @@ func (r *userSubscriptionRepository) Create(ctx context.Context, sub *service.Us
 		SetUserID(sub.UserID).
 		SetGroupID(sub.GroupID).
 		SetExpiresAt(sub.ExpiresAt).
+		SetNillableShortWindowStart(sub.ShortWindowStart).
+		SetShortUsageUsd(sub.ShortUsageUSD).
 		SetNillableDailyWindowStart(sub.DailyWindowStart).
 		SetNillableWeeklyWindowStart(sub.WeeklyWindowStart).
 		SetNillableMonthlyWindowStart(sub.MonthlyWindowStart).
@@ -203,6 +206,8 @@ func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.Us
 		SetStartsAt(sub.StartsAt).
 		SetExpiresAt(sub.ExpiresAt).
 		SetStatus(sub.Status).
+		SetNillableShortWindowStart(sub.ShortWindowStart).
+		SetShortUsageUsd(sub.ShortUsageUSD).
 		SetNillableDailyWindowStart(sub.DailyWindowStart).
 		SetNillableWeeklyWindowStart(sub.WeeklyWindowStart).
 		SetNillableMonthlyWindowStart(sub.MonthlyWindowStart).
@@ -531,9 +536,26 @@ func (r *userSubscriptionRepository) translateConditionalWindowReset(ctx context
 // 限额检查已在请求前由 BillingCacheService.CheckBillingEligibility 完成，
 // 此处仅负责记录实际消费，确保消费数据的完整性。
 func (r *userSubscriptionRepository) IncrementUsage(ctx context.Context, id int64, costUSD float64) error {
+	if dbent.TxFromContext(ctx) == nil {
+		tx, err := r.client.Tx(ctx)
+		if err != nil {
+			return err
+		}
+		if err = r.IncrementUsage(dbent.NewTxContext(ctx, tx), id, costUSD); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+		return tx.Commit()
+	}
+	now := time.Now()
+	if _, err := clientFromContext(ctx, r.client).ExecContext(ctx, "SELECT campus_advance_dual_windows($1,$2,true,$3)", id, now, timezone.StartOfDay(now)); err != nil {
+		return err
+	}
+
 	const updateSQL = `
 		UPDATE user_subscriptions us
 		SET
+			short_usage_usd = us.short_usage_usd + CASE WHEN g.quota_policy = 'dual_window_v1' THEN $1::numeric ELSE 0::numeric END,
 			daily_usage_usd = us.daily_usage_usd + $1,
 			weekly_usage_usd = us.weekly_usage_usd + $1,
 			monthly_usage_usd = us.monthly_usage_usd + $1,
@@ -709,6 +731,8 @@ func userSubscriptionEntityToServiceWithStatusMapping(m *dbent.UserSubscription,
 		StartsAt:           m.StartsAt,
 		ExpiresAt:          m.ExpiresAt,
 		Status:             status,
+		ShortWindowStart:   m.ShortWindowStart,
+		ShortUsageUSD:      m.ShortUsageUsd,
 		DailyWindowStart:   m.DailyWindowStart,
 		WeeklyWindowStart:  m.WeeklyWindowStart,
 		MonthlyWindowStart: m.MonthlyWindowStart,

@@ -25,9 +25,9 @@ vi.mock('@/api/subscriptions', () => ({
 }))
 
 import SubscriptionProgressMini from '../SubscriptionProgressMini.vue'
-import type { AccountStatus } from '@/api/subscriptions'
+import type { AccountStatus, AccountSubscriptionStatus } from '@/api/subscriptions'
 
-function makeSubscription(over: Partial<AccountSubscriptionStatus['subscriptions'][number]> = {}): AccountSubscriptionStatus['subscriptions'][number] {
+function makeSubscription(over: Partial<AccountSubscriptionStatus> = {}): AccountSubscriptionStatus {
   return {
     id: 1,
     group_id: 13,
@@ -38,16 +38,15 @@ function makeSubscription(over: Partial<AccountSubscriptionStatus['subscriptions
     weekly_period_ends_at: '2026-09-27T08:00:00Z',
     expires_at: '2026-10-20T00:00:00Z',
     payg_fallback: false,
-    reset_cards_available: 0,
     ...over,
   }
 }
 
-function makeStatus(subs: AccountSubscriptionStatus['subscriptions'][]): AccountStatus {
+function makeStatus(subs: AccountSubscriptionStatus[]): AccountStatus {
   return {
     wallet: { balance: '12.48000000', canonical_currency: 'USD' },
     reset_cards: { available: 0 },
-    subscriptions: subs as AccountSubscriptionStatus['subscriptions'][],
+    subscriptions: subs as AccountSubscriptionStatus[],
   }
 }
 
@@ -87,7 +86,7 @@ describe('SubscriptionProgressMini (Phase 4.1 status contract)', () => {
     const wrapper = await mountMini()
     const text = wrapper.text()
     expect(text).toContain('Pro')
-    expect(text).toContain('63%')
+    expect(text).toContain('37%')
     // 内部 USD 额度绝不出现在顶栏
     expect(text).not.toContain('weekly_limit_usd')
     expect(text).not.toMatch(/\$\d+\.\d+ ?\/ ?\$/)
@@ -99,18 +98,18 @@ describe('SubscriptionProgressMini (Phase 4.1 status contract)', () => {
     ]))
     const wrapper = await mountMini()
     const text = wrapper.text()
-    expect(text).toContain('usageStatus.unmetered')
+    expect(text).toContain('周不限额')
     expect(text).not.toContain('%')
   })
 
-  it('exhausted status maps to the exhausted label at 100%', async () => {
+  it('exhausted status maps to the exhausted label at 0% remaining', async () => {
     getAccountStatusMock.mockResolvedValue(makeStatus([
       makeSubscription({ weekly_usage_percent: 100, usage_status: 'exhausted' }),
     ]))
     const wrapper = await mountMini()
     const text = wrapper.text()
-    // exhausted 时组件显示钳制后的 100%（状态文案走真实 i18n，mock 不参与断言）
-    expect(text).toContain('100%')
+    // exhausted 时组件显示剩余 0%（状态文案走真实 i18n，mock 不参与断言）
+    expect(text).toContain('0%')
     expect(text).not.toContain('$')
   })
 
@@ -123,8 +122,8 @@ describe('SubscriptionProgressMini (Phase 4.1 status contract)', () => {
     const text = wrapper.text()
     expect(text).toContain('Pro')
     expect(text).toContain('Max')
-    expect(text).toContain('63%')
-    expect(text).toContain('10%')
+    expect(text).toContain('37%')
+    expect(text).toContain('90%')
   })
 
   it('never renders rate multiplier or internal USD quota values', async () => {

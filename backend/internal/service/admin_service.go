@@ -246,7 +246,9 @@ type CreateGroupInput struct {
 	Platform                  string
 	RateMultiplier            float64
 	IsExclusive               bool
-	SubscriptionType          string   // standard/subscription
+	SubscriptionType          string // standard/subscription
+	QuotaPolicy               *string
+	ShortLimitUSD             *float64
 	DailyLimitUSD             *float64 // 日限额 (USD)
 	WeeklyLimitUSD            *float64 // 周限额 (USD)
 	MonthlyLimitUSD           *float64 // 月限额 (USD)
@@ -330,7 +332,9 @@ type UpdateGroupInput struct {
 	RateMultiplier            *float64 // 使用指针以支持设置为0
 	IsExclusive               *bool
 	Status                    string
-	SubscriptionType          string   // standard/subscription
+	SubscriptionType          string // standard/subscription
+	QuotaPolicy               *string
+	ShortLimitUSD             *float64
 	DailyLimitUSD             *float64 // 日限额 (USD)
 	WeeklyLimitUSD            *float64 // 周限额 (USD)
 	MonthlyLimitUSD           *float64 // 月限额 (USD)

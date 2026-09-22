@@ -920,6 +920,14 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 
 // checkSubscriptionEligibility 检查订阅模式资格
 func (s *BillingCacheService) checkSubscriptionEligibility(ctx context.Context, userID int64, group *Group, subscription *UserSubscription) error {
+	// Dual windows use a fresh authoritative snapshot after concurrency waits.
+	if group.UsesDualWindows() {
+		fresh, err := maintainDualWindows(ctx, s.subRepo, subscription.ID, time.Now(), true)
+		if err != nil {
+			return ErrBillingServiceUnavailable.WithCause(err)
+		}
+		return fresh.checkDualLimits(group, time.Now(), 0)
+	}
 	// 获取订阅缓存数据
 	subData, err := s.GetSubscriptionStatus(ctx, userID, group.ID)
 	if err != nil {

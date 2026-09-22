@@ -59,6 +59,11 @@ type AccountWalletStatus struct {
 
 // AccountSubscriptionStatus 单条订阅的净化状态（无任何内部 USD 数值）。
 type AccountSubscriptionStatus struct {
+	QuotaPolicy     string                   `json:"quota_policy"`
+	ShortWindow     *SubscriptionQuotaWindow `json:"short_window,omitempty"`
+	WeeklyWindow    *SubscriptionQuotaWindow `json:"weekly_window,omitempty"`
+	BlockingWindows []string                 `json:"blocking_windows,omitempty"`
+
 	ID          int64  `json:"id"`
 	GroupID     int64  `json:"group_id"`
 	DisplayName string `json:"display_name"`
@@ -331,7 +336,17 @@ func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscri
 	if sub == nil {
 		return nil, ErrSubscriptionInvalid
 	}
-	if !s.monitorOnly && s.maintainer != nil {
+	groupForPolicy := sub.Group
+	if groupForPolicy == nil && s.groupRepo != nil {
+		groupForPolicy, _ = s.groupRepo.GetByID(ctx, sub.GroupID)
+	}
+	if !s.monitorOnly && groupForPolicy.UsesDualWindows() {
+		fresh, err := maintainDualWindows(ctx, s.subRepo, sub.ID, s.now(), false)
+		if err != nil {
+			return nil, err
+		}
+		sub = fresh
+	} else if !s.monitorOnly && s.maintainer != nil {
 		refreshed, err := s.maintainer.EnsureWindowMaintenance(ctx, sub)
 		if err != nil {
 			return nil, err
@@ -353,7 +368,14 @@ func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscri
 		return nil, ErrSubscriptionInvalid
 	}
 
+	if group.UsesDualWindows() {
+		copy := *sub
+		sub = &copy
+		projectDualWindows(sub, s.now())
+	}
+
 	st := &AccountSubscriptionStatus{
+		QuotaPolicy:  group.QuotaPolicy,
 		ID:           sub.ID,
 		GroupID:      sub.GroupID,
 		DisplayName:  "",
@@ -378,6 +400,19 @@ func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscri
 		}
 	}
 
+	if group.UsesDualWindows() {
+		if !group.ValidDualLimits() {
+			return nil, ErrSubscriptionInvalid
+		}
+		st.ShortWindow = quotaWindow(sub.ShortUsageUSD, *group.ShortLimitUSD, sub.ShortWindowStart, 5*time.Hour, sub.ExpiresAt)
+		st.WeeklyWindow = quotaWindow(sub.WeeklyUsageUSD, *group.WeeklyLimitUSD, sub.WeeklyWindowStart, 7*24*time.Hour, sub.ExpiresAt)
+		if st.ShortWindow.Exhausted {
+			st.BlockingWindows = append(st.BlockingWindows, "short")
+		}
+		if st.WeeklyWindow.Exhausted {
+			st.BlockingWindows = append(st.BlockingWindows, "weekly")
+		}
+	}
 	if group != nil && group.HasWeeklyLimit() && *group.WeeklyLimitUSD > 0 {
 		raw := sub.WeeklyUsageUSD / *group.WeeklyLimitUSD * 100
 		display := UserDisplayPercent(raw)
@@ -386,6 +421,9 @@ func (s *AccountStatusService) buildStatus(ctx context.Context, sub *UserSubscri
 	} else {
 		// weekly_limit 未配置 = 该维度不受限；不得返回 0% 让用户误读为"有 0 额度"
 		st.UsageStatus = UsageStatusUnmetered
+	}
+	if group.UsesDualWindows() {
+		st.UsageStatus = ClassifyUsageStatus(100 - math.Min(st.ShortWindow.RemainingPercent, st.WeeklyWindow.RemainingPercent))
 	}
 	return st, nil
 }

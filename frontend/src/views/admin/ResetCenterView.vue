@@ -25,7 +25,7 @@
         <div class="card space-y-4 p-5">
           <div>
             <h3 class="text-sm font-semibold">{{ t('resetCenter.directTitle') }}</h3>
-            <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('resetCenter.directDesc') }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">新双窗口套餐同时恢复 5 小时与本周额度；旧套餐仍仅重置周额度。不延长套餐有效期，不改变钱包余额。</p>
           </div>
 
           <div class="grid gap-3 sm:grid-cols-2">

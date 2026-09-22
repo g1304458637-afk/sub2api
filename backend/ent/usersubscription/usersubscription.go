@@ -31,6 +31,10 @@ const (
 	FieldExpiresAt = "expires_at"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldShortWindowStart holds the string denoting the short_window_start field in the database.
+	FieldShortWindowStart = "short_window_start"
+	// FieldShortUsageUsd holds the string denoting the short_usage_usd field in the database.
+	FieldShortUsageUsd = "short_usage_usd"
 	// FieldDailyWindowStart holds the string denoting the daily_window_start field in the database.
 	FieldDailyWindowStart = "daily_window_start"
 	// FieldWeeklyWindowStart holds the string denoting the weekly_window_start field in the database.
@@ -133,6 +137,8 @@ var Columns = []string{
 	FieldStartsAt,
 	FieldExpiresAt,
 	FieldStatus,
+	FieldShortWindowStart,
+	FieldShortUsageUsd,
 	FieldDailyWindowStart,
 	FieldWeeklyWindowStart,
 	FieldMonthlyWindowStart,
@@ -175,6 +181,8 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultShortUsageUsd holds the default value on creation for the "short_usage_usd" field.
+	DefaultShortUsageUsd float64
 	// DefaultDailyUsageUsd holds the default value on creation for the "daily_usage_usd" field.
 	DefaultDailyUsageUsd float64
 	// DefaultWeeklyUsageUsd holds the default value on creation for the "weekly_usage_usd" field.
@@ -233,6 +241,16 @@ func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByShortWindowStart orders the results by the short_window_start field.
+func ByShortWindowStart(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShortWindowStart, opts...).ToFunc()
+}
+
+// ByShortUsageUsd orders the results by the short_usage_usd field.
+func ByShortUsageUsd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShortUsageUsd, opts...).ToFunc()
 }
 
 // ByDailyWindowStart orders the results by the daily_window_start field.

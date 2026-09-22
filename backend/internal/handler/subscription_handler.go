@@ -99,7 +99,7 @@ func (h *SubscriptionHandler) ResetWithCard(c *gin.Context) {
 	}
 	result, err := h.resetCards.ConsumeForSubscription(
 		c.Request.Context(), subject.UserID, subscriptionID,
-		c.GetHeader("Idempotency-Key"),
+		c.GetHeader("Idempotency-Key"), resetContractVersion(c.GetHeader("X-Quota-Contract")),
 	)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -108,6 +108,8 @@ func (h *SubscriptionHandler) ResetWithCard(c *gin.Context) {
 	response.Success(c, gin.H{
 		"subscription_id":       result.SubscriptionID,
 		"weekly_period_ends_at": result.WeeklyPeriodEndsAt,
+		"short_period_ends_at":  result.ShortPeriodEndsAt,
+		"quota_policy":          result.QuotaPolicy,
 	})
 }
 
@@ -305,6 +307,15 @@ func (h *SubscriptionHandler) ReconcileResetCard(c *gin.Context) {
 	result := gin.H{"status": operation.Status}
 	if operation.Result != nil {
 		result["weekly_period_ends_at"] = operation.Result.WeeklyPeriodEndsAt
+		result["short_period_ends_at"] = operation.Result.ShortPeriodEndsAt
+		result["quota_policy"] = operation.Result.QuotaPolicy
 	}
 	response.Success(c, result)
+}
+
+func resetContractVersion(value string) int {
+	if value == "2" {
+		return 2
+	}
+	return 1
 }

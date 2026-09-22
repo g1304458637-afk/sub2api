@@ -630,6 +630,13 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		group.AllowLive = false
 	}
 	sanitizeGroupReasoningEffortPolicy(group)
+	if input.QuotaPolicy != nil {
+		group.QuotaPolicy = *input.QuotaPolicy
+	}
+	group.ShortLimitUSD = input.ShortLimitUSD
+	if group.UsesDualWindows() && !group.ValidDualLimits() {
+		return nil, errors.New("dual-window plans require positive 5-hour and weekly limits")
+	}
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
 	}
@@ -1064,6 +1071,15 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 	}
 
+	if input.QuotaPolicy != nil {
+		group.QuotaPolicy = *input.QuotaPolicy
+	}
+	if input.ShortLimitUSD != nil {
+		group.ShortLimitUSD = input.ShortLimitUSD
+	}
+	if group.UsesDualWindows() && !group.ValidDualLimits() {
+		return nil, errors.New("dual-window plans require positive 5-hour and weekly limits")
+	}
 	if err := s.groupRepo.Update(ctx, group); err != nil {
 		return nil, err
 	}

@@ -188,6 +188,8 @@ type CreateGroupRequest struct {
 	RateMultiplier            float64                       `json:"rate_multiplier"`
 	IsExclusive               bool                          `json:"is_exclusive"`
 	SubscriptionType          string                        `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
+	QuotaPolicy               *string                       `json:"quota_policy" binding:"omitempty,oneof=legacy dual_window_v1"`
+	ShortLimitUSD             *float64                      `json:"short_limit_usd" binding:"omitempty,gt=0"`
 	DailyLimitUSD             optionalLimitField            `json:"daily_limit_usd"`
 	WeeklyLimitUSD            optionalLimitField            `json:"weekly_limit_usd"`
 	ConcurrencyOverride       *int                          `json:"concurrency_override" binding:"omitempty,gte=1"`
@@ -265,6 +267,8 @@ type UpdateGroupRequest struct {
 	IsExclusive               *bool                          `json:"is_exclusive"`
 	Status                    string                         `json:"status" binding:"omitempty,oneof=active inactive"`
 	SubscriptionType          string                         `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
+	QuotaPolicy               *string                        `json:"quota_policy" binding:"omitempty,oneof=legacy dual_window_v1"`
+	ShortLimitUSD             *float64                       `json:"short_limit_usd" binding:"omitempty,gt=0"`
 	DailyLimitUSD             optionalLimitField             `json:"daily_limit_usd"`
 	WeeklyLimitUSD            optionalLimitField             `json:"weekly_limit_usd"`
 	ConcurrencyOverride       *int                           `json:"concurrency_override" binding:"omitempty,gte=1"`
@@ -672,6 +676,8 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		RateMultiplier:                  req.RateMultiplier,
 		IsExclusive:                     req.IsExclusive,
 		SubscriptionType:                req.SubscriptionType,
+		QuotaPolicy:                     req.QuotaPolicy,
+		ShortLimitUSD:                   req.ShortLimitUSD,
 		DailyLimitUSD:                   req.DailyLimitUSD.ToServiceInput(),
 		WeeklyLimitUSD:                  req.WeeklyLimitUSD.ToServiceInput(),
 		ConcurrencyOverride:             req.ConcurrencyOverride,
@@ -820,6 +826,8 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		IsExclusive:                     req.IsExclusive,
 		Status:                          req.Status,
 		SubscriptionType:                req.SubscriptionType,
+		QuotaPolicy:                     req.QuotaPolicy,
+		ShortLimitUSD:                   req.ShortLimitUSD,
 		DailyLimitUSD:                   req.DailyLimitUSD.ToServiceInput(),
 		WeeklyLimitUSD:                  req.WeeklyLimitUSD.ToServiceInput(),
 		ConcurrencyOverride:             req.ConcurrencyOverride,

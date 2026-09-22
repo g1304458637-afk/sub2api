@@ -108,6 +108,34 @@ func (_c *UserSubscriptionCreate) SetNillableStatus(v *string) *UserSubscription
 	return _c
 }
 
+// SetShortWindowStart sets the "short_window_start" field.
+func (_c *UserSubscriptionCreate) SetShortWindowStart(v time.Time) *UserSubscriptionCreate {
+	_c.mutation.SetShortWindowStart(v)
+	return _c
+}
+
+// SetNillableShortWindowStart sets the "short_window_start" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableShortWindowStart(v *time.Time) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetShortWindowStart(*v)
+	}
+	return _c
+}
+
+// SetShortUsageUsd sets the "short_usage_usd" field.
+func (_c *UserSubscriptionCreate) SetShortUsageUsd(v float64) *UserSubscriptionCreate {
+	_c.mutation.SetShortUsageUsd(v)
+	return _c
+}
+
+// SetNillableShortUsageUsd sets the "short_usage_usd" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableShortUsageUsd(v *float64) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetShortUsageUsd(*v)
+	}
+	return _c
+}
+
 // SetDailyWindowStart sets the "daily_window_start" field.
 func (_c *UserSubscriptionCreate) SetDailyWindowStart(v time.Time) *UserSubscriptionCreate {
 	_c.mutation.SetDailyWindowStart(v)
@@ -420,6 +448,10 @@ func (_c *UserSubscriptionCreate) defaults() error {
 		v := usersubscription.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.ShortUsageUsd(); !ok {
+		v := usersubscription.DefaultShortUsageUsd
+		_c.mutation.SetShortUsageUsd(v)
+	}
 	if _, ok := _c.mutation.DailyUsageUsd(); !ok {
 		v := usersubscription.DefaultDailyUsageUsd
 		_c.mutation.SetDailyUsageUsd(v)
@@ -473,6 +505,9 @@ func (_c *UserSubscriptionCreate) check() error {
 		if err := usersubscription.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "UserSubscription.status": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ShortUsageUsd(); !ok {
+		return &ValidationError{Name: "short_usage_usd", err: errors.New(`ent: missing required field "UserSubscription.short_usage_usd"`)}
 	}
 	if _, ok := _c.mutation.DailyUsageUsd(); !ok {
 		return &ValidationError{Name: "daily_usage_usd", err: errors.New(`ent: missing required field "UserSubscription.daily_usage_usd"`)}
@@ -545,6 +580,14 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(usersubscription.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.ShortWindowStart(); ok {
+		_spec.SetField(usersubscription.FieldShortWindowStart, field.TypeTime, value)
+		_node.ShortWindowStart = &value
+	}
+	if value, ok := _c.mutation.ShortUsageUsd(); ok {
+		_spec.SetField(usersubscription.FieldShortUsageUsd, field.TypeFloat64, value)
+		_node.ShortUsageUsd = value
 	}
 	if value, ok := _c.mutation.DailyWindowStart(); ok {
 		_spec.SetField(usersubscription.FieldDailyWindowStart, field.TypeTime, value)
@@ -844,6 +887,42 @@ func (u *UserSubscriptionUpsert) SetStatus(v string) *UserSubscriptionUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *UserSubscriptionUpsert) UpdateStatus() *UserSubscriptionUpsert {
 	u.SetExcluded(usersubscription.FieldStatus)
+	return u
+}
+
+// SetShortWindowStart sets the "short_window_start" field.
+func (u *UserSubscriptionUpsert) SetShortWindowStart(v time.Time) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldShortWindowStart, v)
+	return u
+}
+
+// UpdateShortWindowStart sets the "short_window_start" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateShortWindowStart() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldShortWindowStart)
+	return u
+}
+
+// ClearShortWindowStart clears the value of the "short_window_start" field.
+func (u *UserSubscriptionUpsert) ClearShortWindowStart() *UserSubscriptionUpsert {
+	u.SetNull(usersubscription.FieldShortWindowStart)
+	return u
+}
+
+// SetShortUsageUsd sets the "short_usage_usd" field.
+func (u *UserSubscriptionUpsert) SetShortUsageUsd(v float64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldShortUsageUsd, v)
+	return u
+}
+
+// UpdateShortUsageUsd sets the "short_usage_usd" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateShortUsageUsd() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldShortUsageUsd)
+	return u
+}
+
+// AddShortUsageUsd adds v to the "short_usage_usd" field.
+func (u *UserSubscriptionUpsert) AddShortUsageUsd(v float64) *UserSubscriptionUpsert {
+	u.Add(usersubscription.FieldShortUsageUsd, v)
 	return u
 }
 
@@ -1210,6 +1289,48 @@ func (u *UserSubscriptionUpsertOne) SetStatus(v string) *UserSubscriptionUpsertO
 func (u *UserSubscriptionUpsertOne) UpdateStatus() *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetShortWindowStart sets the "short_window_start" field.
+func (u *UserSubscriptionUpsertOne) SetShortWindowStart(v time.Time) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetShortWindowStart(v)
+	})
+}
+
+// UpdateShortWindowStart sets the "short_window_start" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateShortWindowStart() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateShortWindowStart()
+	})
+}
+
+// ClearShortWindowStart clears the value of the "short_window_start" field.
+func (u *UserSubscriptionUpsertOne) ClearShortWindowStart() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearShortWindowStart()
+	})
+}
+
+// SetShortUsageUsd sets the "short_usage_usd" field.
+func (u *UserSubscriptionUpsertOne) SetShortUsageUsd(v float64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetShortUsageUsd(v)
+	})
+}
+
+// AddShortUsageUsd adds v to the "short_usage_usd" field.
+func (u *UserSubscriptionUpsertOne) AddShortUsageUsd(v float64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddShortUsageUsd(v)
+	})
+}
+
+// UpdateShortUsageUsd sets the "short_usage_usd" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateShortUsageUsd() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateShortUsageUsd()
 	})
 }
 
@@ -1778,6 +1899,48 @@ func (u *UserSubscriptionUpsertBulk) SetStatus(v string) *UserSubscriptionUpsert
 func (u *UserSubscriptionUpsertBulk) UpdateStatus() *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetShortWindowStart sets the "short_window_start" field.
+func (u *UserSubscriptionUpsertBulk) SetShortWindowStart(v time.Time) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetShortWindowStart(v)
+	})
+}
+
+// UpdateShortWindowStart sets the "short_window_start" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateShortWindowStart() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateShortWindowStart()
+	})
+}
+
+// ClearShortWindowStart clears the value of the "short_window_start" field.
+func (u *UserSubscriptionUpsertBulk) ClearShortWindowStart() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearShortWindowStart()
+	})
+}
+
+// SetShortUsageUsd sets the "short_usage_usd" field.
+func (u *UserSubscriptionUpsertBulk) SetShortUsageUsd(v float64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetShortUsageUsd(v)
+	})
+}
+
+// AddShortUsageUsd adds v to the "short_usage_usd" field.
+func (u *UserSubscriptionUpsertBulk) AddShortUsageUsd(v float64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddShortUsageUsd(v)
+	})
+}
+
+// UpdateShortUsageUsd sets the "short_usage_usd" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateShortUsageUsd() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateShortUsageUsd()
 	})
 }
 
