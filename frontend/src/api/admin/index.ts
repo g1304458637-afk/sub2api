@@ -121,7 +121,8 @@ export {
   adminComplianceAPI,
   auditAPI,
   pluginsAPI,
-  rewardGrantsAPI
+  rewardGrantsAPI,
+  mediaQuotaAPI
 }
 
 export default adminAPI
@@ -144,3 +145,11 @@ export type {
   RewardGrantQuery,
   RewardGrantListResponse
 } from './rewardGrants'
+export type {
+  MediaImageQuotaResponse,
+  MediaImageQuotaBudget,
+  MediaImageQuotaRecentItem,
+  MediaModelStat,
+  MediaUsageSummary,
+  MediaPricing
+} from './mediaQuota'

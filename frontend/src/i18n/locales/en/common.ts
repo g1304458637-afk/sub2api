@@ -190,6 +190,7 @@ export default {
     redeemCodes: 'Redeem Codes',
     adminResearch: 'Research Review',
     rewardGrants: 'Reward Grants',
+    mediaQuota: 'Media Quota',
     ops: 'Ops',
     promoCodes: 'Promo Codes',
     settings: 'Settings',

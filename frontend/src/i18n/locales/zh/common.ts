@@ -190,6 +190,7 @@ export default {
     redeemCodes: '兑换码',
     adminResearch: '科研优惠审核',
     rewardGrants: '奖励发放记录',
+    mediaQuota: '媒体额度',
     ops: '运维监控',
     promoCodes: '优惠码',
     settings: '系统设置',

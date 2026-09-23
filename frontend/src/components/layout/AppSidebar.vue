@@ -1012,6 +1012,22 @@ const PriceTagIcon = {
     )
 }
 
+// 媒体额度：相框图形（heroicons photo），媒体（图片/音乐/语音）计费监控入口
+const MediaQuotaIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'
+        })
+      ]
+    )
+}
+
 const ChevronDownIcon = {
   render: () =>
     h(
@@ -1222,6 +1238,7 @@ const adminNavItems = computed((): NavItem[] => {
         { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
         { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },
         { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon },
+        { path: '/admin/media-quota', label: t('nav.mediaQuota'), icon: MediaQuotaIcon },
       ],
     },
 
