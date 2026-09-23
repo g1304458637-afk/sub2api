@@ -344,6 +344,9 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 	if toPlan.TierRank <= fromPlan.TierRank {
 		return nil, nil, ErrPlanNoChange // 非升级走 downgrade 流程
 	}
+	if !sameWalletCurrency(fromPlan.Currency, toPlan.Currency) {
+		return nil, nil, ErrPlanCrossCurrency
+	}
 
 	// 冲突：目标 Group 已有 active 订阅 → Preview 即拒绝（不自动 merge）
 	if toPlan.GroupID != sub.GroupID {
