@@ -25,6 +25,23 @@ func TestWalletCurrencyConversionsUseFixedCNYContract(t *testing.T) {
 	}
 }
 
+func TestSameWalletCurrencyNormalizesSupportedAliases(t *testing.T) {
+	for _, tc := range []struct {
+		a, b string
+		want bool
+	}{
+		{a: "CNY", b: "rmb", want: true},
+		{a: " CNH ", b: "CNY", want: true},
+		{a: "USD", b: "", want: true},
+		{a: "USD", b: "CNY", want: false},
+		{a: "EUR", b: "EUR", want: false},
+	} {
+		if got := sameWalletCurrency(tc.a, tc.b); got != tc.want {
+			t.Errorf("sameWalletCurrency(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+		}
+	}
+}
+
 func TestWalletCurrencyContractFixesDisplayAndLegacyRates(t *testing.T) {
 	for _, rate := range []float64{0, 6.7, 7.15, math.NaN(), math.Inf(1)} {
 		if got := normalizeUSDToCNYDisplayRate(rate); got != WalletUSDToCNYRate {

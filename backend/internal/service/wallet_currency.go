@@ -40,6 +40,22 @@ func walletAmountToCNY(amount float64, currency string) (float64, error) {
 	}
 }
 
+func sameWalletCurrency(a, b string) bool {
+	classify := func(currency string) string {
+		switch strings.ToUpper(strings.TrimSpace(currency)) {
+		case "CNY", "RMB", "CNH":
+			return "CNY"
+		case "", "USD":
+			return "USD"
+		default:
+			return ""
+		}
+	}
+
+	left, right := classify(a), classify(b)
+	return left != "" && left == right
+}
+
 // paymentAmountToWalletCNY converts the amount entered in the selected
 // payment method's currency into the canonical wallet currency.
 func paymentAmountToWalletCNY(amount float64, currency string, multiplier float64) (float64, error) {
