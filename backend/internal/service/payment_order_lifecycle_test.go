@@ -179,6 +179,7 @@ func TestVerifyOrderByOutTradeNoBackfillsTradeNoFromPaidQuery(t *testing.T) {
 		SetUserName(user.Username).
 		SetAmount(88).
 		SetPayAmount(88).
+		SetProviderSnapshot(map[string]any{"amount_currency": "CNY"}).
 		SetFeeRate(0).
 		SetRechargeCode("CHECKPAID-UPSTREAM-TRADE-NO").
 		SetOutTradeNo("sub2_checkpaid_trade_no_missing").
@@ -280,6 +281,7 @@ func TestVerifyOrderByOutTradeNoRetriesZeroAmountPaidQueryOnce(t *testing.T) {
 		SetUserName(user.Username).
 		SetAmount(88).
 		SetPayAmount(88).
+		SetProviderSnapshot(map[string]any{"amount_currency": "CNY"}).
 		SetFeeRate(0).
 		SetRechargeCode("CHECKPAID-UPSTREAM-RETRY").
 		SetOutTradeNo("sub2_checkpaid_retry_zero_amount").
@@ -584,6 +586,7 @@ func TestReconcilePendingPaymentOrdersBackfillsPaidOrder(t *testing.T) {
 		SetUserName(user.Username).
 		SetAmount(50).
 		SetPayAmount(50).
+		SetProviderSnapshot(map[string]any{"amount_currency": "CNY"}).
 		SetFeeRate(0).
 		SetRechargeCode("WXPAY-RECONCILE").
 		SetOutTradeNo("sub2_wxpay_reconcile").

@@ -72,7 +72,7 @@ func TestBillingEligibilityAndSettlementMatrix(t *testing.T) {
 				require.Zero(t, cmd.BalanceCost)
 				require.Equal(t, sub.ID, *cmd.SubscriptionID)
 			} else {
-				require.Equal(t, 1.0, cmd.BalanceCost)
+				require.Equal(t, WalletUSDToCNY(1.0), cmd.BalanceCost)
 				require.Zero(t, cmd.SubscriptionCost)
 				require.Nil(t, cmd.SubscriptionID)
 			}

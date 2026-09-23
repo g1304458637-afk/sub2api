@@ -193,47 +193,22 @@ func TestValidatePlanPatch_AllNil(t *testing.T) {
 }
 
 // --- normalizePlanCurrency tests ---
-// Empty must stay empty (not coerced to the default payment currency),
-// so existing plans keep rendering without any currency label.
-
-func TestNormalizePlanCurrency_EmptyKeepsEmpty(t *testing.T) {
-	currency, err := normalizePlanCurrency("")
-	require.NoError(t, err)
-	require.Equal(t, "", currency)
+// Subscription plan prices are stored in the canonical wallet currency.
+func TestNormalizePlanCurrency_CanonicalCNY(t *testing.T) {
+	for _, raw := range []string{"", "   ", "CNY", "cny", "RMB", "cnh"} {
+		t.Run(raw, func(t *testing.T) {
+			currency, err := normalizePlanCurrency(raw)
+			require.NoError(t, err)
+			require.Equal(t, "CNY", currency)
+		})
+	}
 }
 
-func TestNormalizePlanCurrency_WhitespaceKeepsEmpty(t *testing.T) {
-	currency, err := normalizePlanCurrency("   ")
-	require.NoError(t, err)
-	require.Equal(t, "", currency)
-}
-
-func TestNormalizePlanCurrency_LowercaseNormalized(t *testing.T) {
-	currency, err := normalizePlanCurrency("nzd")
-	require.NoError(t, err)
-	require.Equal(t, "NZD", currency)
-}
-
-func TestNormalizePlanCurrency_ValidUppercase(t *testing.T) {
-	currency, err := normalizePlanCurrency("USD")
-	require.NoError(t, err)
-	require.Equal(t, "USD", currency)
-}
-
-func TestNormalizePlanCurrency_TooShort(t *testing.T) {
-	_, err := normalizePlanCurrency("NZ")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "currency")
-}
-
-func TestNormalizePlanCurrency_TooLong(t *testing.T) {
-	_, err := normalizePlanCurrency("NZDD")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "currency")
-}
-
-func TestNormalizePlanCurrency_NonLetter(t *testing.T) {
-	_, err := normalizePlanCurrency("N2D")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "currency")
+func TestNormalizePlanCurrency_RejectsNonCNY(t *testing.T) {
+	for _, raw := range []string{"USD", "NZD", "NZ", "NZDD", "N2D"} {
+		t.Run(raw, func(t *testing.T) {
+			_, err := normalizePlanCurrency(raw)
+			require.ErrorContains(t, err, "PLAN_CURRENCY_INVALID")
+		})
+	}
 }

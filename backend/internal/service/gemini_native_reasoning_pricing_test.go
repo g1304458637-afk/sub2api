@@ -130,7 +130,7 @@ func TestGeminiNativeReasoningPricingUsesExplicitForwardedLevel(t *testing.T) {
 					require.Equal(t, tc.wantEffort, optionalStringValue(usageRepo.lastLog.ReasoningEffort))
 					require.InDelta(t, tc.multiplier, usageRepo.lastLog.TotalCost, 1e-12)
 					require.InDelta(t, tc.multiplier*0.5, usageRepo.lastLog.ActualCost, 1e-12)
-					require.InDelta(t, tc.multiplier*0.5, userRepo.lastAmount, 1e-12)
+					require.InDelta(t, WalletUSDToCNY(tc.multiplier*0.5), userRepo.lastAmount, 1e-12)
 				})
 			}
 		}
