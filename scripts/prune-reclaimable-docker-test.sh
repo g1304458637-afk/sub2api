@@ -17,7 +17,7 @@ DOCKER_CALLS="$calls_file" PATH="$tmp_dir:$PATH" bash "$SCRIPT_DIR/prune-reclaim
 expected="$tmp_dir/expected"
 cat > "$expected" <<'EXPECTED'
 image prune --force
-builder prune --force --filter until=168h
+builder prune --force
 EXPECTED
 
 diff -u "$expected" "$calls_file"

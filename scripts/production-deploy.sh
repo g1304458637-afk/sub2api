@@ -101,7 +101,7 @@ printf '%s' "$MIGRATION_BASELINE" | grep -Eq '^[0-9a-f]{40}$' || fail_preflight 
 [ "$BRAND" = "muc" ] || fail_preflight "生产只允许 brand=muc"
 
 if [ "$PRUNE_RECLAIMABLE_DOCKER_DATA" = "1" ]; then
-  echo "== 部署前清理可回收 Docker 数据（仅悬空镜像和 7 天以上未使用的构建缓存）=="
+  echo "== 部署前清理可回收 Docker 数据（仅悬空镜像和当前未被构建使用的缓存）=="
   before_kb=$(df --output=avail -k "$COMPOSE_DIR" | tail -1)
   echo "清理前可用磁盘: $((before_kb / 1024)) MB"
   if ! bash "$SCRIPT_DIR/prune-reclaimable-docker.sh"; then
