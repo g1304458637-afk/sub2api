@@ -81,11 +81,11 @@ jobs:
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
           for container in sub2api-hubu sub2api-hubu-postgres sub2api-hubu-redis; do
-            state=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+          state=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
               "sudo docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' $container")
             test "$state" = 'true healthy' || { echo "$container is not healthy" >&2; exit 1; }
           done
-          health=$(ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+          health=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             'sudo curl -fsS --max-time 10 http://127.0.0.1:8081/healthz')
           previous=$(printf '%s' "$health" | python3 -c '
           import json,sys
@@ -172,9 +172,9 @@ jobs:
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
-          ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "mkdir -p /tmp/hubu-sub2api-deploy"
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "mkdir -p /tmp/hubu-sub2api-deploy"
           for f in hubu-production-deploy.sh hubu-production-healthcheck.sh hubu-compose-image.py; do
-            cat "scripts/$f" | ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+            cat "scripts/$f" | ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
               "cat > /tmp/hubu-sub2api-deploy/$f && chmod 700 /tmp/hubu-sub2api-deploy/$f"
           done
       - name: Stage temporary GHCR pull token
@@ -186,7 +186,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "$GHCR_PULL_TOKEN" ]; then token="$GHCR_PULL_TOKEN"; else token="$GITHUB_TOKEN"; fi
-          printf '%s' "$token" | ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+          printf '%s' "$token" | ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "umask 077; cat > /tmp/hubu-sub2api-deploy/.ghcr-token"
       - name: Deploy HUBU image with app-only rollback
         env:
@@ -194,7 +194,7 @@ jobs:
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
-          ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "sudo bash /tmp/hubu-sub2api-deploy/hubu-production-deploy.sh \
                --image '${{ needs.build-push.outputs.image }}' \
                --commit '${{ github.sha }}' \
@@ -220,4 +220,4 @@ jobs:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
-        run: ssh -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "rm -rf /tmp/hubu-sub2api-deploy" || true
+        run: ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" "rm -rf /tmp/hubu-sub2api-deploy" || true
