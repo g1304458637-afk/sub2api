@@ -59,6 +59,7 @@ jobs:
     needs: [canonical-source, test-backend]
     outputs:
       previous_commit: ${{ steps.state.outputs.previous_commit }}
+      previous_commit_b64: ${{ steps.state.outputs.previous_commit_b64 }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -106,6 +107,8 @@ jobs:
             exit 1
           }
           echo "previous_commit=$previous" >> "$GITHUB_OUTPUT"
+          # 裸 SHA 可能命中 GitHub 的 secret 掩码导致跨 job 输出被跳过，编码后传递
+          echo "previous_commit_b64=$(printf '%s' "$previous" | base64 -w0)" >> "$GITHUB_OUTPUT"
       - name: Audit migrations
         run: bash scripts/audit-migrations.sh "${{ steps.state.outputs.previous_commit }}" "${{ github.sha }}"
 
@@ -126,9 +129,12 @@ jobs:
           echo "name=ghcr.io/${repo_lc}/sub2api:hubu-sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
       - id: metadata
         name: Compute immutable release metadata
+        env:
+          PREV_COMMIT_B64: ${{ needs.preflight.outputs.previous_commit_b64 }}
         run: |
           echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
           echo "version=hubu-$(date -u +%Y%m%d)-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "migration_baseline=$(printf '%s' "$PREV_COMMIT_B64" | base64 -d)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -147,7 +153,7 @@ jobs:
             VERSION=${{ steps.metadata.outputs.version }}
             COMMIT=${{ github.sha }}
             DATE=${{ steps.metadata.outputs.build_timestamp }}
-            MIGRATION_BASELINE=${{ needs.preflight.outputs.previous_commit }}
+            MIGRATION_BASELINE=${{ steps.metadata.outputs.migration_baseline }}
 
   deploy:
     name: Deploy only the HUBU backend container
@@ -193,14 +199,16 @@ jobs:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_PORT: ${{ secrets.PROD_PORT }}
           PROD_USER: ${{ secrets.PROD_USER }}
+          PREV_COMMIT_B64: ${{ needs.preflight.outputs.previous_commit_b64 }}
         run: |
+          migration_baseline=$(printf '%s' "$PREV_COMMIT_B64" | base64 -d)
           ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
             "sudo bash /tmp/hubu-sub2api-deploy/hubu-production-deploy.sh \
                --image '${{ needs.build-push.outputs.image }}' \
                --commit '${{ github.sha }}' \
                --version '${{ needs.build-push.outputs.version }}' \
                --build-timestamp '${{ needs.build-push.outputs.build_timestamp }}' \
-               --migration-baseline '${{ needs.preflight.outputs.previous_commit }}' \
+               --migration-baseline '$migration_baseline' \
                --token-file /tmp/hubu-sub2api-deploy/.ghcr-token \
                --ghcr-user '${{ github.repository_owner }}'"
       - name: Verify public HUBU health endpoint
