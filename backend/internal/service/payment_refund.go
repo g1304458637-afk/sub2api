@@ -163,7 +163,7 @@ func (s *PaymentService) RequestRefund(ctx context.Context, oid, uid int64, reas
 	if err != nil {
 		return fmt.Errorf("get user: %w", err)
 	}
-	if u.Balance < o.Amount {
+	if u.Balance < paymentOrderAmountToWalletCNY(o, o.Amount) {
 		return infraerrors.BadRequest("BALANCE_NOT_ENOUGH", "refund amount exceeds balance")
 	}
 	nr := strings.TrimSpace(reason)
@@ -233,11 +233,11 @@ func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float
 	if amt <= 0 {
 		amt = o.Amount
 	}
-	orderCurrency := PaymentOrderCurrency(o)
+	orderCurrency := PaymentOrderAmountCurrency(o)
 	if amt-o.Amount > paymentAmountToleranceForCurrency(orderCurrency) {
 		return nil, nil, infraerrors.BadRequest("REFUND_AMOUNT_EXCEEDED", "refund amount exceeds recharge")
 	}
-	ga := calculateGatewayRefundAmount(o.Amount, o.PayAmount, amt, orderCurrency)
+	ga := calculateGatewayRefundAmount(o.Amount, o.PayAmount, amt, PaymentOrderCurrency(o))
 	rr := strings.TrimSpace(reason)
 	if rr == "" && o.RefundRequestReason != nil {
 		rr = *o.RefundRequestReason
@@ -276,10 +276,11 @@ func (s *PaymentService) prepDeduct(ctx context.Context, o *dbent.PaymentOrder, 
 		return nil
 	}
 	p.DeductionType = payment.DeductionTypeBalance
-	if u.Balance < p.RefundAmount && !force {
+	walletRefundAmount := paymentOrderAmountToWalletCNY(o, p.RefundAmount)
+	if u.Balance < walletRefundAmount && !force {
 		return &RefundResult{Success: false, Warning: "user balance is insufficient for deduction, use force", RequireForce: true}
 	}
-	p.BalanceToDeduct = math.Max(0, math.Min(p.RefundAmount, u.Balance))
+	p.BalanceToDeduct = math.Max(0, math.Min(walletRefundAmount, u.Balance))
 	return nil
 }
 
@@ -525,7 +526,7 @@ func (s *PaymentService) refundFinalizePlan(o *dbent.PaymentOrder) *RefundPlan {
 		DeductionType: payment.DeductionTypeBalance,
 		BalanceToDeduct: func() float64 {
 			if o.OrderType == payment.OrderTypeBalance {
-				return refundAmount
+				return paymentOrderAmountToWalletCNY(o, refundAmount)
 			}
 			return 0
 		}(),

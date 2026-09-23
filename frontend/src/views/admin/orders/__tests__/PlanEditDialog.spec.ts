@@ -7,9 +7,7 @@ import type { AdminGroup } from '@/types'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (key === 'payment.admin.subscriptionCnyPayPreview') return `preview ${params?.amount}`
-      if (key === 'payment.admin.subscriptionCnyPayPreviewWithFee') return `fee ${params?.feeRate} ${params?.total}`
+    t: (key: string, _params?: Record<string, unknown>) => {
       return key
     },
   }),
@@ -19,6 +17,12 @@ vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
     showError: vi.fn(),
     showSuccess: vi.fn(),
+  }),
+}))
+
+vi.mock('@/stores/currencyDisplay', () => ({
+  useCurrencyDisplayStore: () => ({
+    formatUSD: (amount: number) => `C$${amount}`,
   }),
 }))
 
@@ -115,17 +119,14 @@ const groupFixture = (overrides: Partial<AdminGroup>): AdminGroup => ({
 
 function mountDialog({
   groups = [],
-  paymentConfig = null,
 }: {
   groups?: AdminGroup[]
-  paymentConfig?: Record<string, unknown> | null
 } = {}) {
   return mount(PlanEditDialog, {
     props: {
       show: true,
       plan: null,
       groups,
-      paymentConfig,
     },
     global: {
       stubs: {
@@ -139,36 +140,11 @@ function mountDialog({
 }
 
 describe('PlanEditDialog', () => {
-  it('shows CNY channel charge using the configured subscription rate and fee', async () => {
-    const wrapper = mountDialog({
-      paymentConfig: {
-        subscription_usd_to_cny_rate: 7.15,
-        recharge_fee_rate: 2.5,
-      },
-    })
-
-    await wrapper.find('input[type="number"]').setValue('9.99')
-
-    expect(wrapper.text()).toContain('preview')
-    expect(wrapper.text()).toContain('¥71.43')
-    expect(wrapper.text()).toContain('fee 2.5')
-    expect(wrapper.text()).toContain('¥73.22')
+  it('keeps plan prices denominated in CNY', () => {
+    const wrapper = mountDialog()
+    expect(wrapper.find('input[readonly]').element.getAttribute('value')).toBe('CNY')
+    expect(wrapper.text()).toContain('(CNY)')
   })
-
-  it('hides the preview when the subscription rate is not configured', async () => {
-    const wrapper = mountDialog({
-      paymentConfig: {
-        subscription_usd_to_cny_rate: 0,
-        recharge_fee_rate: 2.5,
-      },
-    })
-
-    await wrapper.find('input[type="number"]').setValue('9.99')
-
-    expect(wrapper.text()).not.toContain('preview')
-    expect(wrapper.text()).not.toContain('¥71.43')
-  })
-
   it('allows composite subscription groups for payment plans', () => {
     const wrapper = mountDialog({
       groups: [

@@ -92,6 +92,7 @@ type CreateOrderResponse struct {
 	OrderID                       int64                           `json:"order_id"`
 	Amount                        float64                         `json:"amount"`
 	PayAmount                     float64                         `json:"pay_amount"`
+	AmountCurrency                string                          `json:"amount_currency"`
 	FeeRate                       float64                         `json:"fee_rate"`
 	Status                        string                          `json:"status"`
 	ResultType                    payment.CreatePaymentResultType `json:"result_type,omitempty"`

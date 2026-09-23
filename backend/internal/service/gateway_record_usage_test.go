@@ -225,7 +225,7 @@ func TestGatewayServiceRecordUsage_GeminiFlashThinkingTierUsesCatalogPrice(t *te
 			require.Equal(t, model, usageRepo.lastLog.Model)
 			require.InDelta(t, 0.02007585, usageRepo.lastLog.TotalCost, 1e-12)
 			require.InDelta(t, 0.0030113775, usageRepo.lastLog.ActualCost, 1e-12)
-			require.InDelta(t, 0.0030113775, userRepo.lastAmount, 1e-12)
+			require.InDelta(t, WalletUSDToCNY(0.0030113775), userRepo.lastAmount, 1e-12)
 		})
 	}
 }
@@ -378,7 +378,7 @@ func TestGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputTokens(t *
 	require.InDelta(t, textInput+textOutput+imageOutput, usageRepo.lastLog.TotalCost, 1e-12)
 	require.InDelta(t, imageOutput, usageRepo.lastLog.ImageOutputCost, 1e-12)
 	require.InDelta(t, expectedActual, usageRepo.lastLog.ActualCost, 1e-12)
-	require.InDelta(t, expectedActual, userRepo.lastAmount, 1e-12)
+	require.InDelta(t, WalletUSDToCNY(expectedActual), userRepo.lastAmount, 1e-12)
 }
 
 func TestGatewayServiceRecordUsage_TimePricingUsesPricingAt(t *testing.T) {
@@ -514,7 +514,7 @@ func TestGatewayServiceRecordUsage_DeepSeekAccountStatsUsesRequestPricingAtAndUp
 				require.InDelta(t, customerTotal, log.TotalCost, 1e-12)
 				require.InDelta(t, customerTotal*0.8, log.ActualCost, 1e-12)
 				require.Equal(t, 1, userRepo.deductCalls)
-				require.InDelta(t, customerTotal*0.8, userRepo.lastAmount, 1e-12)
+				require.InDelta(t, WalletUSDToCNY(customerTotal*0.8), userRepo.lastAmount, 1e-12)
 				require.NotNil(t, log.AccountStatsCost)
 				require.InDelta(t, model.offPeakCost*slot.multiplier, *log.AccountStatsCost, 1e-12,
 					"account cost must use the upstream model and historical PricingAt")

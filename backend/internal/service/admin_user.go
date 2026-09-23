@@ -729,6 +729,7 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int
 		if err != nil {
 			return nil, 0, 0, err
 		}
+		annotateWalletHistoryCurrencies(ctx, s.entClient, codes)
 		return codes, total, totalRecharged, nil
 	}
 
@@ -741,11 +742,17 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int
 		if err != nil {
 			return nil, 0, 0, err
 		}
+		annotateWalletHistoryCurrencies(ctx, s.entClient, codes)
 		return codes, total, totalRecharged, nil
 	}
 
 	if codeType == "" {
-		return s.getAllUserBalanceHistory(ctx, userID, params)
+		codes, total, totalRecharged, err := s.getAllUserBalanceHistory(ctx, userID, params)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		annotateWalletHistoryCurrencies(ctx, s.entClient, codes)
+		return codes, total, totalRecharged, nil
 	}
 
 	codes, result, err := s.redeemCodeRepo.ListByUserPaginated(ctx, userID, params, codeType)
@@ -758,6 +765,7 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int
 	if err != nil {
 		return nil, 0, 0, err
 	}
+	annotateWalletHistoryCurrencies(ctx, s.entClient, codes)
 	return codes, total, totalRecharged, nil
 }
 
@@ -785,6 +793,7 @@ func (s *adminServiceImpl) getAllUserBalanceHistory(ctx context.Context, userID 
 	if err != nil {
 		return nil, 0, 0, err
 	}
+	annotateWalletHistoryCurrencies(ctx, s.entClient, codes)
 	return codes, redeemTotal + affiliateTotal + rewardTotal, totalRecharged, nil
 }
 

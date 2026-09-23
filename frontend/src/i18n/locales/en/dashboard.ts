@@ -295,7 +295,7 @@ export default {
     reset: 'Reset',
     resetQuotaUsed: 'Reset used quota to 0',
     resetQuotaTitle: 'Confirm Reset Quota',
-    resetQuotaConfirmMessage: 'Are you sure you want to reset the used quota (${used}) for key "{name}" to 0? This action cannot be undone.',
+    resetQuotaConfirmMessage: 'Are you sure you want to reset the used quota ({used}) for key "{name}" to 0? This action cannot be undone.',
     quotaResetSuccess: 'Quota reset successfully',
     failedToResetQuota: 'Failed to reset quota',
     rateLimitColumn: 'Rate Limit',

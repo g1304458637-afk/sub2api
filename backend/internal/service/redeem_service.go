@@ -559,6 +559,9 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	if err != nil {
 		return nil, fmt.Errorf("get updated redeem code: %w", err)
 	}
+	historyRow := []RedeemCode{*redeemCode}
+	s.annotateWalletHistoryCurrencies(ctx, historyRow)
+	redeemCode.Currency = historyRow[0].Currency
 
 	return redeemCode, nil
 }
@@ -692,6 +695,7 @@ func (s *RedeemService) GetUserHistory(ctx context.Context, userID int64, limit 
 	if err != nil {
 		return nil, fmt.Errorf("get user redeem history: %w", err)
 	}
+	s.annotateWalletHistoryCurrencies(ctx, codes)
 	return codes, nil
 }
 
@@ -753,5 +757,17 @@ func (s *RedeemService) reduceOrCancelSubscription(ctx context.Context, userID, 
 
 // GetUserHistoryPaginated returns all redemption types for the authenticated user.
 func (s *RedeemService) GetUserHistoryPaginated(ctx context.Context, userID int64, params pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {
-	return s.redeemRepo.ListByUserPaginated(ctx, userID, params, "")
+	codes, page, err := s.redeemRepo.ListByUserPaginated(ctx, userID, params, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	s.annotateWalletHistoryCurrencies(ctx, codes)
+	return codes, page, nil
+}
+
+func (s *RedeemService) annotateWalletHistoryCurrencies(ctx context.Context, codes []RedeemCode) {
+	if s == nil {
+		return
+	}
+	annotateWalletHistoryCurrencies(ctx, s.entClient, codes)
 }

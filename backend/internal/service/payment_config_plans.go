@@ -8,21 +8,16 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
-	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
-// normalizePlanCurrency validates and normalizes the display-only currency label.
-// Empty means "no label" and is kept as-is so existing plans stay unchanged.
+// Subscription plan prices are canonical wallet amounts and are always CNY.
 func normalizePlanCurrency(raw string) (string, error) {
-	if strings.TrimSpace(raw) == "" {
-		return "", nil
+	currency := strings.ToUpper(strings.TrimSpace(raw))
+	if currency == "" || currency == "CNY" || currency == "RMB" || currency == "CNH" {
+		return "CNY", nil
 	}
-	currency, err := payment.NormalizePaymentCurrency(raw)
-	if err != nil {
-		return "", infraerrors.BadRequest("PLAN_CURRENCY_INVALID", "currency must be a 3-letter ISO currency code")
-	}
-	return currency, nil
+	return "", infraerrors.BadRequest("PLAN_CURRENCY_INVALID", "subscription plan prices must use CNY")
 }
 
 // validatePlanRequired checks that all required fields for a plan are provided.

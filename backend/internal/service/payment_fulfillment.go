@@ -347,8 +347,9 @@ func validatePaymentRedeemCode(o *dbent.PaymentOrder, code *RedeemCode) error {
 	if code.Type != RedeemTypeBalance {
 		return fmt.Errorf("payment redeem code type mismatch for order %d: got %s", o.ID, code.Type)
 	}
-	if math.IsNaN(code.Value) || math.IsInf(code.Value, 0) || math.Abs(code.Value-o.Amount) > 1e-8 {
-		return fmt.Errorf("payment redeem code amount mismatch for order %d: expected %.8f, got %.8f", o.ID, o.Amount, code.Value)
+	expectedValue := paymentOrderAmountToWalletCNY(o, o.Amount)
+	if math.IsNaN(code.Value) || math.IsInf(code.Value, 0) || math.Abs(code.Value-expectedValue) > 1e-8 {
+		return fmt.Errorf("payment redeem code amount mismatch for order %d: expected %.8f CNY, got %.8f", o.ID, expectedValue, code.Value)
 	}
 	switch code.Status {
 	case StatusUnused:
@@ -386,7 +387,7 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 		// Code already created and redeemed — just mark completed
 		return s.markCompleted(ctx, o, lease, "RECHARGE_SUCCESS")
 	case redeemActionCreate:
-		rc := &RedeemCode{Code: o.RechargeCode, Type: RedeemTypeBalance, Value: o.Amount, Status: StatusUnused}
+		rc := &RedeemCode{Code: o.RechargeCode, Type: RedeemTypeBalance, Value: paymentOrderAmountToWalletCNY(o, o.Amount), Status: StatusUnused}
 		if err := s.redeemService.CreateCode(ctx, rc); err != nil {
 			return fmt.Errorf("create redeem code: %w", err)
 		}
@@ -621,7 +622,7 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 					SubscriptionID: sub.ID,
 					OrderID:        &orderID,
 					PlanID:         &planID,
-					PricePaid:      o.Amount,
+					PricePaid:      paymentOrderAmountToWalletCNY(o, o.Amount),
 					Currency:       planCurrencyOf(o),
 					Days:           days,
 					TermStart:      termStart,
@@ -819,7 +820,7 @@ func affiliateRebateBaseAmount(o *dbent.PaymentOrder) float64 {
 	}
 	switch o.OrderType {
 	case payment.OrderTypeBalance, payment.OrderTypeSubscription:
-		return o.Amount
+		return paymentOrderAmountToWalletCNY(o, o.Amount)
 	default:
 		return 0
 	}
@@ -1022,13 +1023,8 @@ func (s *PaymentService) ExecutePlanChangeFulfillment(ctx context.Context, oid i
 	return s.markCompleted(ctx, o, lease, "PLAN_CHANGE_SUCCESS")
 }
 
-// planCurrencyOf 订单币种（plan.currency 未随订单快照；V1 使用 CNY 直付语义）。
+// planCurrencyOf returns the canonical wallet currency for newly fulfilled terms.
 func planCurrencyOf(o *dbent.PaymentOrder) string {
-	if o.ProviderSnapshot != nil {
-		if c, ok := o.ProviderSnapshot["currency"].(string); ok && c != "" {
-			return c
-		}
-	}
 	return "CNY"
 }
 

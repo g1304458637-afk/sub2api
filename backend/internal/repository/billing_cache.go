@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	billingBalanceKeyPrefix   = "billing:balance:"
+	billingBalanceKeyPrefix   = "billing:balance:cny:v1:"
 	billingSubKeyPrefix       = "billing:sub:"
 	billingRateLimitKeyPrefix = "apikey:rate:"
 	subCacheInvalidateChannel = "subscription:cache:invalidate"

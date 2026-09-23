@@ -7,7 +7,7 @@ package service
 // 两个端点不允许各自计算。
 //
 // 领域分离（对齐 Lago/OpenMeter/Kill Bill 的 wallet ≠ entitlement 原则）：
-//   - Wallet：users.balance（USD 账本，decimal(20,8)），对用户完全透明；
+//   - Wallet：users.balance（CNY 账本，decimal(20,8)），模型计量仍以 USD 计算；
 //   - Subscription：内部 USD 额度（weekly_limit_usd 等）绝不进入普通用户 DTO，
 //     用户只消费服务端算好的 weekly_usage_percent（clamp 0..100）与 usage_status；
 //   - Admin 端继续使用既有完整 DTO（AdminUserSubscription + Progress），互不影响。
@@ -50,7 +50,7 @@ type SubscriptionResetCardReader interface {
 	CountAvailableResetCards(ctx context.Context, userID int64, now time.Time) (int, error)
 }
 
-// AccountWalletStatus 钱包状态。canonical 账本为 users.balance（USD，NUMERIC(20,8)），
+// AccountWalletStatus 钱包状态。canonical 账本为 users.balance（CNY，NUMERIC(20,8)），
 // 金额以 8 位小数字符串表达以保证小数保真；CNY 等展示折算由客户端基于既有汇率逻辑完成。
 type AccountWalletStatus struct {
 	Balance           string `json:"balance"`
@@ -294,7 +294,7 @@ func (s *AccountStatusService) GetAccountStatus(ctx context.Context, userID int6
 	return &AccountStatus{
 		Wallet: AccountWalletStatus{
 			Balance:           FormatWalletBalance(user.Balance),
-			CanonicalCurrency: "USD",
+			CanonicalCurrency: "CNY",
 		},
 		ResetCards:        AccountResetCardsStatus{Available: s.CountAvailableResetCards(ctx, userID)},
 		Subscriptions:     statuses,
@@ -326,7 +326,7 @@ func (s *AccountStatusService) GetWallet(ctx context.Context, userID int64) (Acc
 	}
 	return AccountWalletStatus{
 		Balance:           FormatWalletBalance(user.Balance),
-		CanonicalCurrency: "USD",
+		CanonicalCurrency: "CNY",
 	}, nil
 }
 

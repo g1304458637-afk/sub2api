@@ -25,8 +25,8 @@ const (
 	SettingLoadBalanceStrategy = "LOAD_BALANCE_STRATEGY"
 	SettingBalancePayDisabled  = "BALANCE_PAYMENT_DISABLED"
 	SettingBalanceRechargeMult = "BALANCE_RECHARGE_MULTIPLIER"
-	// SettingUSDToCNYDisplayRate converts USD-denominated ledger and pricing values
-	// for display only. It does not change the USD storage or billing unit.
+	// SettingUSDToCNYDisplayRate is fixed at 6.7 for the display toggle on USD
+	// metering and provider prices; wallet accounting itself is stored in CNY.
 	SettingUSDToCNYDisplayRate = "USD_TO_CNY_DISPLAY_RATE"
 	// SettingSubscriptionUSDToCNYRate 是订阅 CNY 换算汇率（1 USD = X CNY）。
 	// 0/未配置 = 关闭换算（订阅按 price 数值直付），显式配置后 CNY 通道订阅按 price × rate 收款。
@@ -257,7 +257,7 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		MaxPendingOrders:          pcParseInt(vals[SettingMaxPendingOrders], defaultMaxPendingOrders),
 		BalanceDisabled:           vals[SettingBalancePayDisabled] == "true",
 		BalanceRechargeMultiplier: normalizeBalanceRechargeMultiplier(pcParseFloat(vals[SettingBalanceRechargeMult], defaultBalanceRechargeMultiplier)),
-		USDToCNYDisplayRate:       normalizeUSDToCNYDisplayRate(pcParseFloat(vals[SettingUSDToCNYDisplayRate], 0)),
+		USDToCNYDisplayRate:       normalizeUSDToCNYDisplayRate(pcParseFloat(vals[SettingUSDToCNYDisplayRate], WalletUSDToCNYRate)),
 		SubscriptionUSDToCNYRate:  normalizeSubscriptionUSDToCNYRate(pcParseFloat(vals[SettingSubscriptionUSDToCNYRate], 0)),
 		RechargeFeeRate:           pcParseFloat(vals[SettingRechargeFeeRate], 0),
 		LoadBalanceStrategy:       vals[SettingLoadBalanceStrategy],
@@ -333,18 +333,18 @@ func (s *PaymentConfigService) getStripePublishableKey(ctx context.Context) stri
 // and cannot be meaningfully decomposed without introducing unnecessary abstraction.
 func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req UpdatePaymentConfigRequest) error {
 	if req.BalanceRechargeMultiplier != nil {
-		if math.IsNaN(*req.BalanceRechargeMultiplier) || math.IsInf(*req.BalanceRechargeMultiplier, 0) || *req.BalanceRechargeMultiplier <= 0 {
-			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_MULTIPLIER", "balance recharge multiplier must be greater than 0")
+		if math.IsNaN(*req.BalanceRechargeMultiplier) || math.IsInf(*req.BalanceRechargeMultiplier, 0) || *req.BalanceRechargeMultiplier != 1 {
+			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_MULTIPLIER", "wallet top-up multiplier is fixed at 1")
 		}
 	}
 	if req.SubscriptionUSDToCNYRate != nil {
 		v := *req.SubscriptionUSDToCNYRate
-		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 {
-			return infraerrors.BadRequest("INVALID_SUBSCRIPTION_USD_TO_CNY_RATE", "subscription USD to CNY rate must be 0 (disabled) or a positive number")
+		if math.IsNaN(v) || math.IsInf(v, 0) || v != 0 {
+			return infraerrors.BadRequest("INVALID_SUBSCRIPTION_USD_TO_CNY_RATE", "subscription prices are stored in CNY; this conversion setting is retired")
 		}
 	}
 	if req.USDToCNYDisplayRate != nil && !isValidUSDToCNYDisplayRate(*req.USDToCNYDisplayRate) {
-		return infraerrors.BadRequest("INVALID_USD_TO_CNY_DISPLAY_RATE", "USD to CNY display rate must be 0 (disabled) or a positive number")
+		return infraerrors.BadRequest("INVALID_USD_TO_CNY_DISPLAY_RATE", "USD to CNY display rate is fixed at 6.7 for the CNY wallet contract")
 	}
 	if req.RechargeFeeRate != nil {
 		v := *req.RechargeFeeRate

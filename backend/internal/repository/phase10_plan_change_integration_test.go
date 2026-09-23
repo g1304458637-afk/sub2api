@@ -248,11 +248,13 @@ func TestPhase10QuoteGates(t *testing.T) {
 	_, err = s4.svc.PreviewUpgrade(ctx, s4.user.ID, s4.basicSub.ID, s4.proPlan.ID)
 	require.ErrorIs(t, err, service.ErrPlanIdentityUnresolved)
 
-	// 跨币种 → 拒绝
+	// 公共套餐接口只接受 CNY。直接注入一个异常旧数据行，确认服务层仍拒绝跨币种报价。
 	s6 := phase10Setup(t, client, 39, 99, 0, 30)
 	usdPlan, err := client.SubscriptionPlan.Create().
-		SetGroupID(s6.maxG.ID).SetName("USDPro").SetPrice(15).SetCurrency("USD").
+		SetGroupID(s6.maxG.ID).SetName("USDPro").SetPrice(15).SetCurrency("CNY").
 		SetValidityDays(30).SetValidityUnit("days").SetTierRank(300).Save(ctx)
+	require.NoError(t, err)
+	_, err = integrationDB.ExecContext(ctx, "UPDATE subscription_plans SET currency = 'USD' WHERE id = $1", usdPlan.ID)
 	require.NoError(t, err)
 	_, err = s6.svc.PreviewUpgrade(ctx, s6.user.ID, s6.basicSub.ID, usdPlan.ID)
 	require.ErrorIs(t, err, service.ErrPlanCrossCurrency)

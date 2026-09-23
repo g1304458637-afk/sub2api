@@ -515,6 +515,7 @@ func TestAPIContracts(t *testing.T) {
 					{
 						"id": 900,
 						"code": "CODE-123",
+						"currency": "CNY",
 						"type": "balance",
 						"value": 1.25,
 						"status": "used",

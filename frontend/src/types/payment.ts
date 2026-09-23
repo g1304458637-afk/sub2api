@@ -89,6 +89,7 @@ export interface PaymentOrder {
   user_id: number
   amount: number
   pay_amount: number
+  amount_currency?: string
   currency?: string
   fee_rate: number
   payment_type: string

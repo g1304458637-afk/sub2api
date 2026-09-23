@@ -33,7 +33,7 @@ func TestConsolidationMigrationMainToUnion(t *testing.T) {
 	names, err := fs.Glob(migrations.FS, "*.sql")
 	require.NoError(t, err)
 	for _, name := range names {
-		if name == "241_subscription_plan_change.sql" || name == "242_user_subscriptions_single_active.sql" {
+		if name == "241_subscription_plan_change.sql" || name == "242_user_subscriptions_single_active.sql" || name == "245_cny_wallet_currency_contract.sql" {
 			continue
 		}
 		content, err := migrations.FS.ReadFile(name)

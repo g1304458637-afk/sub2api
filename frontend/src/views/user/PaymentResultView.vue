@@ -57,7 +57,7 @@
             </div>
             <div v-if="hasAmountFields(order) && order.amount !== order.pay_amount" class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.creditedAmount') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ order.order_type === 'balance' ? '$' + order.amount.toFixed(2) : formatGatewayAmount(order.amount) }}</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ formatOrderAmount(order.amount, order.amount_currency) }}</span>
             </div>
             <div v-if="hasPaymentType(order)" class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
@@ -112,6 +112,7 @@ import { paymentAPI } from '@/api/payment'
 import type { PublicOrderVerifyResult } from '@/api/payment'
 import type { OrderStatus, PaymentOrder } from '@/types/payment'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { normalizePaymentMethodForDisplay, paymentMethodI18nKey } from './paymentUx'
 
 const i18n = useI18n()
@@ -120,6 +121,7 @@ const route = useRoute()
 const router = useRouter()
 const paymentStore = usePaymentStore()
 const authStore = useAuthStore()
+const currencyStore = useCurrencyDisplayStore()
 
 type ResolvedOrder = PaymentOrder | PublicOrderVerifyResult
 
@@ -193,6 +195,12 @@ function normalizedOrderPaymentType(paymentType: string): string {
 
 function formatGatewayAmount(value: number): string {
   return formatPaymentAmount(value, currency.value, localeCode.value)
+}
+
+function formatOrderAmount(value: number, amountCurrency?: string): string {
+  return amountCurrency?.toUpperCase() === 'CNY'
+    ? currencyStore.formatCNY(value)
+    : currencyStore.formatUSD(value)
 }
 
 function setResolvedOrder(nextOrder: ResolvedOrder | null): void {

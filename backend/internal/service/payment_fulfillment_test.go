@@ -423,7 +423,7 @@ func TestValidatePaymentRedeemCode(t *testing.T) {
 	t.Parallel()
 	userID := int64(42)
 	otherUserID := int64(43)
-	order := &dbent.PaymentOrder{ID: 7, UserID: userID, RechargeCode: "PAY-7-12345", Amount: 80}
+	order := &dbent.PaymentOrder{ID: 7, UserID: userID, RechargeCode: "PAY-7-12345", Amount: 80, ProviderSnapshot: map[string]any{"amount_currency": "CNY"}}
 
 	tests := []struct {
 		name    string
@@ -1096,6 +1096,7 @@ func createPaymentFulfillmentSubscriptionOrder(
 		SetUserName(user.Username).
 		SetAmount(80).
 		SetPayAmount(80).
+		SetProviderSnapshot(map[string]any{"amount_currency": "CNY"}).
 		SetFeeRate(0).
 		SetRechargeCode("PAY-SUB-" + strconv.FormatInt(time.Now().UnixNano(), 10)).
 		SetOutTradeNo("sub2_fulfillment_" + strconv.FormatInt(time.Now().UnixNano(), 10)).
@@ -1141,6 +1142,7 @@ func TestExecuteSubscriptionFulfillmentAppliesAffiliateRebate(t *testing.T) {
 		SetUserName(user.Username).
 		SetAmount(9.99).
 		SetPayAmount(71.36).
+		SetProviderSnapshot(map[string]any{"amount_currency": "CNY"}).
 		SetFeeRate(0).
 		SetRechargeCode("PAY-SUB-AFFILIATE").
 		SetOutTradeNo("sub2_subscription_affiliate").

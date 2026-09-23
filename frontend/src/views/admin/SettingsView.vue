@@ -3869,7 +3869,7 @@
                   <label
                     class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    {{ t("admin.settings.defaults.defaultBalance") }}
+                    {{ t("admin.settings.defaults.defaultBalance") }} (CNY)
                   </label>
                   <input
                     v-model.number="form.default_balance"
@@ -3941,7 +3941,7 @@
                     <label
                       class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
                     >
-                      {{ t("admin.settings.defaults.studentVerificationRewardAmount") }}
+                      {{ t("admin.settings.defaults.studentVerificationRewardAmount") }} (CNY)
                     </label>
                     <input
                       v-model.number="form.student_verification_reward_amount"
@@ -3956,12 +3956,6 @@
                     </p>
                     <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                       {{ t("admin.settings.defaults.studentVerificationRewardAmountHint") }}
-                    </p>
-                    <p
-                      v-if="studentRewardAmountCnyHint"
-                      class="mt-1 text-xs text-gray-500 dark:text-gray-400"
-                    >
-                      {{ studentRewardAmountCnyHint }}
                     </p>
                   </div>
                   <div>
@@ -8010,19 +8004,7 @@
                     <label class="input-label">{{
                       t("admin.settings.payment.balanceRechargeMultiplier")
                     }}</label>
-                    <input
-                      :value="form.payment_balance_recharge_multiplier || ''"
-                      @input="
-                        form.payment_balance_recharge_multiplier =
-                          parseFloat(
-                            ($event.target as HTMLInputElement).value,
-                          ) || 1
-                      "
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      class="input"
-                    />
+                    <input value="1" type="number" class="input" readonly />
                     <p class="mt-0.5 text-xs text-gray-400">
                       {{
                         t(
@@ -8048,22 +8030,10 @@
                       t("admin.settings.payment.subscriptionUsdToCnyRate")
                     }}</label>
                     <input
-                      :value="form.payment_subscription_usd_to_cny_rate || ''"
-                      @input="
-                        form.payment_subscription_usd_to_cny_rate =
-                          parseFloat(
-                            ($event.target as HTMLInputElement).value,
-                          ) || 0
-                      "
+                      value="0"
                       type="number"
-                      step="0.01"
-                      min="0"
                       class="input"
-                      :placeholder="
-                        t(
-                          'admin.settings.payment.subscriptionUsdToCnyRateDisabled',
-                        )
-                      "
+                      readonly
                     />
                     <p class="mt-0.5 text-xs text-gray-400">
                       {{
@@ -8076,20 +8046,10 @@
                       t("admin.settings.payment.usdToCnyDisplayRate")
                     }}</label>
                     <input
-                      :value="form.payment_usd_to_cny_display_rate || ''"
-                      @input="
-                        form.payment_usd_to_cny_display_rate =
-                          parseFloat(
-                            ($event.target as HTMLInputElement).value,
-                          ) || 0
-                      "
+                      :value="6.7"
                       type="number"
-                      step="0.0001"
-                      min="0"
                       class="input"
-                      :placeholder="
-                        t('admin.settings.payment.usdToCnyDisplayRateDisabled')
-                      "
+                      readonly
                     />
                     <p class="mt-0.5 text-xs text-gray-400">
                       {{ t("admin.settings.payment.usdToCnyDisplayRateHint") }}
@@ -8746,7 +8706,7 @@
                 <div class="relative">
                   <span
                     class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                    >$</span
+                    >¥</span
                   >
                   <input
                     v-model.number="form.balance_low_notify_threshold"
@@ -9767,7 +9727,7 @@ const form = reactive<SettingsForm>({
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
-  payment_usd_to_cny_display_rate: 0,
+  payment_usd_to_cny_display_rate: 6.7,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_enabled_types: [],
@@ -10003,18 +9963,6 @@ const form = reactive<SettingsForm>({
   // Allow user view error requests
   allow_user_view_error_requests: false,
 })
-
-// 学生认证奖励金额（USD，系统内部余额单位）的只读 CNY 折算提示：
-// 汇率来自本页 payment_usd_to_cny_display_rate 配置；未配置或金额非法时不显示。
-const studentRewardAmountCnyHint = computed(() => {
-  const amount = Number(form.student_verification_reward_amount)
-  const rate = Number(form.payment_usd_to_cny_display_rate)
-  if (!Number.isFinite(amount) || amount <= 0) return ''
-  if (!Number.isFinite(rate) || rate <= 0) return ''
-  return t("admin.settings.defaults.studentVerificationRewardApproxCny", {
-    amount: `¥${(amount * rate).toFixed(2)}`,
-  })
-});
 
 // 人机验证 UI 状态：单卡片「总开关 + 服务商单选」，落库仍是三个独立
 // enabled 键（与上游一致），由下面的映射保证同一时间至多一家启用。

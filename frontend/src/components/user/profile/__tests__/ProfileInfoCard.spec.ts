@@ -25,7 +25,8 @@ vi.mock('@/stores/app', () => ({
 vi.mock('@/stores/currencyDisplay', () => ({
   useCurrencyDisplayStore: () => ({
     displayCurrency: 'USD',
-    formatUSD: (amount: number | null | undefined) => `$${Number(amount ?? 0).toFixed(2)}`
+    formatUSD: (amount: number | null | undefined) => `$${Number(amount ?? 0).toFixed(2)}`,
+    formatCNY: (amount: number | null | undefined) => `¥${Number(amount ?? 0).toFixed(2)}`
   })
 }))
 
@@ -142,7 +143,7 @@ describe('ProfileInfoCard', () => {
 
     expect(wrapper.get('[data-testid="profile-overview-hero"]').text()).toContain('alice@example.com')
     expect(wrapper.get('[data-testid="profile-overview-metric-balance"]').text()).toContain('Account Balance')
-    expect(wrapper.get('[data-testid="profile-overview-metric-balance"]').text()).toContain('$10.00')
+    expect(wrapper.get('[data-testid="profile-overview-metric-balance"]').text()).toContain('¥10.00')
     expect(wrapper.get('[data-testid="profile-overview-metric-concurrency"]').text()).toContain('Concurrency Limit')
     expect(wrapper.get('[data-testid="profile-overview-metric-member-since"]').text()).toContain('Member Since')
     expect(wrapper.find('[data-testid="profile-info-summary-grid"]').exists()).toBe(false)
