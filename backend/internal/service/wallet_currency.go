@@ -29,16 +29,6 @@ func walletUSDToCNY(amountUSD float64) float64 {
 // Model usage records themselves remain USD.
 func WalletUSDToCNY(amountUSD float64) float64 { return walletUSDToCNY(amountUSD) }
 
-func walletCNYToUSD(amountCNY float64) float64 {
-	if amountCNY == 0 || math.IsNaN(amountCNY) || math.IsInf(amountCNY, 0) {
-		return amountCNY
-	}
-	return decimal.NewFromFloat(amountCNY).
-		Div(decimal.NewFromFloat(WalletUSDToCNYRate)).
-		Round(8).
-		InexactFloat64()
-}
-
 func walletAmountToCNY(amount float64, currency string) (float64, error) {
 	switch strings.ToUpper(strings.TrimSpace(currency)) {
 	case "CNY", "RMB", "CNH":

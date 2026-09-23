@@ -40,7 +40,11 @@ func TestWalletCurrencyContractFixesDisplayAndLegacyRates(t *testing.T) {
 }
 
 func TestPaymentOrderAmountCurrencyUsesCanonicalSnapshot(t *testing.T) {
-	canonical := &dbent.PaymentOrder{ProviderSnapshot: map[string]interface{}{"amount_currency": "cny"}}
+	canonical := &dbent.PaymentOrder{
+		ProviderSnapshot: map[string]interface{}{
+			"amount_currency": "cny",
+		},
+	}
 	if got := PaymentOrderAmountCurrency(canonical); got != "CNY" {
 		t.Fatalf("canonical order amount currency = %q, want CNY", got)
 	}
