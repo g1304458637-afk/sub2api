@@ -21,7 +21,7 @@ on:
         required: false
         default: ''
       cleanup_reclaimable_docker_data:
-        description: 'Prune dangling images and build cache unused for 7+ days; keeps named images, running containers, and all volumes'
+        description: 'Prune dangling images and all build cache currently unused by builds; keeps named images, running containers, and all volumes'
         required: false
         type: boolean
         default: false

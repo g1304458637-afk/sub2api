@@ -6,5 +6,5 @@ set -euo pipefail
 echo "Docker image prune: dangling images only"
 docker image prune --force
 
-echo "Docker builder prune: cache unused for at least 7 days"
-docker builder prune --force --filter 'until=168h'
+echo "Docker builder prune: all cache currently unused by builds"
+docker builder prune --force
