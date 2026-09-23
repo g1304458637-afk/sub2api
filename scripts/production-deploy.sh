@@ -14,7 +14,7 @@
 # 流程: 预检 → 记录当前镜像(PREVIOUS_IMAGE) → 写 .env.deploy → pull → up -d --no-deps sub2api
 #       → 健康检查；失败自动回滚到 PREVIOUS_IMAGE 并再次健康检查。
 #
-# 退出码: 0=成功  1=部署失败但回滚成功  2=CRITICAL 回滚也失败  3=预检失败(未做任何变更)
+# 退出码: 0=成功  1=部署失败但回滚成功  2=CRITICAL 回滚也失败  3=部署预检失败  4=可回收空间清理失败
 # 绝不执行: compose down / volume rm / system prune -a。绝不输出 secret。
 # =============================================================================
 set -euo pipefail
@@ -25,10 +25,11 @@ ENV_DEPLOY="$COMPOSE_DIR/.env.deploy"
 COMPOSE=(docker compose -f "$COMPOSE_DIR/docker-compose.yml" --env-file "$COMPOSE_DIR/.env" --env-file "$ENV_DEPLOY")
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-NEW_IMAGE="" NEW_COMMIT="" NEW_VERSION="" BUILD_TIMESTAMP="" MIGRATION_BASELINE="" BRAND="" TOKEN_FILE="" GHCR_USER="" ROLLBACK_MODE=0
+NEW_IMAGE="" NEW_COMMIT="" NEW_VERSION="" BUILD_TIMESTAMP="" MIGRATION_BASELINE="" BRAND="" TOKEN_FILE="" GHCR_USER="" ROLLBACK_MODE=0 PRUNE_RECLAIMABLE_DOCKER_DATA=0
 EXPECTED_LEGACY_IMAGE="" EXPECTED_LEGACY_LEDGER=""
 while [ $# -gt 0 ]; do
   case "$1" in
+    --cleanup-reclaimable-docker-data) PRUNE_RECLAIMABLE_DOCKER_DATA=1; shift ;;
     --image)        NEW_IMAGE="${2:?}"; shift 2 ;;
     --commit)       NEW_COMMIT="${2:?}"; shift 2 ;;
     --version)      NEW_VERSION="${2:?}"; shift 2 ;;
@@ -98,6 +99,16 @@ printf '%s' "$MIGRATION_BASELINE" | grep -Eq '^[0-9a-f]{40}$' || fail_preflight 
 [ -n "$NEW_VERSION" ] || fail_preflight "缺少 --version"
 [ -n "$BUILD_TIMESTAMP" ] || fail_preflight "缺少 --build-timestamp"
 [ "$BRAND" = "muc" ] || fail_preflight "生产只允许 brand=muc"
+
+if [ "$PRUNE_RECLAIMABLE_DOCKER_DATA" = "1" ]; then
+  echo "== 部署前清理可回收 Docker 数据（仅悬空镜像和 7 天以上未使用的构建缓存）=="
+  before_kb=$(df --output=avail -k "$COMPOSE_DIR" | tail -1)
+  echo "清理前可用磁盘: $((before_kb / 1024)) MB"
+  if ! bash "$SCRIPT_DIR/prune-reclaimable-docker.sh"; then
+    echo "PREFLIGHT CLEANUP FAIL: 可回收 Docker 数据清理失败；应用容器未切换" >&2
+    exit 4
+  fi
+fi
 
 avail_kb=$(df --output=avail -k "$COMPOSE_DIR" | tail -1)
 echo "可用磁盘: $((avail_kb / 1024)) MB"
