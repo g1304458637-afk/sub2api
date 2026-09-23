@@ -28,12 +28,14 @@ func TestBuildPaymentOrderProviderSnapshot_ExcludesSensitiveConfig(t *testing.T)
 
 	snapshot := buildPaymentOrderProviderSnapshot(sel, CreateOrderRequest{})
 	require.Equal(t, map[string]any{
-		"schema_version":       2,
-		"provider_instance_id": "12",
-		"provider_key":         payment.TypeWxpay,
-		"payment_mode":         "popup",
-		"merchant_app_id":      "wx-app-id",
-		"currency":             "CNY",
+		"schema_version":         2,
+		"provider_instance_id":   "12",
+		"provider_key":           payment.TypeWxpay,
+		"payment_mode":           "popup",
+		"merchant_app_id":        "wx-app-id",
+		"currency":               "CNY",
+		"amount_currency":        "CNY",
+		"wallet_usd_to_cny_rate": WalletUSDToCNYRate,
 	}, snapshot)
 	require.NotContains(t, snapshot, "config")
 	require.NotContains(t, snapshot, "privateKey")

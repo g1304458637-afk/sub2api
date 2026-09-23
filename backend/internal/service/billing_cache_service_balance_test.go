@@ -42,7 +42,7 @@ func (s *balanceEligibilityCacheStub) InvalidateUserBalance(context.Context, int
 }
 
 func TestCheckBillingEligibility_RejectsBalanceBelowMinimumReserve(t *testing.T) {
-	cache := &balanceEligibilityCacheStub{balance: 0.005}
+	cache := &balanceEligibilityCacheStub{balance: WalletUSDToCNY(0.005)}
 	cfg := &config.Config{}
 	cfg.Billing.MinimumBalanceReserve = 0.01
 	svc := NewBillingCacheService(cache, nil, nil, nil, nil, nil, cfg, nil)
@@ -53,7 +53,7 @@ func TestCheckBillingEligibility_RejectsBalanceBelowMinimumReserve(t *testing.T)
 }
 
 func TestCheckBillingEligibility_AllowsBalanceAtMinimumReserve(t *testing.T) {
-	cache := &balanceEligibilityCacheStub{balance: 0.01}
+	cache := &balanceEligibilityCacheStub{balance: WalletUSDToCNY(0.01)}
 	cfg := &config.Config{}
 	cfg.Billing.MinimumBalanceReserve = 0.01
 	svc := NewBillingCacheService(cache, nil, nil, nil, nil, nil, cfg, nil)

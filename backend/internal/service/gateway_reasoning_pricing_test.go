@@ -64,7 +64,7 @@ func TestRecordUsage_ReasoningPricingUsesForwardedEffort(t *testing.T) {
 			require.InDelta(t, 0.15, usageRepo.lastLog.ActualCost, 1e-12)
 			require.Equal(t, forwarded, *usageRepo.lastLog.ReasoningEffort)
 			require.Equal(t, requested, *usageRepo.lastLog.RequestedReasoningEffort)
-			require.InDelta(t, 0.15, userRepo.lastAmount, 1e-12)
+			require.InDelta(t, WalletUSDToCNY(0.15), userRepo.lastAmount, 1e-12)
 		})
 	}
 }

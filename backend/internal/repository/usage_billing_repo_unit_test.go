@@ -132,7 +132,7 @@ func TestReserveUsageBillingBatchImageBalance_MovesAvailableToFrozen(t *testing.
 	tx, err := db.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	mock.ExpectQuery(reserveBatchImageHoldSQL).
-		WithArgs(2.5, int64(42)).
+		WithArgs(service.WalletUSDToCNY(2.5), int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(7.5, 2.5))
 	mock.ExpectCommit()
 
@@ -156,7 +156,7 @@ func TestReserveUsageBillingBatchImageBalance_InsufficientBalance(t *testing.T) 
 	tx, err := db.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	mock.ExpectQuery(reserveBatchImageHoldSQL).
-		WithArgs(10.0, int64(42)).
+		WithArgs(service.WalletUSDToCNY(10.0), int64(42)).
 		WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery(userExistsForBillingSQL).
 		WithArgs(int64(42)).
@@ -179,7 +179,7 @@ func TestCaptureUsageBillingBatchImageBalance_ReleasesRemainder(t *testing.T) {
 	tx, err := db.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	mock.ExpectQuery(captureBatchImageHoldSQL).
-		WithArgs(1.0, 0.25, int64(42)).
+		WithArgs(service.WalletUSDToCNY(1.0), service.WalletUSDToCNY(0.25), int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(9.75, 0.0))
 	mock.ExpectCommit()
 
@@ -221,7 +221,7 @@ func TestReleaseUsageBillingBatchImageBalance_ReturnsFrozenToAvailable(t *testin
 		WithArgs(service.BatchImageHoldRequestID("imgbatch_release"), int64(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"?column?"}).AddRow(1))
 	mock.ExpectQuery(releaseBatchImageHoldSQL).
-		WithArgs(1.0, int64(42)).
+		WithArgs(service.WalletUSDToCNY(1.0), int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(10.0, 0.0))
 	mock.ExpectCommit()
 

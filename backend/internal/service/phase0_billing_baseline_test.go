@@ -160,7 +160,7 @@ func TestPhase0NilSubscriptionRoutesToBalanceCost(t *testing.T) {
 		IsSubscriptionBill: false,
 	})
 	require.NotNil(t, cmd)
-	require.InDelta(t, 1.5, cmd.BalanceCost, 1e-9)
+	require.InDelta(t, WalletUSDToCNY(1.5), cmd.BalanceCost, 1e-9)
 	require.Zero(t, cmd.SubscriptionCost)
 	require.Nil(t, cmd.SubscriptionID)
 
@@ -171,7 +171,7 @@ func TestPhase0NilSubscriptionRoutesToBalanceCost(t *testing.T) {
 		IsSubscriptionBill: false,
 	})
 	require.NotNil(t, cmd2)
-	require.InDelta(t, 1.5, cmd2.BalanceCost, 1e-9)
+	require.InDelta(t, WalletUSDToCNY(1.5), cmd2.BalanceCost, 1e-9)
 	require.Zero(t, cmd2.SubscriptionCost)
 	require.Nil(t, cmd2.SubscriptionID)
 

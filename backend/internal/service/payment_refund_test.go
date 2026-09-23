@@ -138,8 +138,9 @@ func TestPrepDeductBalanceRequiresForceWhenBalanceIsInsufficient(t *testing.T) {
 			svc := &PaymentService{userRepo: &mockUserRepo{getByIDUser: &User{Balance: tc.balance}}}
 
 			result := svc.prepDeduct(context.Background(), &dbent.PaymentOrder{
-				UserID:    1,
-				OrderType: payment.OrderTypeBalance,
+				UserID:           1,
+				OrderType:        payment.OrderTypeBalance,
+				ProviderSnapshot: map[string]any{"amount_currency": "CNY"},
 			}, plan, tc.force)
 
 			if tc.wantWarning {
