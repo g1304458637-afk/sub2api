@@ -112,7 +112,18 @@ fi
 
 avail_kb=$(df --output=avail -k "$COMPOSE_DIR" | tail -1)
 echo "可用磁盘: $((avail_kb / 1024)) MB"
-[ "$avail_kb" -gt 2097152 ] || fail_preflight "磁盘可用空间不足 2GB"
+if [ "$avail_kb" -le 2097152 ]; then
+  echo "== 磁盘占用诊断（只读）==" >&2
+  df -h "$COMPOSE_DIR" >&2 || true
+  docker system df >&2 || true
+  echo "本机 Docker 镜像清单（只读）:" >&2
+  docker image ls --format 'table {{.ID}}\t{{.Repository}}:{{.Tag}}\t{{.Size}}' >&2 || true
+  if command -v du >/dev/null 2>&1; then
+    echo "系统日志、缓存、临时目录和 /srv 一级占用（只读）:" >&2
+    du -xhd1 /var/log /var/cache /tmp /srv 2>/dev/null | sort -h | tail -n 40 >&2 || true
+  fi
+  fail_preflight "磁盘可用空间不足 2GB"
+fi
 
 # 回滚点：优先取 .env.deploy 中已部署记录，其次容器实际镜像
 if [ -f "$ENV_DEPLOY" ] && grep -q '^SUB2API_IMAGE=' "$ENV_DEPLOY"; then
