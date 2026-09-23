@@ -459,7 +459,7 @@
                   class="font-medium text-gray-900 underline decoration-dashed decoration-gray-300 underline-offset-4 transition-colors hover:text-primary-600 dark:text-white dark:decoration-dark-500 dark:hover:text-primary-400"
                   @click="handleBalanceHistory(row)"
                 >
-                  ${{ value.toFixed(2) }}
+                  {{ currencyStore.formatCNY(value) }}
                 </button>
                 <!-- Instant tooltip -->
                 <div class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 shadow-lg transition-opacity duration-75 group-hover:opacity-100 dark:bg-dark-600">
@@ -837,9 +837,11 @@ import { useAppStore } from '@/stores/app'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { formatDateTime } from '@/utils/format'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
+const currencyStore = useCurrencyDisplayStore()
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'

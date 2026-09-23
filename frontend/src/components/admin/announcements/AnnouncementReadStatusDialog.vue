@@ -35,7 +35,7 @@
         </template>
 
         <template #cell-balance="{ value }">
-          <span class="font-medium text-gray-900 dark:text-white">${{ Number(value ?? 0).toFixed(2) }}</span>
+          <span class="font-medium text-gray-900 dark:text-white">{{ currencyStore.formatCNY(Number(value ?? 0)) }}</span>
         </template>
 
         <template #cell-eligible="{ value }">
@@ -78,6 +78,7 @@ import { formatDateTime } from '@/utils/format'
 import type { AnnouncementUserReadStatus } from '@/types'
 import type { Column } from '@/components/common/types'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -85,6 +86,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
+const currencyStore = useCurrencyDisplayStore()
 const appStore = useAppStore()
 
 const props = defineProps<{

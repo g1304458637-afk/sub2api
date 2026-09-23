@@ -33,6 +33,15 @@ export function convertDisplayAmountToUSD(
   return currency === 'CNY' && hasUsableUSDToCNYRate(rate) ? amount / rate : amount
 }
 
+export function convertCNYForDisplay(
+  amountCNY: number,
+  currency: DisplayCurrency,
+  rate: number | null | undefined,
+): number {
+  if (!Number.isFinite(amountCNY)) return 0
+  return currency === 'USD' && hasUsableUSDToCNYRate(rate) ? amountCNY / rate : amountCNY
+}
+
 export function formatUSDForDisplay(
   amountUSD: number,
   currency: DisplayCurrency,
@@ -53,5 +62,29 @@ export function formatUSDForDisplay(
   } catch {
     const symbol = currency === 'CNY' && hasUsableUSDToCNYRate(rate) ? '¥' : '$'
     return `${symbol}${amount.toFixed(digits)}`
+  }
+}
+
+export function formatCNYForDisplay(
+  amountCNY: number,
+  currency: DisplayCurrency,
+  rate: number | null | undefined,
+  locale: string,
+  fractionDigits = 2,
+): string {
+  const canConvertToUSD = currency === 'USD' && hasUsableUSDToCNYRate(rate)
+  const amount = convertCNYForDisplay(amountCNY, currency, rate)
+  const digits = Math.max(0, Math.min(8, Math.trunc(fractionDigits)))
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: canConvertToUSD ? 'USD' : 'CNY',
+      currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(amount)
+  } catch {
+    const symbol = canConvertToUSD ? '$' : '¥'
+    return symbol + amount.toFixed(digits)
   }
 }

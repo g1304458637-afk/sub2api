@@ -354,7 +354,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		BackendModeEnabled:                  settings[SettingKeyBackendModeEnabled] == "true",
 		PaymentEnabled:                      settings[SettingPaymentEnabled] == "true",
 		PaymentBalanceDisabled:              settings[SettingBalancePayDisabled] == "true",
-		USDToCNYDisplayRate:                 normalizeUSDToCNYDisplayRate(pcParseFloat(settings[SettingUSDToCNYDisplayRate], 0)),
+		USDToCNYDisplayRate:                 normalizeUSDToCNYDisplayRate(pcParseFloat(settings[SettingUSDToCNYDisplayRate], WalletUSDToCNYRate)),
 		OIDCOAuthEnabled:                    oidcEnabled,
 		OIDCOAuthProviderName:               oidcProviderName,
 		GitHubOAuthEnabled:                  gitHubEnabled,

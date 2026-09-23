@@ -65,7 +65,7 @@ export default {
       audioRealtime: 'Realtime (per minute)',
       audioStt: 'STT (per hour)',
       defaultPrice: 'Default price',
-      defaultMusicPrice: 'Default $0.50/track',
+      defaultMusicPrice: 'Default {price}/track',
       unavailable: 'No openai group pricing available'
     },
 

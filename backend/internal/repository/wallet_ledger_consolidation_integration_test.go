@@ -52,7 +52,7 @@ func TestConsolidationWalletLedgerMoneyOnlyAndPagination(t *testing.T) {
 		require.False(t, ids[row.ID])
 		ids[row.ID] = true
 	}
-	require.Equal(t, map[string]float64{"wallet_recharge": 20, "redeem_balance": 11, "manual_adjustment": -2, "reward": 3, "payg_usage": -4, "refund": -2.5}, amounts)
+	require.Equal(t, map[string]float64{"wallet_recharge": 20, "redeem_balance": 11, "manual_adjustment": -2, "reward": 3, "payg_usage": -service.WalletUSDToCNY(4), "refund": -2.5}, amounts)
 	for offset := 0; offset < 6; offset += 2 {
 		page, count, err := svc.ListUserLedger(ctx, user.ID, 2, offset)
 		require.NoError(t, err)

@@ -54,7 +54,7 @@ func TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier(t *testing.T
 			actualCost:     2.0,
 			isSubscription: false,
 			wantSub:        0,
-			wantBalance:    2.0,
+			wantBalance:    WalletUSDToCNY(2.0),
 		},
 	}
 

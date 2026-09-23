@@ -17,7 +17,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/payment/provider"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/servertiming"
-	"github.com/shopspring/decimal"
 )
 
 // --- Order Creation ---
@@ -36,7 +35,14 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if !cfg.Enabled {
 		return nil, infraerrors.Forbidden("PAYMENT_DISABLED", "payment system is disabled")
 	}
-	plan, err := s.validateOrderInput(ctx, req, cfg)
+	methodCurrency := payment.DefaultPaymentCurrency
+	if s.configService != nil {
+		methodCurrency, err = s.configService.ValidateMethodCurrencyConsistency(ctx, req.PaymentType)
+		if err != nil {
+			return nil, err
+		}
+	}
+	plan, err := s.validateOrderInput(ctx, req, cfg, methodCurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +59,8 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if s.notificationEmailService != nil {
 		s.notificationEmailService.RememberRecipientLocale(ctx, req.UserID, user.Email, req.Locale)
 	}
-	orderAmount := req.Amount
-	limitAmount := req.Amount
+	var orderAmount float64
+	var limitAmount float64
 	var planChangeRow *dbent.SubscriptionPlanChange
 	if req.OrderType == payment.OrderTypePlanChange {
 		// 金额唯一来源：冻结报价行（客户端 amount 一律忽略；防篡改/TOCTOU）
@@ -69,23 +75,26 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 			return nil, infraerrors.NotFound("PLAN_QUOTE_NOT_AVAILABLE", "plan change quote not found")
 		}
 		planChangeRow = changeRow
-		orderAmount = changeRow.AmountDue
-		limitAmount = changeRow.AmountDue
+		orderAmount, err = walletAmountToCNY(changeRow.AmountDue, changeRow.Currency)
+		if err != nil {
+			return nil, infraerrors.BadRequest("PLAN_CURRENCY_INVALID", err.Error())
+		}
+		limitAmount = orderAmount
 	} else if plan != nil {
-		orderAmount = plan.Price
-		limitAmount = plan.Price
+		orderAmount, err = walletAmountToCNY(plan.Price, plan.Currency)
+		if err != nil {
+			return nil, infraerrors.BadRequest("PLAN_CURRENCY_INVALID", err.Error())
+		}
+		limitAmount = orderAmount
 	} else if req.OrderType == payment.OrderTypeBalance {
-		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
+		orderAmount, err = paymentAmountToWalletCNY(req.Amount, methodCurrency, 1)
+		if err != nil {
+			return nil, infraerrors.BadRequest("INVALID_AMOUNT", err.Error())
+		}
+		limitAmount = orderAmount
 	}
 	feeRate := cfg.RechargeFeeRate
-	methodCurrency := payment.DefaultPaymentCurrency
-	if s.configService != nil {
-		methodCurrency, err = s.configService.ValidateMethodCurrencyConsistency(ctx, req.PaymentType)
-		if err != nil {
-			return nil, err
-		}
-	}
-	payAmountStr, payAmount, err := calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, methodCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
+	payAmountStr, payAmount, err := calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, methodCurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +110,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		selectedCurrency = paymentProviderConfigCurrency(sel.ProviderKey, sel.Config)
 	}
 	if selectedCurrency != methodCurrency {
-		payAmountStr, payAmount, err = calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, selectedCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
+		payAmountStr, payAmount, err = calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, selectedCurrency)
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +143,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	return resp, nil
 }
 
-func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, error) {
+func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig, paymentCurrency string) (*dbent.SubscriptionPlan, error) {
 	if req.OrderType == payment.OrderTypeBalance && cfg.BalanceDisabled {
 		return nil, infraerrors.Forbidden("BALANCE_PAYMENT_DISABLED", "balance recharge has been disabled")
 	}
@@ -147,9 +156,13 @@ func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrder
 	if math.IsNaN(req.Amount) || math.IsInf(req.Amount, 0) || req.Amount <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "amount must be a positive number")
 	}
-	if (cfg.MinAmount > 0 && req.Amount < cfg.MinAmount) || (cfg.MaxAmount > 0 && req.Amount > cfg.MaxAmount) {
+	amountCNY, err := paymentAmountToWalletCNY(req.Amount, paymentCurrency, 1)
+	if err != nil {
+		return nil, infraerrors.BadRequest("INVALID_AMOUNT", err.Error())
+	}
+	if (cfg.MinAmount > 0 && amountCNY < cfg.MinAmount) || (cfg.MaxAmount > 0 && amountCNY > cfg.MaxAmount) {
 		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "amount out of range").
-			WithMetadata(map[string]string{"min": fmt.Sprintf("%.2f", cfg.MinAmount), "max": fmt.Sprintf("%.2f", cfg.MaxAmount)})
+			WithMetadata(map[string]string{"min_cny": fmt.Sprintf("%.2f", cfg.MinAmount), "max_cny": fmt.Sprintf("%.2f", cfg.MaxAmount)})
 	}
 	return nil, nil
 }
@@ -305,12 +318,14 @@ func (s *PaymentService) checkPendingLimit(ctx context.Context, tx *dbent.Tx, us
 }
 
 func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req CreateOrderRequest) map[string]any {
-	if sel == nil {
-		return nil
+	snapshot := map[string]any{
+		"amount_currency":        "CNY",
+		"wallet_usd_to_cny_rate": WalletUSDToCNYRate,
 	}
-
-	snapshot := map[string]any{}
 	snapshot["schema_version"] = 2
+	if sel == nil {
+		return snapshot
+	}
 
 	instanceID := strings.TrimSpace(sel.InstanceID)
 	if instanceID != "" {
@@ -356,9 +371,6 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}
 
-	if len(snapshot) == 1 {
-		return nil
-	}
 	return snapshot
 }
 
@@ -383,11 +395,7 @@ func (s *PaymentService) checkDailyLimit(ctx context.Context, tx *dbent.Tx, user
 	}
 	var used float64
 	for _, o := range orders {
-		if o.OrderType == payment.OrderTypeBalance {
-			used += o.PayAmount
-			continue
-		}
-		used += o.Amount
+		used += paymentOrderAmountToWalletCNY(o, o.Amount)
 	}
 	if used+amount > limit {
 		return infraerrors.TooManyRequests("DAILY_LIMIT_EXCEEDED", "daily_limit_exceeded").
@@ -693,26 +701,12 @@ func calculateCreateOrderPayAmount(limitAmount, feeRate float64, currency string
 	return payAmountStr, payAmount, nil
 }
 
-func calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate float64, currency, orderType string, usdToCnyRate float64) (string, float64, error) {
-	paymentAmount := limitAmount
-	if orderType == payment.OrderTypeSubscription {
-		paymentAmount = calculateSubscriptionGatewayBaseAmount(limitAmount, usdToCnyRate, currency)
+func calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate float64, currency string) (string, float64, error) {
+	paymentAmount, err := walletCNYToPaymentAmount(limitAmount, currency)
+	if err != nil {
+		return "", 0, infraerrors.BadRequest("INVALID_AMOUNT", err.Error())
 	}
 	return calculateCreateOrderPayAmount(paymentAmount, feeRate, currency)
-}
-
-// calculateSubscriptionGatewayBaseAmount 计算订阅订单的网关扣款基数。
-// 换算是显式 opt-in：仅当管理员配置了订阅汇率（rate > 0，1 USD = rate CNY）
-// 且网关币种为 CNY 时，按 price × rate 换算；未配置时保持 price 直付的存量行为。
-func calculateSubscriptionGatewayBaseAmount(amount, usdToCnyRate float64, currency string) float64 {
-	rate := normalizeSubscriptionUSDToCNYRate(usdToCnyRate)
-	if rate <= 0 || currency != payment.DefaultPaymentCurrency {
-		return amount
-	}
-	return decimal.NewFromFloat(amount).
-		Mul(decimal.NewFromFloat(rate)).
-		Round(int32(payment.CurrencyMaxFractionDigits(currency))).
-		InexactFloat64()
 }
 
 func validateCreateOrderAmountCurrency(amount float64, currency string) error {
@@ -781,26 +775,27 @@ func classifyCreatePaymentError(req CreateOrderRequest, providerKey string, err 
 
 func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest, payAmount float64, sel *payment.InstanceSelection, pr *payment.CreatePaymentResponse, resultType payment.CreatePaymentResultType) *CreateOrderResponse {
 	return &CreateOrderResponse{
-		OrderID:      order.ID,
-		Amount:       order.Amount,
-		PayAmount:    payAmount,
-		FeeRate:      order.FeeRate,
-		Status:       OrderStatusPending,
-		ResultType:   resultType,
-		PaymentType:  req.PaymentType,
-		OutTradeNo:   order.OutTradeNo,
-		PayURL:       pr.PayURL,
-		QRCode:       pr.QRCode,
-		ClientSecret: pr.ClientSecret,
-		IntentID:     pr.IntentID,
-		Currency:     pr.Currency,
-		CountryCode:  pr.CountryCode,
-		PaymentEnv:   pr.PaymentEnv,
-		OAuth:        pr.OAuth,
-		JSAPI:        pr.JSAPI,
-		JSAPIPayload: pr.JSAPI,
-		ExpiresAt:    order.ExpiresAt,
-		PaymentMode:  sel.PaymentMode,
+		OrderID:        order.ID,
+		Amount:         order.Amount,
+		PayAmount:      payAmount,
+		FeeRate:        order.FeeRate,
+		Status:         OrderStatusPending,
+		ResultType:     resultType,
+		PaymentType:    req.PaymentType,
+		OutTradeNo:     order.OutTradeNo,
+		PayURL:         pr.PayURL,
+		QRCode:         pr.QRCode,
+		ClientSecret:   pr.ClientSecret,
+		IntentID:       pr.IntentID,
+		Currency:       pr.Currency,
+		AmountCurrency: PaymentOrderAmountCurrency(order),
+		CountryCode:    pr.CountryCode,
+		PaymentEnv:     pr.PaymentEnv,
+		OAuth:          pr.OAuth,
+		JSAPI:          pr.JSAPI,
+		JSAPIPayload:   pr.JSAPI,
+		ExpiresAt:      order.ExpiresAt,
+		PaymentMode:    sel.PaymentMode,
 	}
 }
 

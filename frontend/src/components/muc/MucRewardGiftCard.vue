@@ -46,7 +46,7 @@ import { mucTween } from '@/components/subscription/resetAnimation'
  */
 const props = withDefaults(
   defineProps<{
-    /** canonical 金额显示串（如 "+$5.00"，由调用方用后端数值格式化） */
+    /** canonical 金额显示串（由调用方按当前展示币种格式化） */
     amount: string
     /** 可选的 CNY 近似显示串（如 "¥35.90"），仅展示 */
     amountCny?: string
@@ -80,7 +80,7 @@ const countDone = ref(false)
 const animatedValue = ref(props.mini || !props.animate ? 1 : 0)
 let cancelTween: (() => void) | null = null
 
-// amount 形如 "+$5.00" → 取数值部分做 count-up
+// 只对金额中的数字做 count-up，同时保留币种符号和正负号。
 const numericAmount = computed(() => {
   const match = props.amount.replace(/,/g, '').match(/-?\d+(\.\d+)?/)
   return match ? parseFloat(match[0]) : 0
@@ -88,10 +88,14 @@ const numericAmount = computed(() => {
 
 const displayAmount = computed(() => {
   if (countDone.value || props.mini || !props.animate) return props.amount
-  const prefix = props.amount.trim().startsWith('+') ? '+' : ''
-  const decimals = (props.amount.split('.')[1] || '').replace(/\D/g, '').length
+  const normalized = props.amount.replace(/,/g, '')
+  const match = normalized.match(/-?\d+(\.\d+)?/)
+  if (!match || match.index == null) return props.amount
+  const prefix = normalized.slice(0, match.index)
+  const suffix = normalized.slice(match.index + match[0].length)
+  const decimals = (match[1] || '').length - 1
   const value = numericAmount.value * animatedValue.value
-  return `${prefix}${value.toFixed(decimals)}`
+  return `${prefix}${value.toFixed(decimals)}${suffix}`
 })
 
 // 6~12 个粒子：随机位置/延迟/颜色（红或金）

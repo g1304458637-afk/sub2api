@@ -143,13 +143,13 @@
                   {{ formatTokens(model.total_tokens) }}
                 </td>
                 <td class="py-1.5 text-right text-green-600 dark:text-green-400">
-                  ${{ formatCost(model.actual_cost) }}
+                  {{ currencyStore.formatUSD(model.actual_cost, 4) }}
                 </td>
                 <td v-if="showAccountCost" class="py-1.5 text-right text-orange-500 dark:text-orange-400">
-                  ${{ formatCost(model.account_cost) }}
+                  {{ currencyStore.formatUSD(model.account_cost, 4) }}
                 </td>
                 <td class="py-1.5 text-right text-gray-400 dark:text-gray-500">
-                  ${{ formatCost(model.cost) }}
+                  {{ currencyStore.formatUSD(model.cost, 4) }}
                 </td>
               </tr>
               <tr v-if="expandedKey === `model-${model.model}`">
@@ -226,7 +226,7 @@
                 {{ formatTokens(item.tokens) }}
               </td>
               <td class="py-1.5 text-right text-green-600 dark:text-green-400">
-                ${{ formatCost(item.actual_cost) }}
+                {{ currencyStore.formatUSD(item.actual_cost, 4) }}
               </td>
             </tr>
           </tbody>
@@ -245,6 +245,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -255,6 +256,7 @@ import { getUserBreakdown } from '@/api/admin/dashboard'
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 const { t } = useI18n()
+const currencyStore = useCurrencyDisplayStore()
 
 type DistributionMetric = 'tokens' | 'actual_cost'
 type ModelSource = 'requested' | 'upstream' | 'mapping'
@@ -451,7 +453,7 @@ const doughnutOptions = computed(() => ({
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
           const formattedValue = props.metric === 'actual_cost'
-            ? `$${formatCost(value)}`
+            ? currencyStore.formatUSD(value, 4)
             : formatTokens(value)
           return `${context.label}: ${formattedValue} (${percentage}%)`
         }
@@ -473,7 +475,7 @@ const rankingDoughnutOptions = computed(() => ({
           const value = context.raw as number
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
-          return `${context.label}: $${formatCost(value)} (${percentage}%)`
+          return `${context.label}: ${currencyStore.formatUSD(value, 4)} (${percentage}%)`
         }
       }
     }
@@ -511,15 +513,4 @@ const toFiniteNumber = (value: unknown): number => {
   return Number.isFinite(numberValue) ? numberValue : 0
 }
 
-const formatCost = (value: number | null | undefined): string => {
-  const safeValue = toFiniteNumber(value)
-  if (safeValue >= 1000) {
-    return (safeValue / 1000).toFixed(2) + 'K'
-  } else if (safeValue >= 1) {
-    return safeValue.toFixed(2)
-  } else if (safeValue >= 0.01) {
-    return safeValue.toFixed(3)
-  }
-  return safeValue.toFixed(4)
-}
 </script>

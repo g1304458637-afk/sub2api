@@ -150,7 +150,7 @@
               {{ t('admin.research.detail.rewardAmount') }}
             </dt>
             <dd class="mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-              +${{ detailApplication.reward_amount.toFixed(2) }}
+              +{{ currencyStore.formatCNY(detailApplication.reward_amount) }}
             </dd>
           </div>
           <div v-if="detailApplication.review_notes" class="sm:col-span-2">
@@ -363,6 +363,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { adminAPI } from '@/api/admin'
 import type { AdminResearchApplication } from '@/api/admin/research'
 import {
@@ -383,6 +384,7 @@ import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 
 // ==================== List state ====================
 

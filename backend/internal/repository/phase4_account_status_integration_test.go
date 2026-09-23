@@ -67,7 +67,7 @@ func TestPhase4AccountStatusPaygOnlyWalletAlwaysPresent(t *testing.T) {
 
 	// §2/§18：即使没有任何订阅，Wallet 也必须始终存在
 	require.Equal(t, "100.00000000", status.Wallet.Balance)
-	require.Equal(t, "USD", status.Wallet.CanonicalCurrency)
+	require.Equal(t, "CNY", status.Wallet.CanonicalCurrency)
 	require.Empty(t, status.Subscriptions)
 }
 

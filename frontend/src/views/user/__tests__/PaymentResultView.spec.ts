@@ -31,6 +31,14 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+vi.mock('@/stores/currencyDisplay', () => ({
+  useCurrencyDisplayStore: () => ({
+    displayCurrency: 'USD',
+    formatUSD: (amount: number | null | undefined, decimals = 2) => `$${Number(amount ?? 0).toFixed(decimals)}`,
+    formatCNY: (amount: number | null | undefined, decimals = 2) => `¥${Number(amount ?? 0).toFixed(decimals)}`,
+  }),
+}))
+
 vi.mock('@/stores/payment', () => ({
   usePaymentStore: () => ({
     pollOrderStatus,

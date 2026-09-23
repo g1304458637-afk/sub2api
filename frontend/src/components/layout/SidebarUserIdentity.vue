@@ -67,6 +67,6 @@ const userInitials = computed(() => {
 })
 
 function formatMoney(value: number): string {
-  return currencyStore.formatUSD(value)
+  return currencyStore.formatCNY(value)
 }
 </script>

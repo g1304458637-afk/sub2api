@@ -65,7 +65,7 @@ export default {
       audioRealtime: 'Realtime（每分钟）',
       audioStt: 'STT（每小时）',
       defaultPrice: '默认价',
-      defaultMusicPrice: '默认 $0.50/首',
+      defaultMusicPrice: '默认 {price}/首',
       unavailable: '暂无 openai 分组定价数据'
     },
 

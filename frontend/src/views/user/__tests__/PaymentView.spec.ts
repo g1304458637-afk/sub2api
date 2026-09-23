@@ -4,8 +4,6 @@ import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount as _formatPaymentAmount } from '@/components/payment/currency'
 import AmountInput from '@/components/payment/AmountInput.vue'
-import en from '@/i18n/locales/en'
-import zh from '@/i18n/locales/zh'
 import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
 
 const routeState = vi.hoisted(() => ({
@@ -53,6 +51,14 @@ vi.mock('vue-i18n', async () => {
     }),
   }
 })
+
+vi.mock('@/stores/currencyDisplay', () => ({
+  useCurrencyDisplayStore: () => ({
+    displayCurrency: 'USD',
+    formatUSD: (amount: number | null | undefined, decimals = 2) => `$${Number(amount ?? 0).toFixed(decimals)}`,
+    formatCNY: (amount: number | null | undefined, decimals = 2) => `¥${Number(amount ?? 0).toFixed(decimals)}`,
+  }),
+}))
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
@@ -358,8 +364,8 @@ describe('PaymentView help text', () => {
   })
 })
 
-describe('PaymentView recharge rate preview', () => {
-  it('uses the selected payment method currency in both locale templates', async () => {
+describe('PaymentView CNY wallet credit', () => {
+  it('converts USD payment amounts to CNY without applying the retired recharge multiplier', async () => {
     translate.mockClear()
     routeState.path = '/purchase'
     routeState.query = {}
@@ -386,12 +392,8 @@ describe('PaymentView recharge rate preview', () => {
     wrapper.getComponent(AmountInput).vm.$emit('update:modelValue', 10)
     await flushPromises()
 
-    expect(translate).toHaveBeenCalledWith('payment.rechargeRatePreview', {
-      currency: 'USD',
-      usd: '0.50',
-    })
-    expect(en.payment.rechargeRatePreview).toBe('Current rate: 1 {currency} = {usd} USD')
-    expect(zh.payment.rechargeRatePreview).toBe('当前倍率：1 {currency} = {usd} USD')
+    expect(wrapper.text()).toContain('¥67.00')
+    expect(translate).not.toHaveBeenCalledWith('payment.rechargeRatePreview', expect.anything())
   })
 })
 
