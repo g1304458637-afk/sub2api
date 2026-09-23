@@ -4,16 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AdminPaymentPlansView from '../AdminPaymentPlansView.vue'
 
-const { getPlans, getConfig, getGroups } = vi.hoisted(() => ({
+const { getPlans, getGroups } = vi.hoisted(() => ({
   getPlans: vi.fn(),
-  getConfig: vi.fn(),
   getGroups: vi.fn(),
 }))
 
 vi.mock('@/api/admin/payment', () => ({
   adminPaymentAPI: {
     getPlans,
-    getConfig,
   },
 }))
 
@@ -49,7 +47,6 @@ const DataTableStub = {
 describe('AdminPaymentPlansView', () => {
   beforeEach(() => {
     getGroups.mockResolvedValue([])
-    getConfig.mockResolvedValue({ data: {} })
     getPlans.mockResolvedValue({
       data: [
         {
@@ -67,11 +64,11 @@ describe('AdminPaymentPlansView', () => {
         },
         {
           id: 2,
-          name: 'Legacy plan',
+          name: 'Migrated plan',
           group_id: 1,
-          price: 10,
+          price: 67,
           original_price: 0,
-          currency: '',
+          currency: 'CNY',
           validity_days: 30,
           validity_unit: 'day',
           sort_order: 0,
@@ -82,7 +79,7 @@ describe('AdminPaymentPlansView', () => {
     })
   })
 
-  it('uses the configured currency symbol and keeps legacy prices in USD', async () => {
+  it('uses the currency display preference for canonical CNY plan prices', async () => {
     const wrapper = mount(AdminPaymentPlansView, {
       global: {
         plugins: [createPinia()],
@@ -99,8 +96,8 @@ describe('AdminPaymentPlansView', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('¥499.00CNY')
+    expect(wrapper.text()).toContain('¥499.00')
     expect(wrapper.text()).toContain('¥599.00')
-    expect(wrapper.text()).toContain('$10.00')
+    expect(wrapper.text()).toContain('¥67.00')
   })
 })

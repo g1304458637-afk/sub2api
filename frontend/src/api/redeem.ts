@@ -11,6 +11,7 @@ export interface RedeemHistoryItem {
   code: string
   type: string
   value: number
+  currency?: string
   status: string
   used_at: string
   created_at: string

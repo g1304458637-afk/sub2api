@@ -18,8 +18,8 @@
         <span v-if="row.fee_rate > 0" class="ml-1 text-xs text-gray-400" :title="t('payment.orders.fee') + ': ' + row.fee_rate + '%'">
           ({{ t('payment.orders.fee') }} {{ row.fee_rate }}%)
         </span>
-        <div v-if="row.amount !== row.pay_amount" class="text-xs text-gray-500">
-          {{ t('payment.orders.creditedAmount') }}: {{ creditedAmountSymbol }}{{ row.amount.toFixed(2) }}
+        <div class="text-xs text-gray-500">
+          {{ t('payment.orders.creditedAmount') }}: {{ currencyStore.formatCNY(row.amount) }}
         </div>
       </div>
     </template>
@@ -54,8 +54,10 @@ import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import { currencySymbol } from '@/components/payment/currency'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 const { t } = useI18n()
+const currencyStore = useCurrencyDisplayStore()
 
 const props = withDefaults(
   defineProps<{
@@ -90,8 +92,6 @@ function orderTypeClass(type: string): string {
       return 'border-gray-200 bg-gray-50 text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300'
   }
 }
-
-const creditedAmountSymbol = currencySymbol('USD')
 
 function paymentAmountSymbol(order: PaymentOrder): string {
   return currencySymbol(order.currency)

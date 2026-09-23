@@ -37,26 +37,26 @@
             <div>
               <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.mediaQuota.summary.todayTotal') }}</p>
               <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" data-test="today-total">
-                {{ formatCurrency(totalTodayCost) }}
+                {{ currencyStore.formatUSD(totalTodayCost) }}
               </p>
             </div>
             <div class="flex flex-wrap gap-6">
               <div>
                 <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.mediaQuota.summary.image') }}</p>
                 <p class="font-mono font-medium text-gray-800 dark:text-gray-200" data-test="image-today-cost">
-                  {{ formatCurrency(mediaStats.image.cost) }}
+                  {{ currencyStore.formatUSD(mediaStats.image.cost) }}
                 </p>
               </div>
               <div>
                 <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.mediaQuota.summary.music') }}</p>
                 <p class="font-mono font-medium text-gray-800 dark:text-gray-200" data-test="music-today-cost">
-                  {{ formatCurrency(mediaStats.music.cost) }}
+                  {{ currencyStore.formatUSD(mediaStats.music.cost) }}
                 </p>
               </div>
               <div>
                 <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.mediaQuota.summary.audio') }}</p>
                 <p class="font-mono font-medium text-gray-800 dark:text-gray-200" data-test="audio-today-cost">
-                  {{ formatCurrency(mediaStats.audio.cost) }}
+                  {{ currencyStore.formatUSD(mediaStats.audio.cost) }}
                 </p>
               </div>
             </div>
@@ -170,7 +170,7 @@
               >
                 <p class="text-xs text-gray-400 dark:text-dark-500">{{ tier.label }}</p>
                 <p class="mt-1 font-mono text-sm font-medium text-gray-800 dark:text-gray-200">
-                  <template v-if="tier.value !== null">{{ formatCurrency(tier.value) }}</template>
+                  <template v-if="tier.value !== null">{{ currencyStore.formatUSD(tier.value) }}</template>
                   <template v-else>{{ t('admin.mediaQuota.pricing.defaultPrice') }}</template>
                 </p>
               </div>
@@ -200,7 +200,7 @@
                     <td class="whitespace-nowrap px-3 py-2 font-mono">{{ formatDuration(row.duration_ms) }}</td>
                     <td class="whitespace-nowrap px-3 py-2">{{ row.image_count }}</td>
                     <td class="whitespace-nowrap px-3 py-2 font-mono">{{ row.image_size || '—' }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 font-mono">{{ formatCurrency(row.total_cost) }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 font-mono">{{ currencyStore.formatUSD(row.total_cost) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -264,16 +264,16 @@
             <div>
               <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.mediaQuota.music.todayCost') }}</p>
               <p class="mt-1 font-mono text-lg font-semibold text-gray-900 dark:text-white" data-test="music-today-cost-summary">
-                {{ formatCurrency(mediaStats.music.cost) }}
+                {{ currencyStore.formatUSD(mediaStats.music.cost) }}
               </p>
             </div>
             <div>
               <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.mediaQuota.pricing.musicPerTrack') }}</p>
               <p class="mt-1 font-mono text-sm font-medium text-gray-800 dark:text-gray-200" data-test="music-pricing">
                 <template v-if="pricing && pricing.musicPricePerTrack !== null">
-                  {{ formatCurrency(pricing.musicPricePerTrack) }}
+                  {{ currencyStore.formatUSD(pricing.musicPricePerTrack) }}
                 </template>
-                <template v-else>{{ t('admin.mediaQuota.pricing.defaultMusicPrice') }}</template>
+                <template v-else>{{ t('admin.mediaQuota.pricing.defaultMusicPrice', { price: currencyStore.formatUSD(0.5) }) }}</template>
               </p>
             </div>
           </div>
@@ -299,7 +299,7 @@
                     <td class="whitespace-nowrap px-3 py-2 font-mono">{{ row.model }}</td>
                     <td class="max-w-[200px] truncate px-3 py-2">{{ row.user?.email || `#${row.user_id}` }}</td>
                     <td class="whitespace-nowrap px-3 py-2 font-mono">{{ formatDuration(row.duration_ms) }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 font-mono">{{ formatCurrency(row.total_cost) }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 font-mono">{{ currencyStore.formatUSD(row.total_cost) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -334,7 +334,7 @@
             <div>
               <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.mediaQuota.audio.todayCost') }}</p>
               <p class="mt-1 font-mono text-lg font-semibold text-gray-900 dark:text-white" data-test="audio-today-cost-summary">
-                {{ formatCurrency(mediaStats.audio.cost) }}
+                {{ currencyStore.formatUSD(mediaStats.audio.cost) }}
               </p>
             </div>
           </div>
@@ -351,7 +351,7 @@
               >
                 <p class="text-xs text-gray-400 dark:text-dark-500">{{ tier.label }}</p>
                 <p class="mt-1 font-mono text-sm font-medium text-gray-800 dark:text-gray-200">
-                  <template v-if="tier.value !== null">{{ formatCurrency(tier.value) }}</template>
+                  <template v-if="tier.value !== null">{{ currencyStore.formatUSD(tier.value) }}</template>
                   <template v-else>{{ t('admin.mediaQuota.pricing.defaultPrice') }}</template>
                 </p>
               </div>
@@ -380,7 +380,7 @@
                     <td class="whitespace-nowrap px-3 py-2 font-mono">{{ row.model }}</td>
                     <td class="max-w-[200px] truncate px-3 py-2">{{ row.user?.email || `#${row.user_id}` }}</td>
                     <td class="whitespace-nowrap px-3 py-2 font-mono">{{ formatDuration(row.duration_ms) }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 font-mono">{{ formatCurrency(row.total_cost) }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 font-mono">{{ currencyStore.formatUSD(row.total_cost) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -410,13 +410,15 @@ import type {
   MediaPricing
 } from '@/api/admin/mediaQuota'
 import type { AdminUsageLog } from '@/types'
-import { formatCurrency, formatNumber } from '@/utils/format'
+import { formatNumber } from '@/utils/format'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 
 // ==================== State ====================
 

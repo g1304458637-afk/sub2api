@@ -136,7 +136,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { RewardGrantRecord } from '@/api/admin/rewardGrants'
-import { formatCurrency } from '@/utils/format'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -149,6 +149,7 @@ import { useAppStore } from '@/stores/app'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 
 // ==================== List state ====================
 
@@ -254,7 +255,7 @@ function formatTime(iso: string): string {
 // 金额为 USD 小数（非分）；正数带 + 前缀，与余额历史弹窗口径一致
 function formatAmount(value: number): string {
   const sign = value > 0 ? '+' : ''
-  return `${sign}${formatCurrency(value)}`
+  return `${sign}${currencyStore.formatCNY(value)}`
 }
 
 function sourceTypeLabel(value: string): string {

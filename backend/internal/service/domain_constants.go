@@ -730,7 +730,7 @@ const (
 
 	// 余额不足提醒
 	SettingKeyBalanceLowNotifyEnabled     = "balance_low_notify_enabled"      // 全局开关
-	SettingKeyBalanceLowNotifyThreshold   = "balance_low_notify_threshold"    // 默认阈值（USD）
+	SettingKeyBalanceLowNotifyThreshold   = "balance_low_notify_threshold"    // 默认阈值（CNY）
 	SettingKeyBalanceLowNotifyRechargeURL = "balance_low_notify_recharge_url" // 充值页面 URL
 
 	// 订阅到期提醒

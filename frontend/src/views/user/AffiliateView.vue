@@ -30,16 +30,16 @@
           <div class="card p-5">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.stats.availableQuota') }}</p>
             <p class="mt-2 text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
-              {{ formatCurrency(detail.aff_quota) }}
+              {{ currencyStore.formatCNY(detail.aff_quota) }}
             </p>
           </div>
           <div class="card p-5">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.stats.totalQuota') }}</p>
             <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
-              {{ formatCurrency(detail.aff_history_quota) }}
+              {{ currencyStore.formatCNY(detail.aff_history_quota) }}
             </p>
             <p v-if="detail.aff_frozen_quota > 0" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-              {{ t('affiliate.stats.frozenQuota') }}: {{ formatCurrency(detail.aff_frozen_quota) }}
+              {{ t('affiliate.stats.frozenQuota') }}: {{ currencyStore.formatCNY(detail.aff_frozen_quota) }}
             </p>
           </div>
         </div>
@@ -127,7 +127,7 @@
                 >
                   <td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.email || '-' }}</td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ item.username || '-' }}</td>
-                  <td class="px-3 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{{ formatCurrency(item.total_rebate) }}</td>
+                  <td class="px-3 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{{ currencyStore.formatCNY(item.total_rebate) }}</td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ formatDateTime(item.created_at) || '-' }}</td>
                 </tr>
               </tbody>
@@ -149,12 +149,14 @@ import type { UserAffiliateDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
-import { formatCurrency, formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const currencyStore = useCurrencyDisplayStore()
 const { copyToClipboard } = useClipboard()
 
 const loading = ref(true)
@@ -209,7 +211,7 @@ async function transferQuota(): Promise<void> {
   transferring.value = true
   try {
     const resp = await userAPI.transferAffiliateQuota()
-    appStore.showSuccess(t('affiliate.transfer.success', { amount: formatCurrency(resp.transferred_quota) }))
+    appStore.showSuccess(t('affiliate.transfer.success', { amount: currencyStore.formatCNY(resp.transferred_quota) }))
     await Promise.all([
       loadAffiliateDetail(true),
       authStore.refreshUser().catch(() => undefined),

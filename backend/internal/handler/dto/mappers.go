@@ -643,6 +643,7 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 		Code:         rc.Code,
 		Type:         rc.Type,
 		Value:        rc.Value,
+		Currency:     rc.Currency,
 		Status:       rc.Status,
 		UsedBy:       rc.UsedBy,
 		UsedAt:       rc.UsedAt,

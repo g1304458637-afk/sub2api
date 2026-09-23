@@ -402,14 +402,14 @@
               class="rounded bg-emerald-50 px-1 py-0.5 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
               :title="t('admin.accounts.usageWindow.grokPrepaid')"
             >
-              {{ t('admin.accounts.usageWindow.grokPrepaid') }} ${{ grokPrepaidMoneyLine.prepaid }}
+              {{ t('admin.accounts.usageWindow.grokPrepaid') }} {{ currencyStore.formatUSD(grokPrepaidMoneyLine.prepaid, 2) }}
             </span>
             <span
               v-if="grokPrepaidMoneyLine.showUsedLimit"
               :title="t('admin.accounts.usageWindow.grokMonthlyLimit')"
             >
               {{ t('admin.accounts.usageWindow.grokUsed') }}
-              {{ grokPrepaidMoneyLine.used }}/{{ grokPrepaidMoneyLine.limit }}
+              {{ currencyStore.formatUSD(grokPrepaidMoneyLine.used, 2) }}/{{ currencyStore.formatUSD(grokPrepaidMoneyLine.limit, 2) }}
             </span>
           </div>
           <div v-if="grokQuotaUnknown" class="text-[10px] text-gray-500 dark:text-gray-400">
@@ -513,14 +513,14 @@
               {{ formatKeyTokens }}
             </span>
             <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
-              A ${{ formatKeyCost }}
+              A {{ formatKeyCost }}
             </span>
             <span
               v-if="todayStats.user_cost != null"
               class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
               :title="t('usage.userBilled')"
             >
-              U ${{ formatKeyUserCost }}
+              U {{ formatKeyUserCost }}
             </span>
           </div>
         </div>
@@ -594,14 +594,14 @@
             {{ formatKeyTokens }}
           </span>
           <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
-            A ${{ formatKeyCost }}
+            A {{ formatKeyCost }}
           </span>
           <span
             v-if="todayStats.user_cost != null"
             class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
             :title="t('usage.userBilled')"
           >
-            U ${{ formatKeyUserCost }}
+            U {{ formatKeyUserCost }}
           </span>
         </div>
       </div>
@@ -654,6 +654,7 @@ import type { Account, AccountUsageInfo, GeminiCredentials, WindowStats } from '
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { enqueueUsageRequest } from '@/utils/usageLoadQueue'
 import { formatCompactNumber } from '@/utils/format'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import UsageProgressBar from './UsageProgressBar.vue'
 import AccountQuotaInfo from './AccountQuotaInfo.vue'
 import OpenAIQuotaResetCell from './OpenAIQuotaResetCell.vue'
@@ -695,6 +696,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const currencyStore = useCurrencyDisplayStore()
 const desktopViewportQuery = '(min-width: 768px)'
 
 const unmounted = ref(false)
@@ -1190,13 +1192,6 @@ const grokMonthlyBillingBar = computed((): GrokQuotaBarInfo | null => {
     windowStats: grokLocalUsageMonthly.value
   }
 })
-const formatGrokMoney = (value?: number | null) => {
-  if (value == null || Number.isNaN(value)) return '0'
-  if (value >= 1000) return formatCompactNumber(value)
-  if (value >= 100) return value.toFixed(0)
-  if (value >= 10) return value.toFixed(1)
-  return value.toFixed(2)
-}
 // Prepaid chip only when there is a positive prepaid balance.
 // Used/limit only when monthly limit is a positive number (0 means unlimited / unset).
 const grokPrepaidMoneyLine = computed(() => {
@@ -1221,9 +1216,9 @@ const grokPrepaidMoneyLine = computed(() => {
   return {
     showPrepaid,
     showUsedLimit,
-    prepaid: showPrepaid ? formatGrokMoney(prepaid) : null,
-    used: showUsedLimit ? formatGrokMoney(used) : null,
-    limit: showUsedLimit ? formatGrokMoney(limitRaw) : null
+    prepaid: showPrepaid ? prepaid : null,
+    used: showUsedLimit ? used : null,
+    limit: showUsedLimit ? limitRaw : null
   }
 })
 const grokPlanLabelIsFree = (value: string) => value.includes('free') || value.includes('basic')
@@ -1575,12 +1570,12 @@ const formatKeyTokens = computed(() => {
 
 const formatKeyCost = computed(() => {
   if (!props.todayStats) return '0.00'
-  return props.todayStats.cost.toFixed(2)
+  return currencyStore.formatUSD(props.todayStats.cost)
 })
 
 const formatKeyUserCost = computed(() => {
   if (!props.todayStats || props.todayStats.user_cost == null) return '0.00'
-  return props.todayStats.user_cost.toFixed(2)
+  return currencyStore.formatUSD(props.todayStats.user_cost)
 })
 
 onMounted(() => {

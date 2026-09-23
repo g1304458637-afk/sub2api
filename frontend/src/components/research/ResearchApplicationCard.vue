@@ -58,7 +58,7 @@
           {{ t('research.list.rewardGranted') }}
         </span>
         <span class="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-          +${{ application.reward_amount.toFixed(2) }}
+          +{{ currencyStore.formatCNY(application.reward_amount) }}
         </span>
       </div>
 
@@ -114,6 +114,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import Icon from '@/components/icons/Icon.vue'
 import ResearchStatusBadge from './ResearchStatusBadge.vue'
 import { researchAPI, type ResearchApplication, type ResearchAttachment } from '@/api/research'
@@ -127,6 +128,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 
 const expanded = ref(false)
 const downloadingId = ref<string | null>(null)

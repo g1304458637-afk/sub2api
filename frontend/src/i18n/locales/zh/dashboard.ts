@@ -300,7 +300,7 @@ export default {
     reset: '重置',
     resetQuotaUsed: '将已用额度重置为 0',
     resetQuotaTitle: '确认重置额度',
-    resetQuotaConfirmMessage: '确定要将密钥 "{name}" 的已用额度（${used}）重置为 0 吗？此操作不可撤销。',
+    resetQuotaConfirmMessage: '确定要将密钥 "{name}" 的已用额度（{used}）重置为 0 吗？此操作不可撤销。',
     quotaResetSuccess: '额度重置成功',
     failedToResetQuota: '重置额度失败',
     rateLimitColumn: '速率限制',

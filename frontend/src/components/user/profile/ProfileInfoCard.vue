@@ -54,7 +54,7 @@
                   {{ t('profile.accountBalance') }}
                 </p>
                 <p class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                  {{ currencyStore.formatUSD(user?.balance || 0) }}
+                  {{ currencyStore.formatCNY(user?.balance || 0) }}
                 </p>
               </div>
               <div

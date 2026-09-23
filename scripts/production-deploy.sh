@@ -154,6 +154,8 @@ BACKUP_DIR="/srv/backups/sub2api-predeploy-$(date -u +%Y%m%dT%H%M%SZ)-${NEW_COMM
 mkdir -m 700 "$BACKUP_DIR"
 docker exec sub2api-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl -Fc' > "$BACKUP_DIR/database.dump"
 docker exec -i sub2api-postgres pg_restore --list < "$BACKUP_DIR/database.dump" > "$BACKUP_DIR/database.list"
+CNY_CONTRACT_BEFORE=$(docker exec sub2api-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT EXISTS (SELECT 1 FROM settings WHERE key = '\''wallet_currency_contract'\'' AND value = '\''CNY_V1'\'')"')
+case "$CNY_CONTRACT_BEFORE" in t|f) ;; *) fail_preflight "无法确认 CNY 钱包迁移前状态" ;; esac
 cp -p "$COMPOSE_DIR/docker-compose.yml" "$COMPOSE_DIR/.env" "$BACKUP_DIR/"
 [ ! -f "$ENV_DEPLOY" ] || cp -p "$ENV_DEPLOY" "$BACKUP_DIR/"
 printf '%s\n' "$PREVIOUS_IMAGE" > "$BACKUP_DIR/rollback-image.txt"
@@ -179,6 +181,22 @@ logout_ghcr() {
 
 deploy_fail() {
   echo "DEPLOYMENT FAILED: $*" >&2
+  # The one-time CNY conversion changes stored wallet units. If this release
+  # applied it and the app must roll back, restore the verified predeploy DB
+  # snapshot before starting the older USD-denominated binary.
+  if [ "$CNY_CONTRACT_BEFORE" = "f" ]; then
+    contract_after=$(docker exec sub2api-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT EXISTS (SELECT 1 FROM settings WHERE key = '\''wallet_currency_contract'\'' AND value = '\''CNY_V1'\'')"' 2>/dev/null) || contract_after=unknown
+    if [ "$contract_after" = "t" ]; then
+      echo "== Restore pre-CNY database before app rollback ==" >&2
+      if ! "${COMPOSE[@]}" stop "$CONTAINER" || ! docker exec -i sub2api-postgres sh -c 'pg_restore --clean --if-exists --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$BACKUP_DIR/database.dump"; then
+        echo "CRITICAL: CNY database restore failed; application remains stopped for recovery" >&2
+        exit 2
+      fi
+    elif [ "$contract_after" != "f" ]; then
+      echo "CRITICAL: cannot determine whether CNY migration committed; application remains on the attempted release" >&2
+      exit 2
+    fi
+  fi
   echo "== 自动回滚到 $PREVIOUS_IMAGE =="
   if bash "$SCRIPT_DIR/production-deploy.sh" --rollback-only "$PREVIOUS_IMAGE"; then
     echo "ROLLBACK SUCCESSFUL (已恢复 $PREVIOUS_IMAGE)"

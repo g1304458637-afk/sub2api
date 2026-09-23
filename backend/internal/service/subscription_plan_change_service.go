@@ -377,10 +377,15 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 	if len(terms) == 0 {
 		return nil, nil, ErrPlanIdentityUnresolved // 无任何 term 事实：视为身份未解析
 	}
-	currency := terms[0].Currency
-	if toPlan.Currency != "" && toPlan.Currency != currency {
+	toPlanPriceCNY, err := walletAmountToCNY(toPlan.Price, toPlan.Currency)
+	if err != nil {
 		return nil, nil, ErrPlanCrossCurrency
 	}
+	canonicalToPlan := *toPlan
+	canonicalToPlan.Price = toPlanPriceCNY
+	canonicalToPlan.Currency = "CNY"
+	toPlan = &canonicalToPlan
+	currency := "CNY"
 	// Gate 3 补充：V1 仅支持同 billing cadence（from/to Plan 标称周期一致；
 	// 已付 term 的段长不限定——预付/赠送段按日归一计价）
 	if !samePlanCadence(fromPlan, toPlan) {
@@ -396,13 +401,16 @@ func (s *PlanChangeService) buildUpgradeQuote(ctx context.Context, userID, subsc
 	if toPlanNominal <= 0 || toPlan.Price < 0 || math.IsNaN(toPlan.Price) || math.IsInf(toPlan.Price, 0) {
 		return nil, nil, ErrPlanTermMismatch
 	}
-	toDaily := decimal.NewFromFloat(toPlan.Price).Div(decimal.NewFromInt(int64(toPlanNominal)))
+	toDaily := decimal.NewFromFloat(toPlanPriceCNY).Div(decimal.NewFromInt(int64(toPlanNominal)))
 	charge := toDaily.Mul(decimal.NewFromInt(sub.ExpiresAt.Sub(now).Milliseconds())).Div(decimal.NewFromInt((24 * time.Hour).Milliseconds()))
 	for i := range terms {
 		term := &terms[i]
-		if term.Currency != currency {
+		termPriceCNY, err := walletAmountToCNY(term.PricePaid, term.Currency)
+		if err != nil {
 			return nil, nil, ErrPlanCrossCurrency
 		}
+		term.PricePaid = termPriceCNY
+		term.Currency = "CNY"
 		if !term.TermEnd.After(term.TermStart) || term.PricePaid < 0 || math.IsNaN(term.PricePaid) || math.IsInf(term.PricePaid, 0) {
 			return nil, nil, ErrPlanIdentityUnresolved
 		}

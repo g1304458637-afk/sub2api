@@ -64,15 +64,15 @@
       </div>
       <div class="min-w-0 flex-1">
         <p class="usage-stat__label">{{ t('usage.totalCost') }}</p>
-        <p class="usage-stat__value">${{ (stats?.total_actual_cost || 0).toFixed(4) }}</p>
+        <p class="usage-stat__value">{{ currencyStore.formatUSD(stats?.total_actual_cost || 0, 4) }}</p>
         <p class="usage-stat__hint">
           <template v-if="showAccountCost && totalAccountCost != null">
-            <span class="text-orange-500">{{ t('usage.accountCost') }} ${{ totalAccountCost.toFixed(4) }}</span>
+            <span class="text-orange-500">{{ t('usage.accountCost') }} {{ currencyStore.formatUSD(totalAccountCost, 4) }}</span>
             <span> · </span>
           </template>
           <span>
             {{ t('usage.standardCost') }}
-            <span :class="{ 'line-through opacity-60': strikeStandardCost }">${{ (stats?.total_cost || 0).toFixed(4) }}</span>
+            <span :class="{ 'line-through opacity-60': strikeStandardCost }">{{ currencyStore.formatUSD(stats?.total_cost || 0, 4) }}</span>
           </span>
         </p>
       </div>
@@ -95,6 +95,7 @@ import { useI18n } from 'vue-i18n'
 import type { AdminUsageStatsResponse } from '@/api/admin/usage'
 import type { UsageStatsResponse } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 const props = withDefaults(defineProps<{
   stats: (AdminUsageStatsResponse | UsageStatsResponse) | null
@@ -106,6 +107,7 @@ const props = withDefaults(defineProps<{
 })
 
 const { t } = useI18n()
+const currencyStore = useCurrencyDisplayStore()
 
 const totalAccountCost = computed(() => {
   const stats = props.stats as (AdminUsageStatsResponse & { total_account_cost?: number }) | null
