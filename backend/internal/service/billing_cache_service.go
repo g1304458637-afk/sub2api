@@ -886,7 +886,7 @@ func (s *BillingCacheService) minimumBalanceReserve() float64 {
 	if s == nil || s.cfg == nil || s.cfg.Billing.MinimumBalanceReserve <= 0 {
 		return 0
 	}
-	return s.cfg.Billing.MinimumBalanceReserve
+	return walletUSDToCNY(s.cfg.Billing.MinimumBalanceReserve)
 }
 
 func (s *BillingCacheService) balanceBelowEligibilityThreshold(balance float64) bool {

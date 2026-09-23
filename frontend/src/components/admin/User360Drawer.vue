@@ -23,7 +23,7 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="sum-card">
               <span class="sum-label">{{ t('user360.wallet') }}</span>
-              <span class="sum-value">${{ userBalance }}</span>
+              <span class="sum-value">{{ currencyStore.formatCNY(Number(userBalance)) }}</span>
             </div>
             <div class="sum-card">
               <span class="sum-label">{{ t('user360.resetCards') }}</span>
@@ -95,7 +95,7 @@
             <p v-if="balanceHistory.length === 0" class="text-sm text-gray-500 dark:text-dark-400">{{ t('user360.noHistory') }}</p>
             <ul v-else class="space-y-1.5 text-sm">
               <li v-for="(row, i) in balanceHistory.slice(0, 10)" :key="i" class="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 dark:border-dark-700">
-                <span class="truncate">{{ t('wallet.ledgerType.' + row.type) }} · ${{ row.amount.toFixed(2) }}</span>
+                <span class="truncate">{{ t('wallet.ledgerType.' + row.type) }} · {{ currencyStore.formatCNY(row.amount) }}</span>
                 <span class="text-xs text-gray-500">{{ fmtDate(row.created_at) }}</span>
               </li>
             </ul>
@@ -160,7 +160,7 @@ import type { UserSubscription, ApiKey } from '@/types'
 import { getAdminWalletLedger, type ResetCardRow } from '@/api/admin/subscriptionReset'
 import type { WalletLedgerEntry } from '@/api/subscriptions'
 import { createMutationAttempt } from '@/utils/mutationAttempt'
-import { formatPaymentAmount } from '@/components/payment/currency'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 /**
  * Admin 用户详情 Customer 360 抽屉（挂在现有 UsersView，不新开页面）。
@@ -181,6 +181,7 @@ const props = defineProps<{ user: User360Target | null }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
+const currencyStore = useCurrencyDisplayStore()
 
 interface SubRow extends UserSubscription { _expanded?: boolean }
 const subscriptions = ref<SubRow[]>([])
@@ -251,7 +252,7 @@ watch(
         ? t('payment.orders.planChangeUpgrade')
         : t('payment.orders.planChangeDowngrade'),
       tier: `${r.FromTier}→${r.ToTier}`,
-      amount: r.ChangeType === 'upgrade' ? formatPaymentAmount(r.AmountDue, r.Currency) : '—',
+              amount: r.ChangeType === 'upgrade' ? currencyStore.formatCNY(r.AmountDue) : '—',
       status: r.Status,
       created_at: r.CreatedAt
     })).slice(0, 10)

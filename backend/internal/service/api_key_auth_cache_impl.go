@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 25 // v25: subscription quota policy and 5-hour limit
+const apiKeyAuthSnapshotVersion = 26 // v26: wallet snapshots use canonical CNY
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int

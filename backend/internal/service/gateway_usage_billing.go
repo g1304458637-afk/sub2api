@@ -148,7 +148,7 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 		}
 	} else {
 		if cost.ActualCost > 0 {
-			if err := deps.userRepo.DeductBalance(billingCtx, p.User.ID, cost.ActualCost); err != nil {
+			if err := deps.userRepo.DeductBalance(billingCtx, p.User.ID, walletUSDToCNY(cost.ActualCost)); err != nil {
 				slog.Error("deduct balance failed", "user_id", p.User.ID, "error", err)
 			} else if deps.billingCacheService != nil {
 				if err := deps.billingCacheService.InvalidateUserBalance(billingCtx, p.User.ID); err != nil {
@@ -327,6 +327,10 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		cmd.AccountQuotaCost = p.Cost.TotalCost * p.AccountRateMultiplier
 	}
 
+	// The idempotency fingerprint must retain the historical USD metering
+	// amount. Only the wallet-side debit crosses into canonical CNY.
+	cmd.RequestFingerprint = buildUsageBillingFingerprint(cmd)
+	cmd.BalanceCost = walletUSDToCNY(cmd.BalanceCost)
 	cmd.Normalize()
 	return cmd
 }
@@ -439,7 +443,7 @@ func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingPara
 		}
 		return
 	}
-	deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
+	deps.billingCacheService.QueueDeductBalance(p.User.ID, walletUSDToCNY(p.Cost.ActualCost))
 }
 
 // notifyBalanceLow sends balance low notification after deduction.
@@ -462,22 +466,23 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 	}
 
 	oldBalance := resolveOldBalance(p, result)
+	balanceCost := walletUSDToCNY(p.Cost.ActualCost)
 	slog.Debug("notifyBalanceLow: calling CheckBalanceAfterDeduction",
 		"user_id", p.User.ID,
 		"old_balance", oldBalance,
-		"cost", p.Cost.ActualCost,
+		"cost", balanceCost,
 		"notify_enabled", p.User.BalanceNotifyEnabled,
 		"threshold", p.User.BalanceNotifyThreshold,
 		"result_has_new_balance", result != nil && result.NewBalance != nil,
 	)
-	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, p.Cost.ActualCost)
+	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, balanceCost)
 }
 
 // resolveOldBalance returns the pre-deduction balance.
 // Prefers the DB transaction result (newBalance + cost) over snapshot.
 func resolveOldBalance(p *postUsageBillingParams, result *UsageBillingApplyResult) float64 {
 	if result != nil && result.NewBalance != nil {
-		return *result.NewBalance + p.Cost.ActualCost
+		return *result.NewBalance + walletUSDToCNY(p.Cost.ActualCost)
 	}
 	// Legacy fallback: snapshot balance from request context
 	return p.User.Balance

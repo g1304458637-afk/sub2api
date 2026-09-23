@@ -128,7 +128,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOIDCConnectUserInfoIDPath:                 "",
 		SettingKeyOIDCConnectUserInfoUsernamePath:           "",
 		SettingKeyDefaultConcurrency:                        strconv.Itoa(s.cfg.Default.UserConcurrency),
-		SettingKeyDefaultBalance:                            strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
+		SettingKeyDefaultBalance:                            strconv.FormatFloat(walletUSDToCNY(s.cfg.Default.UserBalance), 'f', 8, 64),
 		SettingKeyAffiliateRebateRate:                       strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
 		SettingKeyAffiliateRebateFreezeHours:                strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:               strconv.Itoa(AffiliateRebateDurationDaysDefault),
@@ -413,7 +413,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	if balance, err := strconv.ParseFloat(settings[SettingKeyDefaultBalance], 64); err == nil {
 		result.DefaultBalance = balance
 	} else {
-		result.DefaultBalance = s.cfg.Default.UserBalance
+		result.DefaultBalance = walletUSDToCNY(s.cfg.Default.UserBalance)
 	}
 	if rewardAmount, err := strconv.ParseFloat(settings[SettingKeyStudentVerificationRewardAmount], 64); err == nil {
 		result.StudentVerificationRewardAmount = rewardAmount

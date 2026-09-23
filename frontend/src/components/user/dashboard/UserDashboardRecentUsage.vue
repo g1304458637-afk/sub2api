@@ -24,8 +24,8 @@
           </div>
           <div class="text-right">
             <p class="text-sm font-semibold">
-              <span class="text-green-600 dark:text-green-400" :title="t('dashboard.actual')">${{ formatCost(log.actual_cost) }}</span>
-              <span class="font-normal text-gray-400 dark:text-gray-500" :title="t('dashboard.standard')"> / ${{ formatCost(log.total_cost) }}</span>
+              <span class="text-green-600 dark:text-green-400" :title="t('dashboard.actual')">{{ currencyStore.formatUSD(log.actual_cost, 4) }}</span>
+              <span class="font-normal text-gray-400 dark:text-gray-500" :title="t('dashboard.standard')"> / {{ currencyStore.formatUSD(log.total_cost, 4) }}</span>
             </p>
             <p class="text-xs text-gray-500 dark:text-dark-400">{{ (log.input_tokens + log.output_tokens).toLocaleString() }} tokens</p>
           </div>
@@ -47,11 +47,12 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTime } from '@/utils/format'
 import type { UsageLog } from '@/types'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 defineProps<{
   data: UsageLog[]
   loading: boolean
 }>()
 const { t } = useI18n()
-const formatCost = (c: number) => c.toFixed(4)
+const currencyStore = useCurrencyDisplayStore()
 </script>

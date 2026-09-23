@@ -388,24 +388,23 @@ func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID i
 
 // SumPositiveBalanceByUser returns total recharged amount (sum of value > 0 where type is balance/admin_balance).
 func (r *redeemCodeRepository) SumPositiveBalanceByUser(ctx context.Context, userID int64) (float64, error) {
-	var result []struct {
-		Sum float64 `json:"sum"`
-	}
-	err := r.client.RedeemCode.Query().
-		Where(
-			redeemcode.UsedByEQ(userID),
-			redeemcode.ValueGT(0),
-			redeemcode.TypeIn("balance", "admin_balance"),
-		).
-		Aggregate(dbent.As(dbent.Sum(redeemcode.FieldValue), "sum")).
-		Scan(ctx, &result)
+	rows, err := r.client.QueryContext(ctx, `
+SELECT COALESCE(SUM(r.value), 0)::double precision
+FROM redeem_codes r
+WHERE r.used_by = $1
+  AND r.value > 0
+  AND r.type IN ('balance', 'admin_balance')`, userID)
 	if err != nil {
 		return 0, err
 	}
-	if len(result) == 0 {
-		return 0, nil
+	defer func() { _ = rows.Close() }()
+	var sum float64
+	if rows.Next() {
+		if err := rows.Scan(&sum); err != nil {
+			return 0, err
+		}
 	}
-	return result[0].Sum, nil
+	return sum, rows.Err()
 }
 
 func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {

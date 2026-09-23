@@ -160,6 +160,7 @@ export type WalletLedgerEntry = {
   id: string
   type: 'wallet_recharge' | 'redeem_balance' | 'reward' | 'payg_usage' | 'refund' | 'manual_adjustment'
   amount: number
+  currency?: string
   ref?: string
   created_at: string
 }

@@ -224,7 +224,7 @@ import {
 } from '@/api/subscriptions'
 import { paymentAPI } from '@/api/payment'
 import type { SubscriptionPlan } from '@/types/payment'
-import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { planValiditySuffix } from '@/components/payment/validity'
 import { useAppStore } from '@/stores'
 
@@ -234,8 +234,9 @@ import { useAppStore } from '@/stores'
  * 价格展示来自 /payment/plans（仅展示，不参与任何计算）。
  */
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 
 const loading = ref(true)
 const loadError = ref('')
@@ -262,11 +263,9 @@ const walletDisplay = computed(() => {
   const w = status.value?.wallet
   if (!w) return '—'
   const value = parseFloat(w.balance)
-  return formatPaymentAmount(
-    Number.isFinite(value) ? value : 0,
-    normalizePaymentCurrency(w.canonical_currency),
-    typeof locale.value === 'string' ? locale.value : undefined
-  )
+  return w.canonical_currency?.toUpperCase() === 'USD'
+    ? currencyStore.formatUSD(Number.isFinite(value) ? value : 0)
+    : currencyStore.formatCNY(Number.isFinite(value) ? value : 0)
 })
 
 const paygConfirmBody = computed(() => t('mySub.paygConfirmBody', { wallet: walletDisplay.value }))
@@ -292,8 +291,9 @@ function planForSub(sub: AccountSubscriptionStatus): SubscriptionPlan | undefine
 function priceLine(sub: AccountSubscriptionStatus): string {
   const plan = planForSub(sub)
   if (!plan) return ''
-  const loc = typeof locale.value === 'string' ? locale.value : undefined
-  const price = formatPaymentAmount(plan.price, normalizePaymentCurrency(plan.currency), loc)
+  const price = plan.currency?.toUpperCase() === 'USD'
+    ? currencyStore.formatUSD(plan.price)
+    : currencyStore.formatCNY(plan.price)
   return `${price} / ${planValiditySuffix(plan, t)}`
 }
 

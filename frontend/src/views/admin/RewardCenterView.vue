@@ -69,7 +69,7 @@
           </div>
           <div class="rounded-xl border border-gray-100 p-3 text-center dark:border-dark-700">
             <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('rewardCenter.todayAmount') }}</p>
-            <p class="text-lg font-bold">${{ stats.today_sum.toFixed(2) }}</p>
+            <p class="text-lg font-bold">{{ currencyStore.formatCNY(stats.today_sum) }}</p>
           </div>
           <div class="rounded-xl border border-gray-100 p-3 text-center dark:border-dark-700">
             <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('rewardCenter.monthUsers') }}</p>
@@ -77,7 +77,7 @@
           </div>
           <div class="rounded-xl border border-gray-100 p-3 text-center dark:border-dark-700">
             <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('rewardCenter.monthAmount') }}</p>
-            <p class="text-lg font-bold">${{ stats.month_sum.toFixed(2) }}</p>
+            <p class="text-lg font-bold">{{ currencyStore.formatCNY(stats.month_sum) }}</p>
           </div>
         </div>
 
@@ -99,7 +99,7 @@
                 <td class="py-2 pr-4">{{ g.user_id }}</td>
                 <td class="py-2 pr-4">{{ t('rewardCenter.source.' + g.source_type, g.source_type) }}</td>
                 <td class="py-2 pr-4 text-xs">{{ g.campaign || '—' }}</td>
-                <td class="py-2 pr-4 font-medium text-amber-600 dark:text-[#d6b46a]">+${{ g.amount.toFixed(2) }}</td>
+                <td class="py-2 pr-4 font-medium text-amber-600 dark:text-[#d6b46a]">+{{ currencyStore.formatCNY(g.amount) }}</td>
                 <td class="py-2 pr-4 text-xs text-gray-500">{{ fmtDate(g.created_at) }}</td>
               </tr>
             </tbody>
@@ -129,6 +129,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import MucRewardGiftCard from '@/components/muc/MucRewardGiftCard.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 /**
  * Admin Reward Center：只管 Reward → Wallet（学生如何认证不属于本项目）。
@@ -138,6 +139,7 @@ import { useAppStore } from '@/stores'
  */
 const { t, locale } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 
 const configLoading = ref(true)
 const saving = ref(false)
@@ -155,7 +157,7 @@ function fmtDate(iso: string): string {
 }
 const form = ref({ enabled: false, amount: 0, campaign: '' })
 
-const previewAmount = computed(() => `+$${Number(form.value.amount || 0).toFixed(2)}`)
+const previewAmount = computed(() => `+${currencyStore.formatCNY(Number(form.value.amount || 0))}`)
 const loc = computed(() => (typeof locale.value === 'string' ? locale.value : undefined))
 void loc.value
 

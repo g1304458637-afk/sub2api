@@ -14,9 +14,6 @@
           <div class="muc-wallet__hero-main">
             <span class="muc-wallet__hero-label">{{ t('wallet.balance') }}</span>
             <span class="muc-wallet__hero-value">{{ walletDisplay }}</span>
-            <span v-if="cnyApproxDisplay" class="muc-wallet__hero-cny">
-              ≈ {{ cnyApproxDisplay }}
-            </span>
           </div>
           <MucButton pill @click="goRecharge">{{ t('wallet.recharge') }}</MucButton>
         </MucGlassCard>
@@ -42,7 +39,7 @@
                 class="muc-wallet__amount"
                 :class="entry.amount >= 0 ? 'muc-wallet__amount--in' : 'muc-wallet__amount--out'"
               >
-                {{ entry.amount >= 0 ? '+' : '' }}${{ entry.amount.toFixed(2) }}
+                {{ entry.amount >= 0 ? '+' : '' }}{{ formatLedgerAmount(entry) }}
               </span>
             </li>
           </ul>
@@ -67,27 +64,21 @@ import MucState from '@/components/muc/MucState.vue'
 import MucSkeleton from '@/components/muc/MucSkeleton.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { getAccountStatus, getWalletLedger, type WalletLedgerEntry } from '@/api/subscriptions'
-import { paymentAPI } from '@/api/payment'
-import type { PaymentConfig } from '@/types/payment'
-import {
-  formatPaymentAmount,
-  normalizePaymentCurrency
-} from '@/components/payment/currency'
 import { useAppStore } from '@/stores'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 /**
  * Wallet：充值 + Reward + PAYG 统一账户钱包。
- * 余额来自 /subscriptions/status 合同（users.balance，canonical USD）；
- * ≈¥ 仅在后台配置了展示汇率（usd_to_cny_display_rate > 0）时显示。
+ * 余额来自 /subscriptions/status 合同（users.balance，canonical CNY）。
  * 流水只显示后端返回的真实资金记录。
  */
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 
 const balance = ref<string | null>(null)
 const canonicalCurrency = ref('')
-const displayRate = ref(0)
 const ledgerTotal = ref(0)
 const ledgerPage = ref(1)
 const ledgerError = ref('')
@@ -103,24 +94,18 @@ function ledgerDate(iso: string): string {
   }
 }
 
-const loc = computed(() => (typeof locale.value === 'string' ? locale.value : undefined))
-
 const walletDisplay = computed(() => {
   if (balance.value === null) return '—'
   const value = parseFloat(balance.value)
-  return formatPaymentAmount(
-    Number.isFinite(value) ? value : 0,
-    normalizePaymentCurrency(canonicalCurrency.value),
-    loc.value
-  )
+  if (canonicalCurrency.value.toUpperCase() === 'USD') return currencyStore.formatUSD(Number.isFinite(value) ? value : 0)
+  return currencyStore.formatCNY(Number.isFinite(value) ? value : 0)
 })
 
-const cnyApproxDisplay = computed(() => {
-  if (balance.value === null || displayRate.value <= 0) return ''
-  const value = parseFloat(balance.value)
-  if (!Number.isFinite(value)) return ''
-  return formatPaymentAmount(value * displayRate.value, 'CNY', loc.value)
-})
+function formatLedgerAmount(entry: WalletLedgerEntry): string {
+  return entry.currency?.toUpperCase() === 'CNY'
+    ? currencyStore.formatCNY(entry.amount)
+    : currencyStore.formatUSD(entry.amount)
+}
 
 async function loadLedger(page = 1) {
   const request = ++ledgerRequest
@@ -144,13 +129,9 @@ async function loadLedger(page = 1) {
 onMounted(async () => {
   void loadLedger()
   try {
-    const [status, config] = await Promise.all([
-      getAccountStatus(), paymentAPI.getConfig().catch(() => null)
-    ])
+    const status = await getAccountStatus()
     balance.value = status.wallet.balance
     canonicalCurrency.value = status.wallet.canonical_currency
-    const cfg = config?.data as PaymentConfig | null
-    displayRate.value = cfg?.usd_to_cny_display_rate ?? 0
   } catch {
     appStore.showError(t('wallet.loadError'))
   }

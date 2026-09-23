@@ -511,6 +511,7 @@ type RedeemCode struct {
 	Code      string     `json:"code"`
 	Type      string     `json:"type"`
 	Value     float64    `json:"value"`
+	Currency  string     `json:"currency,omitempty"`
 	Status    string     `json:"status"`
 	UsedBy    *int64     `json:"used_by"`
 	UsedAt    *time.Time `json:"used_at"`

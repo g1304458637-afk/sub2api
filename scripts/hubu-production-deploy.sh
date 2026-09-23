@@ -8,6 +8,7 @@ RELEASE_FILE="$COMPOSE_DIR/release.json"
 BACKUP_ROOT="/srv/backups/hubu-production"
 SERVICE="backend"
 CONTAINER="sub2api-hubu"
+DB_CONTAINER="sub2api-hubu-postgres"
 PROJECT="campus-hubu"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_TOOL="$SCRIPT_DIR/hubu-compose-image.py"
@@ -40,6 +41,10 @@ valid_sha "$MIGRATION_BASELINE" || fail_preflight "--migration-baseline must be 
 
 PREVIOUS_COMMIT="$MIGRATION_BASELINE"
 
+wallet_contract_state() {
+  docker exec "$DB_CONTAINER" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT EXISTS (SELECT 1 FROM settings WHERE key = '\''wallet_currency_contract'\'' AND value = '\''CNY_V1'\'')"'
+}
+
 check_compose_image() { python3 "$COMPOSE_TOOL" get "$COMPOSE_FILE"; }
 
 PREVIOUS_IMAGE=$(docker inspect -f '{{.Config.Image}}' "$CONTAINER" 2>/dev/null) || fail_preflight "HUBU application container is missing"
@@ -51,14 +56,20 @@ for name in "$CONTAINER" sub2api-hubu-postgres sub2api-hubu-redis; do
 done
 bash "$SCRIPT_DIR/hubu-production-healthcheck.sh" --expect-commit "$PREVIOUS_COMMIT" --retries 1 --interval 1 || fail_preflight "current HUBU deployment is not healthy"
 
+CNY_CONTRACT_BEFORE=$(wallet_contract_state) || fail_preflight "could not determine HUBU wallet currency contract"
+case "$CNY_CONTRACT_BEFORE" in t|f) ;; *) fail_preflight "unexpected HUBU wallet currency contract state" ;; esac
+
 BACKUP_DIR="$BACKUP_ROOT/$NEW_COMMIT-$(date -u +%Y%m%dT%H%M%SZ)"
 [ ! -e "$BACKUP_DIR" ] || fail_preflight "timestamped backup path already exists"
 install -d -m 700 "$BACKUP_DIR"
 cp -a "$COMPOSE_FILE" "$BACKUP_DIR/compose.yml"
 cp -a "$RELEASE_FILE" "$BACKUP_DIR/release.json"
+docker exec "$DB_CONTAINER" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl -Fc' > "$BACKUP_DIR/database.dump"
+docker exec -i "$DB_CONTAINER" pg_restore --list < "$BACKUP_DIR/database.dump" > "$BACKUP_DIR/database.list"
+sha256sum "$BACKUP_DIR/database.dump" > "$BACKUP_DIR/SHA256SUMS"
 printf '%s\n' "$PREVIOUS_IMAGE" > "$BACKUP_DIR/previous-image.txt"
 printf '%s\n' "$PREVIOUS_COMMIT" > "$BACKUP_DIR/previous-commit.txt"
-chmod 600 "$BACKUP_DIR/previous-image.txt" "$BACKUP_DIR/previous-commit.txt"
+chmod 600 "$BACKUP_DIR/database.dump" "$BACKUP_DIR/database.list" "$BACKUP_DIR/SHA256SUMS" "$BACKUP_DIR/previous-image.txt" "$BACKUP_DIR/previous-commit.txt"
 
 TOKEN_CONFIG=$(mktemp -d)
 cleanup() {
@@ -76,6 +87,20 @@ replace_compose_image() {
 
 rollback() {
   echo "== Restore the prior HUBU app image and configuration ==" >&2
+  if [ "$CNY_CONTRACT_BEFORE" = "f" ]; then
+    contract_after=$(wallet_contract_state 2>/dev/null) || contract_after=unknown
+    if [ "$contract_after" = "t" ]; then
+      echo "== Restore pre-CNY database before app rollback ==" >&2
+      if ! (cd "$COMPOSE_DIR" && docker compose --project-name "$PROJECT" -f "$COMPOSE_FILE" --env-file "$COMPOSE_DIR/.env" stop "$SERVICE") || \
+         ! docker exec -i "$DB_CONTAINER" sh -c 'pg_restore --clean --if-exists --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$BACKUP_DIR/database.dump"; then
+        echo "CRITICAL: HUBU CNY database restore failed; application remains stopped for recovery" >&2
+        exit 2
+      fi
+    elif [ "$contract_after" != "f" ]; then
+      echo "CRITICAL: cannot determine whether HUBU CNY migration committed; application remains on the attempted release" >&2
+      exit 2
+    fi
+  fi
   cp -a "$BACKUP_DIR/compose.yml" "$COMPOSE_FILE"
   cp -a "$BACKUP_DIR/release.json" "$RELEASE_FILE"
   if (cd "$COMPOSE_DIR" && docker compose --project-name "$PROJECT" -f "$COMPOSE_FILE" --env-file "$COMPOSE_DIR/.env" up -d --no-deps "$SERVICE") && \

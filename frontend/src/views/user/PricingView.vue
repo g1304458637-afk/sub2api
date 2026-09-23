@@ -295,13 +295,12 @@ import {
 import { buildWechatOAuthAuthorizeUrl } from '@/components/payment/wechatOAuthUrl'
 import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
 import {
-  DEFAULT_PAYMENT_CURRENCY,
-  formatPaymentAmount,
   normalizePaymentCurrency
 } from '@/components/payment/currency'
 import { planValiditySuffix } from '@/components/payment/validity'
 import { isMobileDevice } from '@/utils/device'
 import { useAppStore } from '@/stores'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 
 // 客户端仅做展示排序的 tier 近似（sort_order）；升/降级真值以后端 tier_rank 校验为准。
 type MucPlanRow = SubscriptionPlan
@@ -310,8 +309,9 @@ type CtaKind = 'buy' | 'upgrade' | 'downgrade' | 'scheduled' | 'current' | 'unav
 
 const router = useRouter()
 const route = useRoute()
-const { t, tm, locale } = useI18n()
+const { t, tm } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 const paymentStore = usePaymentStore()
 
 const plans = ref<MucPlanRow[]>([])
@@ -354,11 +354,9 @@ const walletDisplay = computed(() => {
   const w = wallet.value
   if (!w) return '—'
   const value = parseFloat(w.balance)
-  return formatPaymentAmount(
-    Number.isFinite(value) ? value : 0,
-    normalizePaymentCurrency(w.canonical_currency),
-    typeof locale.value === 'string' ? locale.value : undefined
-  )
+  return w.canonical_currency?.toUpperCase() === 'USD'
+    ? currencyStore.formatUSD(Number.isFinite(value) ? value : 0)
+    : currencyStore.formatCNY(Number.isFinite(value) ? value : 0)
 })
 
 const planByGroup = computed(() => {
@@ -512,12 +510,11 @@ function fallbackFeatures(plan: MucPlanRow): string[] {
     : []
 }
 
-/** 套餐价 USD 语义：配置了折算汇率则按 CNY 展示（与购买页口径严格镜像）。 */
+/** 套餐价以 CNY 记账，展示跟随全站币种开关。 */
 function priceDisplay(plan: MucPlanRow): string {
-  const rate = checkout.value?.subscription_usd_to_cny_rate ?? 0
-  const loc = typeof locale.value === 'string' ? locale.value : undefined
-  if (rate > 0) return formatPaymentAmount(plan.price * rate, DEFAULT_PAYMENT_CURRENCY, loc)
-  return formatPaymentAmount(plan.price, normalizePaymentCurrency(plan.currency), loc)
+  return plan.currency?.toUpperCase() === 'USD'
+    ? currencyStore.formatUSD(plan.price)
+    : currencyStore.formatCNY(plan.price)
 }
 
 // ── 卡片动作 ──
@@ -558,13 +555,10 @@ const purchaseMethods = computed<PaymentMethodOption[]>(() => {
   const plan = purchaseModalPlan.value
   if (!plan || !checkout.value) return []
   const visible = getVisibleMethods(checkout.value.methods)
-  const rate = checkout.value.subscription_usd_to_cny_rate ?? 0
   return Object.entries(visible).map(([type, ml]) => {
     const currency = normalizePaymentCurrency(ml?.currency)
-    const paymentAmount =
-      rate > 0 && currency === DEFAULT_PAYMENT_CURRENCY
-        ? Math.round(plan.price * rate * 100) / 100
-        : Math.round(plan.price * 100) / 100
+    const planPriceCNY = plan.currency?.toUpperCase() === 'USD' ? plan.price * 6.7 : plan.price
+    const paymentAmount = Math.round((currency === 'USD' ? currencyStore.cnyToUSD(planPriceCNY) : planPriceCNY) * 100) / 100
     const total =
       purchaseFeeRate.value > 0 && paymentAmount > 0
         ? Math.round(

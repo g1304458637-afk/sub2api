@@ -76,7 +76,7 @@
 
           <template #cell-bonus_amount="{ value }">
             <span class="text-sm font-medium text-gray-900 dark:text-white">
-              ${{ value.toFixed(2) }}
+              {{ currencyStore.formatCNY(value) }}
             </span>
           </template>
 
@@ -177,7 +177,7 @@
           />
         </div>
         <div>
-          <label class="input-label">{{ t('admin.promo.bonusAmount') }}</label>
+          <label class="input-label">{{ t('admin.promo.bonusAmount') }} (CNY)</label>
           <input
             v-model.number="createForm.bonus_amount"
             type="number"
@@ -252,7 +252,7 @@
           />
         </div>
         <div>
-          <label class="input-label">{{ t('admin.promo.bonusAmount') }}</label>
+          <label class="input-label">{{ t('admin.promo.bonusAmount') }} (CNY)</label>
           <input
             v-model.number="editForm.bonus_amount"
             type="number"
@@ -347,7 +347,7 @@
           </div>
           <div class="text-right">
             <span class="text-sm font-medium text-green-600 dark:text-green-400">
-              +${{ usage.bonus_amount.toFixed(2) }}
+              +{{ currencyStore.formatCNY(usage.bonus_amount) }}
             </span>
           </div>
         </div>
@@ -389,6 +389,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
@@ -406,6 +407,7 @@ import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const currencyStore = useCurrencyDisplayStore()
 const { copyToClipboard: clipboardCopy } = useClipboard()
 
 // State
