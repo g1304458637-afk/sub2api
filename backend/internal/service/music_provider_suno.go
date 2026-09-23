@@ -143,6 +143,11 @@ func (s *SunoAdapter) awaitResult(ctx context.Context, taskID string, req MusicG
 	for {
 		record, err := s.fetchRecordInfo(ctx, taskID)
 		if err != nil {
+			// 整体超时可能正好打断在途的轮询请求：此时报"超时"而不是
+			// 把 context deadline 误分类成"上游不可达"。
+			if ctx.Err() != nil {
+				return nil, &MusicProviderError{Message: "music generation timed out"}
+			}
 			return nil, err
 		}
 		switch sunoStatusOf(record) {
