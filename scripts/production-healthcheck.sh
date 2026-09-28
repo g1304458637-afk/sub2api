@@ -32,7 +32,9 @@ while [ $# -gt 0 ]; do
 done
 
 fail() { echo "HEALTHCHECK FAIL: $*" >&2; exit 1; }
-curl_code() { curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$@"; }
+# Connection refusal during startup is a failed probe, not a shell failure.
+# Keep the retry loop alive; curl still emits 000 on transport errors.
+curl_code() { curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$@" || true; }
 
 attempt=0
 while :; do

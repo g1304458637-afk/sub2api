@@ -82,7 +82,7 @@ jobs:
           PROD_USER: ${{ secrets.PROD_USER }}
         run: |
           for container in sub2api-hubu sub2api-hubu-postgres sub2api-hubu-redis; do
-          state=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
+            state=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PROD_PORT" "$PROD_USER@$PROD_HOST" \
               "sudo docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' $container")
             test "$state" = 'true healthy' || { echo "$container is not healthy" >&2; exit 1; }
           done
