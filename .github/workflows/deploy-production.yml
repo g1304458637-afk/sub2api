@@ -1,7 +1,7 @@
 # =============================================================================
 # Deploy Production — 手动触发的生产部署（workflow_dispatch）
 #
-# 只允许从 MUC 长期主线 muc-main 手动触发。HUBU 尚无生产环境。
+# 只允许从 MUC 长期主线 muc-main 手动触发。HUBU 生产部署见 deploy-hubu-production.yml（hubu-main）。
 # 流程: 测试门禁 → migration 审计 → 构建并推送 GHCR(sha-<commit>) → SSH 部署
 #       (记录 PREVIOUS_IMAGE → pull → up -d --no-deps sub2api → 健康检查)
 #       失败自动回滚上一镜像 → 独立复核 → GHCR 旧版本清理。
