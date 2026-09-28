@@ -415,6 +415,13 @@ const (
 	SettingKeyStudentVerificationRewardAmount   = "student_verification_reward_amount"   // 学生认证奖励金额（DECIMAL(20,8) 字符串）
 	SettingKeyStudentVerificationRewardCampaign = "student_verification_reward_campaign" // 学生认证奖励活动标识（发放时的幂等 campaign）
 
+	// 学生邮箱认证 + 学生权益配置（Subscription Grant System）
+	SettingKeyStudentVerificationEnabled = "student_verification_enabled"  // 是否开放学生邮箱认证（默认 false）
+	SettingKeyStudentBenefitGroupID      = "student_benefit_group_id"      // 学生权益目标分组 ID（0 = 未配置）
+	SettingKeyStudentBenefitPlanID       = "student_benefit_plan_id"       // 学生权益展示用套餐 ID（0 = 未指定）
+	SettingKeyStudentBenefitValidityDays = "student_benefit_validity_days" // 学生权益时长（天，默认 30）
+	SettingKeyStudentBenefitCode         = "student_benefit_code"          // 学生权益身份码（空 = 按品牌派生 HUBU_STUDENT_WELCOME）
+
 	// 第三方认证来源默认授予配置
 	SettingKeyAuthSourceDefaultEmailBalance             = "auth_source_default_email_balance"
 	SettingKeyAuthSourceDefaultEmailConcurrency         = "auth_source_default_email_concurrency"

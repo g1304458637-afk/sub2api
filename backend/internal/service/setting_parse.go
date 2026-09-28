@@ -61,6 +61,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyStudentVerificationRewardEnabled:          "false",
 		SettingKeyStudentVerificationRewardAmount:           "0.00000000",
 		SettingKeyStudentVerificationRewardCampaign:         "",
+		SettingKeyStudentVerificationEnabled:                "false",
+		SettingKeyStudentBenefitGroupID:                     "0",
+		SettingKeyStudentBenefitPlanID:                      "0",
+		SettingKeyStudentBenefitValidityDays:                "30",
+		SettingKeyStudentBenefitCode:                        "",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
 		SettingKeyRegistrationEmailDomainQuotaEnabled:       "false",
 		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
@@ -342,6 +347,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		EducationEmailVerificationEnabled:      settings[SettingKeyEducationEmailVerificationEnabled] == "true",
 		PasskeyEnabled:                         s.passkeySettingEnabled(settings),
 		StudentVerificationRewardEnabled:       settings[SettingKeyStudentVerificationRewardEnabled] == "true",
+		StudentVerificationEnabled:             settings[SettingKeyStudentVerificationEnabled] == "true",
 		SessionBindingEnabled:                  settings[SettingKeySessionBindingEnabled] == "true", // 默认关闭
 		StepUpEnabled:                          settings[SettingKeyStepUpEnabled] == "true",         // 默认关闭
 		AuditLogRetentionDays:                  parseAuditLogRetentionDays(settings[SettingKeyAuditLogRetentionDays]),
@@ -421,6 +427,22 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.StudentVerificationRewardAmount = 0
 	}
 	result.StudentVerificationRewardCampaign = strings.TrimSpace(settings[SettingKeyStudentVerificationRewardCampaign])
+	if groupID, err := strconv.ParseInt(settings[SettingKeyStudentBenefitGroupID], 10, 64); err == nil {
+		result.StudentBenefitGroupID = groupID
+	} else {
+		result.StudentBenefitGroupID = 0
+	}
+	if planID, err := strconv.ParseInt(settings[SettingKeyStudentBenefitPlanID], 10, 64); err == nil {
+		result.StudentBenefitPlanID = planID
+	} else {
+		result.StudentBenefitPlanID = 0
+	}
+	if days, err := strconv.Atoi(settings[SettingKeyStudentBenefitValidityDays]); err == nil {
+		result.StudentBenefitValidityDays = days
+	} else {
+		result.StudentBenefitValidityDays = 30
+	}
+	result.StudentBenefitCode = strings.TrimSpace(settings[SettingKeyStudentBenefitCode])
 	if rebateRate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRate], 64); err == nil {
 		result.AffiliateRebateRate = clampAffiliateRebateRate(rebateRate)
 	} else {

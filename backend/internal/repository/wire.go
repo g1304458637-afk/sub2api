@@ -80,6 +80,9 @@ var ProviderSet = wire.NewSet(
 	NewResearchAttachmentUploadRepository, // 科研附件上传记录
 	NewPromoCodeRepository,
 	NewRewardGrantRepository,
+	NewSubscriptionGrantRepository,
+	NewBenefitClaimRepository,
+	NewStudentVerificationRepository,
 	NewAnnouncementRepository,
 	NewAnnouncementReadRepository,
 	NewUsageLogRepository,

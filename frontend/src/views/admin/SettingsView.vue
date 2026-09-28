@@ -1669,6 +1669,88 @@
                 >
                   {{ t('admin.settings.security.educationEmailVerificationSmtpRequired') }}
                 </p>
+
+                <!-- Student verification benefit (subscription grant) -->
+                <div
+                  class="mt-4 border-t border-gray-100 pt-4 dark:border-dark-700"
+                  data-testid="student-verification-settings"
+                >
+                  <div class="flex items-start justify-between gap-4">
+                    <div>
+                      <label class="font-medium text-gray-900 dark:text-white">
+                        {{ t('admin.settings.security.studentVerificationEnabled') }}
+                      </label>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.security.studentVerificationEnabledHint') }}
+                      </p>
+                    </div>
+                    <Toggle v-model="form.student_verification_enabled" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.security.studentBenefitGroupId') }}
+                      </label>
+                      <input
+                        v-model.number="form.student_benefit_group_id"
+                        type="number"
+                        min="0"
+                        step="1"
+                        class="input"
+                        placeholder="0"
+                      />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.security.studentBenefitGroupIdHint') }}
+                      </p>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.security.studentBenefitValidityDays') }}
+                      </label>
+                      <input
+                        v-model.number="form.student_benefit_validity_days"
+                        type="number"
+                        min="1"
+                        step="1"
+                        class="input"
+                        placeholder="30"
+                      />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.security.studentBenefitValidityDaysHint') }}
+                      </p>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.security.studentBenefitPlanId') }}
+                      </label>
+                      <input
+                        v-model.number="form.student_benefit_plan_id"
+                        type="number"
+                        min="0"
+                        step="1"
+                        class="input"
+                        placeholder="0"
+                      />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.security.studentBenefitPlanIdHint') }}
+                      </p>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.security.studentBenefitCode') }}
+                      </label>
+                      <input
+                        v-model="form.student_benefit_code"
+                        type="text"
+                        class="input"
+                        :placeholder="t('admin.settings.security.studentBenefitCodePlaceholder')"
+                      />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.security.studentBenefitCodeHint') }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Passkey sign-in -->
@@ -9682,6 +9764,11 @@ const form = reactive<SettingsForm>({
   student_verification_reward_enabled: false,
   student_verification_reward_amount: 0,
   student_verification_reward_campaign: "",
+  student_verification_enabled: false,
+  student_benefit_group_id: 0,
+  student_benefit_plan_id: 0,
+  student_benefit_validity_days: 30,
+  student_benefit_code: "",
   totp_encryption_key_configured: false,
   passkey_enabled: false,
   passkey_configured: false,
@@ -11345,6 +11432,18 @@ async function saveSettings() {
         ? form.student_verification_reward_amount
         : 0,
       student_verification_reward_campaign: form.student_verification_reward_campaign,
+      // 学生邮箱认证福利（订阅赠送）；数字框清空时回退默认，避免空串导致后端 400
+      student_verification_enabled: form.student_verification_enabled,
+      student_benefit_group_id: Number.isFinite(form.student_benefit_group_id)
+        ? Math.max(0, Math.floor(form.student_benefit_group_id))
+        : 0,
+      student_benefit_plan_id: Number.isFinite(form.student_benefit_plan_id)
+        ? Math.max(0, Math.floor(form.student_benefit_plan_id))
+        : 0,
+      student_benefit_validity_days: Number.isFinite(form.student_benefit_validity_days)
+        ? Math.max(1, Math.floor(form.student_benefit_validity_days))
+        : 30,
+      student_benefit_code: form.student_benefit_code,
       passkey_enabled: form.passkey_enabled,
       session_binding_enabled: form.session_binding_enabled,
       step_up_enabled: form.step_up_enabled,

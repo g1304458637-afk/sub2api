@@ -71,6 +71,21 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.StudentVerificationRewardCampaign != after.StudentVerificationRewardCampaign {
 		changed = append(changed, "student_verification_reward_campaign")
 	}
+	if before.StudentVerificationEnabled != after.StudentVerificationEnabled {
+		changed = append(changed, "student_verification_enabled")
+	}
+	if before.StudentBenefitGroupID != after.StudentBenefitGroupID {
+		changed = append(changed, "student_benefit_group_id")
+	}
+	if before.StudentBenefitPlanID != after.StudentBenefitPlanID {
+		changed = append(changed, "student_benefit_plan_id")
+	}
+	if before.StudentBenefitValidityDays != after.StudentBenefitValidityDays {
+		changed = append(changed, "student_benefit_validity_days")
+	}
+	if before.StudentBenefitCode != after.StudentBenefitCode {
+		changed = append(changed, "student_benefit_code")
+	}
 	if before.PasskeyEnabled != after.PasskeyEnabled {
 		changed = append(changed, "passkey_enabled")
 	}

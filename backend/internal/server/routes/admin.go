@@ -90,6 +90,8 @@ func RegisterAdminRoutes(
 
 		// 订阅管理
 		registerSubscriptionRoutes(admin, h)
+		registerSubscriptionGrantRoutes(admin, h)
+		registerStudentVerificationAdminRoutes(admin, h)
 
 		// 使用记录管理
 		registerUsageRoutes(admin, h)
@@ -465,6 +467,28 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		announcements.PUT("/:id", h.Admin.Announcement.Update)
 		announcements.DELETE("/:id", h.Admin.Announcement.Delete)
 		announcements.GET("/:id/read-status", h.Admin.Announcement.ListReadStatus)
+	}
+}
+
+// registerSubscriptionGrantRoutes 订阅权益发放路由（继承 admin 组中间件 + 自动审计）
+func registerSubscriptionGrantRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	grants := admin.Group("/subscription-grants")
+	{
+		grants.POST("/preview", h.Admin.SubscriptionGrant.Preview)
+		grants.POST("", h.Admin.SubscriptionGrant.Create)
+		grants.POST("/bulk", h.Admin.SubscriptionGrant.Bulk)
+		grants.GET("", h.Admin.SubscriptionGrant.List)
+		grants.POST("/:id/revoke", h.Admin.SubscriptionGrant.Revoke)
+	}
+}
+
+// registerStudentVerificationAdminRoutes 学生认证记录管理端路由
+func registerStudentVerificationAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	verifications := admin.Group("/student-verifications")
+	{
+		verifications.GET("", h.Admin.StudentVerification.ListVerificationRecords)
+		verifications.GET("/:id", h.Admin.StudentVerification.GetVerification)
+		verifications.POST("/:id/revoke", h.Admin.StudentVerification.Revoke)
 	}
 }
 

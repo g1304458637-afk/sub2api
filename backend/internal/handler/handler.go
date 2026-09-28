@@ -47,6 +47,8 @@ type AdminHandlers struct {
 	ResetEvent             *admin.AdminResetEventHandler
 	ResetCard              *admin.AdminSubscriptionResetHandler
 	RewardGrant            *admin.RewardGrantHandler
+	SubscriptionGrant      *admin.SubscriptionGrantHandler
+	StudentVerification    *admin.StudentVerificationHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -78,6 +80,7 @@ type Handlers struct {
 	Research         *ResearchApplicationHandler
 	PlanChange       *PlanChangeHandler
 	WalletLedger     *WalletLedgerHandler
+	StudentVerification *StudentVerificationHandler
 }
 
 // BuildInfo contains build-time information

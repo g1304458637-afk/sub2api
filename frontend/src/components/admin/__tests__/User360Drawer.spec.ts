@@ -1,9 +1,16 @@
 import { mount, flushPromises } from '@vue/test-utils'
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 import User360Drawer from '../User360Drawer.vue'
 
 const mocks = vi.hoisted(() => ({ subs: vi.fn(), keys: vi.fn(), cards: vi.fn(), changes: vi.fn(), count: vi.fn(), ledger: vi.fn() }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  return {
+    ...actual,
+    useI18n: () => ({ t: (key: string) => key })
+  }
+})
 vi.mock('@/api/admin', () => ({ adminAPI: {
   subscriptions: { list: mocks.subs }, users: { getUserApiKeys: mocks.keys },
   resetCards: { list: mocks.cards, count: mocks.count }, planChanges: { list: mocks.changes }
@@ -12,6 +19,9 @@ vi.mock('@/api/admin/subscriptionReset', () => ({ getAdminWalletLedger: mocks.le
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
 
 describe('User360 data ownership', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
   it('keeps cards and wallet responses correctly assigned and discards a previous user response', async () => {
     const old = deferred<{ items: unknown[] }>()
     mocks.subs.mockImplementation((_page, _size, params) => params.user_id === 1 ? old.promise : Promise.resolve({ items: [{ id: 22, group_id: 2, group: { name: 'New user plan' } }] }))
@@ -20,12 +30,14 @@ describe('User360 data ownership', () => {
     mocks.changes.mockResolvedValue({ data: { items: [] } })
     mocks.count.mockResolvedValue({ data: { available: 1 } })
     mocks.ledger.mockResolvedValue({ data: { entries: [{ id: 'reward:1', type: 'reward', amount: 7, created_at: '2026-09-01' }] } })
+    localStorage.setItem('sub2api_display_currency', 'USD')
     const wrapper = mount(User360Drawer, { props: { user: { id: 1, email: 'first@example.test' } }, global: { stubs: { Teleport: true, Transition: false, Icon: true } } })
     await wrapper.setProps({ user: { id: 2, email: 'second@example.test' } })
     await flushPromises()
     expect(wrapper.text()).toContain('New user plan')
     expect(wrapper.text()).toContain('#909')
-    expect(wrapper.text()).toContain('$7.00')
+    // 真实 currencyDisplay store：7 CNY 按 6.7 汇率折算为 $1.04 展示
+    expect(wrapper.text()).toContain('$1.04')
     old.resolve({ items: [{ id: 11, group: { name: 'Old user plan' } }] })
     await flushPromises()
     expect(wrapper.text()).not.toContain('Old user plan')

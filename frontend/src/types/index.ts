@@ -224,6 +224,8 @@ export interface PublicSettings {
   password_reset_enabled: boolean
   invitation_code_enabled: boolean
   education_email_verification_enabled?: boolean
+  /** 学生邮箱认证（品牌路径 student-verification）：true 时个人资料页展示认证卡片 */
+  student_verification_enabled?: boolean
   login_agreement_enabled?: boolean
   login_agreement_mode?: 'modal' | 'checkbox' | string
   login_agreement_updated_at?: string

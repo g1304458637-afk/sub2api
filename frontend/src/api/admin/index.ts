@@ -40,6 +40,7 @@ import pluginsAPI from './plugins'
 import researchAPI from './research'
 import rewardGrantsAPI from './rewardGrants'
 import mediaQuotaAPI from './mediaQuota'
+import subscriptionGrantsAPI from './subscriptionGrants'
 
 /**
  * Unified admin API object for convenient access
@@ -84,7 +85,8 @@ export const adminAPI = {
   plugins: pluginsAPI,
   research: researchAPI,
   rewardGrants: rewardGrantsAPI,
-  mediaQuota: mediaQuotaAPI
+  mediaQuota: mediaQuotaAPI,
+  subscriptionGrants: subscriptionGrantsAPI
 }
 
 export {
@@ -122,7 +124,8 @@ export {
   auditAPI,
   pluginsAPI,
   rewardGrantsAPI,
-  mediaQuotaAPI
+  mediaQuotaAPI,
+  subscriptionGrantsAPI
 }
 
 export default adminAPI
@@ -145,6 +148,21 @@ export type {
   RewardGrantQuery,
   RewardGrantListResponse
 } from './rewardGrants'
+export type {
+  SubscriptionGrantRecord,
+  SubscriptionGrantListQuery,
+  SubscriptionGrantListResponse,
+  SubscriptionGrantPreview,
+  SubscriptionGrantPreviewRequest,
+  SubscriptionGrantCreateResult,
+  SubscriptionGrantOutcome,
+  SubscriptionGrantBulkResult,
+  SubscriptionGrantBulkItem,
+  GrantEffectivePolicy,
+  GrantSource,
+  GrantAction,
+  GrantStatus
+} from './subscriptionGrants'
 export type {
   MediaImageQuotaResponse,
   MediaImageQuotaBudget,

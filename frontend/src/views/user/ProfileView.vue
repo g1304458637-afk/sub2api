@@ -11,6 +11,10 @@
         :user="user"
       />
 
+      <ProfileStudentVerificationCard
+        v-if="user && studentVerificationEnabled"
+      />
+
       <div
         v-if="contactInfo"
         class="card border-primary-200 bg-primary-50 p-6 dark:bg-primary-900/20"
@@ -54,6 +58,7 @@ import ProfileBalanceNotifyCard from '@/components/user/profile/ProfileBalanceNo
 import ProfileEducationEmailCard from '@/components/user/profile/ProfileEducationEmailCard.vue'
 import ProfileInfoCard from '@/components/user/profile/ProfileInfoCard.vue'
 import ProfilePasswordForm from '@/components/user/profile/ProfilePasswordForm.vue'
+import ProfileStudentVerificationCard from '@/components/user/profile/ProfileStudentVerificationCard.vue'
 import ProfileTotpCard from '@/components/user/profile/ProfileTotpCard.vue'
 import ProfilePasskeyCard from '@/components/user/profile/ProfilePasskeyCard.vue'
 import { useAppStore } from '@/stores/app'
@@ -69,6 +74,7 @@ const balanceLowNotifyEnabled = ref(false)
 const systemDefaultThreshold = ref(0)
 const passkeyEnabled = ref(false)
 const educationEmailVerificationEnabled = ref(false)
+const studentVerificationEnabled = ref(false)
 
 onMounted(async () => {
   const profileRefresh = authStore.refreshUser().catch((error) => {
@@ -85,6 +91,7 @@ onMounted(async () => {
       systemDefaultThreshold.value = settings.balance_low_notify_threshold ?? 0
       passkeyEnabled.value = settings.passkey_enabled === true
       educationEmailVerificationEnabled.value = settings.education_email_verification_enabled === true
+      studentVerificationEnabled.value = settings.student_verification_enabled === true
     })
     .catch((error) => {
       console.error('Failed to load settings:', error)

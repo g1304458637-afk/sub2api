@@ -66,6 +66,8 @@ func ProvideAdminHandlers(
 	resetEventHandler *admin.AdminResetEventHandler,
 	resetCardHandler *admin.AdminSubscriptionResetHandler,
 	rewardGrantHandler *admin.RewardGrantHandler,
+	subscriptionGrantHandler *admin.SubscriptionGrantHandler,
+	studentVerificationHandler *admin.StudentVerificationHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 ) *AdminHandlers {
@@ -112,6 +114,8 @@ func ProvideAdminHandlers(
 		ResetEvent:             resetEventHandler,
 		ResetCard:              resetCardHandler,
 		RewardGrant:            rewardGrantHandler,
+		SubscriptionGrant:      subscriptionGrantHandler,
+		StudentVerification:    studentVerificationHandler,
 	}
 }
 
@@ -239,6 +243,7 @@ func ProvideHandlers(
 	batchImageHandler *BatchImageHandler,
 	mucConnectHandler *MucConnectHandler,
 	researchHandler *ResearchApplicationHandler,
+	studentVerificationHandler *StudentVerificationHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -271,6 +276,7 @@ func ProvideHandlers(
 		BatchImage:       batchImageHandler,
 		MucConnect:       mucConnectHandler,
 		Research:         researchHandler,
+		StudentVerification: studentVerificationHandler,
 		PlanChange:       planChangeHandler,
 		WalletLedger:     walletLedgerHandler,
 	}
@@ -307,6 +313,7 @@ var ProviderSet = wire.NewSet(
 	NewAsyncMusicHandler,
 	ProvideBatchImageHandler,
 	NewMucConnectHandler,
+	NewStudentVerificationHandler,
 	// 科研优惠登记：DATA_DIR 在 handler 装配层解析（见 ProvideResearchApplicationService）
 	ProvideResearchApplicationService,
 	NewResearchApplicationHandler,
@@ -350,6 +357,8 @@ var ProviderSet = wire.NewSet(
 	admin.NewComplianceHandler,
 	admin.NewAuditLogHandler,
 	admin.NewRewardGrantHandler,
+	admin.NewSubscriptionGrantHandler,
+	admin.NewStudentVerificationHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,
