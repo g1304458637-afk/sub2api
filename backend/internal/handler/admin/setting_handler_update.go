@@ -36,6 +36,11 @@ type UpdateSettingsRequest struct {
 	StudentVerificationRewardEnabled    *bool                        `json:"student_verification_reward_enabled"`  // 学生认证奖励发放开关（省略=保持现值）
 	StudentVerificationRewardAmount     float64                      `json:"student_verification_reward_amount"`   // 学生认证奖励金额
 	StudentVerificationRewardCampaign   string                       `json:"student_verification_reward_campaign"` // 学生认证奖励活动标识
+	StudentVerificationEnabled          *bool                        `json:"student_verification_enabled"`         // 学生邮箱认证功能开关（省略=保持现值）
+	StudentBenefitGroupID               int64                        `json:"student_benefit_group_id"`             // 学生权益目标分组 ID
+	StudentBenefitPlanID                int64                        `json:"student_benefit_plan_id"`              // 学生权益展示用套餐 ID
+	StudentBenefitValidityDays          int                          `json:"student_benefit_validity_days"`        // 学生权益时长（天）
+	StudentBenefitCode                  string                       `json:"student_benefit_code"`                 // 学生权益身份码（空 = 按品牌派生）
 	PasskeyEnabled                      *bool                        `json:"passkey_enabled"`                      // Passkey 登录（省略=保持现值）
 	SessionBindingEnabled               *bool                        `json:"session_binding_enabled"`              // 会话 IP/UA 绑定（省略=保持现值）
 	StepUpEnabled                       *bool                        `json:"step_up_enabled"`                      // 敏感操作 step-up 2FA（省略=保持现值）
@@ -546,6 +551,26 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.StudentVerificationRewardEnabled != nil {
 		studentVerificationRewardEnabled = *req.StudentVerificationRewardEnabled
 	}
+	studentVerificationEnabled := previousSettings.StudentVerificationEnabled
+	if req.StudentVerificationEnabled != nil {
+		studentVerificationEnabled = *req.StudentVerificationEnabled
+	}
+	studentBenefitGroupID := req.StudentBenefitGroupID
+	if studentBenefitGroupID < 0 {
+		studentBenefitGroupID = 0
+	}
+	studentBenefitPlanID := req.StudentBenefitPlanID
+	if studentBenefitPlanID < 0 {
+		studentBenefitPlanID = 0
+	}
+	studentBenefitValidityDays := req.StudentBenefitValidityDays
+	if studentBenefitValidityDays < 0 {
+		studentBenefitValidityDays = 0
+	}
+	if studentBenefitValidityDays > 36500 {
+		studentBenefitValidityDays = 36500
+	}
+	studentBenefitCode := strings.TrimSpace(req.StudentBenefitCode)
 	studentVerificationRewardAmount := req.StudentVerificationRewardAmount
 	if studentVerificationRewardAmount < 0 {
 		studentVerificationRewardAmount = 0
@@ -1667,6 +1692,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		StudentVerificationRewardEnabled:       studentVerificationRewardEnabled,
 		StudentVerificationRewardAmount:        studentVerificationRewardAmount,
 		StudentVerificationRewardCampaign:      studentVerificationRewardCampaign,
+		StudentVerificationEnabled:             studentVerificationEnabled,
+		StudentBenefitGroupID:                  studentBenefitGroupID,
+		StudentBenefitPlanID:                   studentBenefitPlanID,
+		StudentBenefitValidityDays:             studentBenefitValidityDays,
+		StudentBenefitCode:                     studentBenefitCode,
 		AffiliateRebateRate:                    affiliateRebateRate,
 		AffiliateRebateFreezeHours:             affiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            affiliateRebateDurationDays,
@@ -2199,6 +2229,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		StudentVerificationRewardEnabled:                       updatedSettings.StudentVerificationRewardEnabled,
 		StudentVerificationRewardAmount:                        updatedSettings.StudentVerificationRewardAmount,
 		StudentVerificationRewardCampaign:                      updatedSettings.StudentVerificationRewardCampaign,
+		StudentVerificationEnabled:                             updatedSettings.StudentVerificationEnabled,
+		StudentBenefitGroupID:                                  updatedSettings.StudentBenefitGroupID,
+		StudentBenefitPlanID:                                   updatedSettings.StudentBenefitPlanID,
+		StudentBenefitValidityDays:                             updatedSettings.StudentBenefitValidityDays,
+		StudentBenefitCode:                                     updatedSettings.StudentBenefitCode,
 		TotpEncryptionKeyConfigured:                            h.settingService.IsTotpEncryptionKeyConfigured(),
 		PasskeyEnabled:                                         updatedSettings.PasskeyEnabled,
 		PasskeyConfigured:                                      passkeyConfigured,

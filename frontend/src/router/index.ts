@@ -177,7 +177,10 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    // 「模型与价格」：/model-plaza 为主路径，/model-pricing 为用户端别名（同一组件，禁止复制页面）。
+    // 注意：不能用 /models —— 根路径 GET /models 是 OpenAI 兼容网关 API（routes/gateway.go）。
     path: '/model-plaza',
+    alias: '/model-pricing',
     name: 'ModelPlaza',
     component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
@@ -300,16 +303,21 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/usage',
-    name: 'Usage',
-    component: () => import('@/views/user/UsageView.vue'),
+    // 模型消费：普通用户的极简消费视图（旧「使用记录」/usage 技术视图已被本页取代，
+    // 旧链接统一重定向至此；/dashboard 路由仍保留兼容访问）。
+    path: '/spend',
+    name: 'ModelSpend',
+    component: () => import('@/views/user/ModelSpendView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Usage Records',
-      titleKey: 'usage.title',
-      descriptionKey: 'usage.description'
+      title: 'Model Spend',
+      titleKey: 'modelSpend.title'
     }
+  },
+  {
+    path: '/usage',
+    redirect: '/spend'
   },
   {
     path: '/redeem',
@@ -572,6 +580,18 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/channels',
     redirect: '/admin/channels/pricing'
+  },
+  {
+    // 模型展示价格（Presentation Pricing）：仅影响用户端展示，不影响真实计费。
+    path: '/admin/channels/presentation-pricing',
+    name: 'AdminPresentationPricing',
+    component: () => import('@/views/admin/PresentationPricingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Presentation Pricing',
+      titleKey: 'nav.presentationPricing'
+    }
   },
   {
     path: '/admin/channels/pricing',
@@ -1002,12 +1022,12 @@ router.beforeEach(async (to, _from, next) => {
         next()
         return
       }
-      // Admin users go to admin dashboard, regular users go to user dashboard
-      next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+      // Admin users go to admin dashboard, regular users go to the chat portal
+      next(authStore.isAdmin ? '/admin/dashboard' : '/chat')
       return
     }
     // Model Plaza:公开路由但受「启用开关 + 可选强制登录」双重控制(后端同口径 fail-closed)
-    if (to.path === '/model-plaza') {
+    if (to.path === '/model-plaza' || to.path === '/model-pricing') {
       if (!appStore.publicSettingsLoaded) {
         try {
           await appStore.fetchPublicSettings()
@@ -1022,7 +1042,7 @@ router.beforeEach(async (to, _from, next) => {
           authStore.isAuthenticated
             ? authStore.isAdmin
               ? '/admin/dashboard'
-              : '/dashboard'
+              : '/chat'
             : '/home'
         )
         return
@@ -1061,8 +1081,8 @@ router.beforeEach(async (to, _from, next) => {
 
   // Check admin requirement
   if (requiresAdmin && !authStore.isAdmin) {
-    // User is authenticated but not admin, redirect to user dashboard
-    next('/dashboard')
+    // User is authenticated but not admin, redirect to the chat portal
+    next('/chat')
     return
   }
 
@@ -1099,7 +1119,7 @@ router.beforeEach(async (to, _from, next) => {
     appStore.publicSettingsLoaded &&
     appStore.cachedPublicSettings?.payment_enabled === false
   ) {
-    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+    next(authStore.isAdmin ? '/admin/dashboard' : '/chat')
     return
   }
 
@@ -1108,7 +1128,7 @@ router.beforeEach(async (to, _from, next) => {
     appStore.publicSettingsLoaded &&
     appStore.cachedPublicSettings?.risk_control_enabled === false
   ) {
-    next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
+    next(authStore.isAdmin ? '/admin/settings' : '/chat')
     return
   }
 
@@ -1118,7 +1138,7 @@ router.beforeEach(async (to, _from, next) => {
     appStore.publicSettingsLoaded &&
     appStore.cachedPublicSettings?.subscription_enabled === false
   ) {
-    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+    next(authStore.isAdmin ? '/admin/dashboard' : '/chat')
     return
   }
 
@@ -1132,8 +1152,8 @@ router.beforeEach(async (to, _from, next) => {
     ]
 
     if (restrictedPaths.some((path) => to.path.startsWith(path))) {
-      // 简易模式下访问受限页面,重定向到仪表板
-      next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+      // 简易模式下访问受限页面,重定向到主产品入口
+      next(authStore.isAdmin ? '/admin/dashboard' : '/chat')
       return
     }
   }

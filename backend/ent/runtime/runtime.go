@@ -28,6 +28,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
+	"github.com/Wei-Shaw/sub2api/ent/presentationmodelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
@@ -1585,6 +1586,52 @@ func init() {
 	pendingauthsessionDescCompletionCodeHash := pendingauthsessionFields[12].Descriptor()
 	// pendingauthsession.DefaultCompletionCodeHash holds the default value on creation for the completion_code_hash field.
 	pendingauthsession.DefaultCompletionCodeHash = pendingauthsessionDescCompletionCodeHash.Default.(string)
+	presentationmodelpricingFields := schema.PresentationModelPricing{}.Fields()
+	_ = presentationmodelpricingFields
+	// presentationmodelpricingDescModelName is the schema descriptor for model_name field.
+	presentationmodelpricingDescModelName := presentationmodelpricingFields[0].Descriptor()
+	// presentationmodelpricing.ModelNameValidator is a validator for the "model_name" field. It is called by the builders before save.
+	presentationmodelpricing.ModelNameValidator = func() func(string) error {
+		validators := presentationmodelpricingDescModelName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(model_name string) error {
+			for _, fn := range fns {
+				if err := fn(model_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// presentationmodelpricingDescBillingMode is the schema descriptor for billing_mode field.
+	presentationmodelpricingDescBillingMode := presentationmodelpricingFields[1].Descriptor()
+	// presentationmodelpricing.DefaultBillingMode holds the default value on creation for the billing_mode field.
+	presentationmodelpricing.DefaultBillingMode = presentationmodelpricingDescBillingMode.Default.(string)
+	// presentationmodelpricing.BillingModeValidator is a validator for the "billing_mode" field. It is called by the builders before save.
+	presentationmodelpricing.BillingModeValidator = presentationmodelpricingDescBillingMode.Validators[0].(func(string) error)
+	// presentationmodelpricingDescCurrency is the schema descriptor for currency field.
+	presentationmodelpricingDescCurrency := presentationmodelpricingFields[2].Descriptor()
+	// presentationmodelpricing.DefaultCurrency holds the default value on creation for the currency field.
+	presentationmodelpricing.DefaultCurrency = presentationmodelpricingDescCurrency.Default.(string)
+	// presentationmodelpricing.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	presentationmodelpricing.CurrencyValidator = presentationmodelpricingDescCurrency.Validators[0].(func(string) error)
+	// presentationmodelpricingDescEnabled is the schema descriptor for enabled field.
+	presentationmodelpricingDescEnabled := presentationmodelpricingFields[9].Descriptor()
+	// presentationmodelpricing.DefaultEnabled holds the default value on creation for the enabled field.
+	presentationmodelpricing.DefaultEnabled = presentationmodelpricingDescEnabled.Default.(bool)
+	// presentationmodelpricingDescCreatedAt is the schema descriptor for created_at field.
+	presentationmodelpricingDescCreatedAt := presentationmodelpricingFields[12].Descriptor()
+	// presentationmodelpricing.DefaultCreatedAt holds the default value on creation for the created_at field.
+	presentationmodelpricing.DefaultCreatedAt = presentationmodelpricingDescCreatedAt.Default.(func() time.Time)
+	// presentationmodelpricingDescUpdatedAt is the schema descriptor for updated_at field.
+	presentationmodelpricingDescUpdatedAt := presentationmodelpricingFields[13].Descriptor()
+	// presentationmodelpricing.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	presentationmodelpricing.DefaultUpdatedAt = presentationmodelpricingDescUpdatedAt.Default.(func() time.Time)
+	// presentationmodelpricing.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	presentationmodelpricing.UpdateDefaultUpdatedAt = presentationmodelpricingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	promocodeFields := schema.PromoCode{}.Fields()
 	_ = promocodeFields
 	// promocodeDescCode is the schema descriptor for code field.

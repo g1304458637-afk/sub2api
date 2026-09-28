@@ -242,7 +242,7 @@
                   :key="child.path"
                   :to="child.path"
                   class="sidebar-link mb-0.5 py-1.5 text-sm"
-                  :class="{ 'sidebar-link-active': route.path === child.path }"
+                  :class="{ 'sidebar-link-active': isActive(child.path) }"
                   :data-tour="child.path === '/keys' ? 'sidebar-my-keys' : undefined"
                   @click="handleMenuItemClick(child.path)"
                 >
@@ -324,7 +324,6 @@ import Icon from '@/components/icons/Icon.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
-import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 // 直接从 store 模块导入（不经过 @/stores 桶文件），保持 sidebar → store → api 的单向依赖
 import { useWebChatStore } from '@/stores/webChat'
@@ -392,7 +391,7 @@ const isAdmin = computed(() => authStore.isAdmin)
 const sidebarNavRef = ref<HTMLElement | null>(null)
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
-const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
+const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/chat'))
 
 // Per-group expand/collapse overrides. A group with no entry follows the
 // automatic behavior (expanded while the active route is one of its children);
@@ -763,31 +762,6 @@ const PricingTagIcon = {
     )
 }
 
-const RechargeSubscriptionIcon = {
-  render: () =>
-    h(
-      'svg',
-      { fill: 'currentColor', viewBox: '0 0 1024 1024' },
-      [
-        h('path', {
-          d: 'M512 992C247.3 992 32 776.7 32 512S247.3 32 512 32s480 215.3 480 480c0 84.4-22.2 167.4-64.2 240-8.9 15.3-28.4 20.6-43.7 11.7-15.3-8.8-20.5-28.4-11.7-43.7 36.4-62.9 55.6-134.8 55.6-208 0-229.4-186.6-416-416-416S96 282.6 96 512s186.6 416 416 416c17.7 0 32 14.3 32 32s-14.3 32-32 32z'
-        }),
-        h('path', {
-          d: 'M640 512H384c-17.7 0-32-14.3-32-32s14.3-32 32-32h256c17.7 0 32 14.3 32 32s-14.3 32-32 32zM640 640H384c-17.7 0-32-14.3-32-32s14.3-32 32-32h256c17.7 0 32 14.3 32 32s-14.3 32-32 32z'
-        }),
-        h('path', {
-          d: 'M512 480c-8.2 0-16.4-3.1-22.6-9.4l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l128 128c12.5 12.5 12.5 32.8 0 45.3-6.3 6.3-14.5 9.4-22.7 9.4z'
-        }),
-        h('path', {
-          d: 'M512 480c-8.2 0-16.4-3.1-22.6-9.4-12.5-12.5-12.5-32.8 0-45.3l128-128c12.5-12.5 32.8-12.5 45.3 0s12.5 32.8 0 45.3l-128 128c-6.3 6.3-14.5 9.4-22.7 9.4z'
-        }),
-        h('path', {
-          d: 'M512 736c-17.7 0-32-14.3-32-32V448c0-17.7 14.3-32 32-32s32 14.3 32 32v256c0 17.7-14.3 32-32 32zM896 992H512c-17.7 0-32-14.3-32-32s14.3-32 32-32h306.8l-73.4-73.4c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l128 128c9.2 9.2 11.9 22.9 6.9 34.9S908.9 992 896 992z'
-        })
-      ]
-    )
-}
-
 const GlobeIcon = {
   render: () =>
     h(
@@ -1050,10 +1024,8 @@ const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
+const flagModelPlaza = makeSidebarFlag(FeatureFlags.modelPlaza)
 
-// 购买入口收敛：套餐浏览/购买/升降级统一在 /pricing；/purchase 仅保留余额充值。
-// 仅订阅站点（subscription_only）没有充值能力，隐藏充值入口，订阅入口即 /pricing。
-const isSubscriptionOnlySite = computed(() => resolveSiteBillingMode(appStore.cachedPublicSettings) === 'subscription_only')
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
@@ -1079,15 +1051,16 @@ const flagMusicEntrance = flagWebChatEntrance("music")
 const showChatHistory = computed(() => flagChatEntrance())
 
 // buildSelfNavGroups 构造用户自己的导航，按门户分成两个可折叠分组：
-// 「大模型服务」（AI 对话 / 绘图 / 语音合成 / 音乐合成 / 下载 MUC）与「我的」（密钥、用量、订阅等）。
+// 「大模型服务」（AI 对话 / 绘图 / 语音合成 / 音乐合成 / 下载 MUC）与「我的」（密钥、消费、订阅等）。
 // 用户端主菜单与管理员个人区直接渲染这两个分组。
 //
-// withDashboard=true 时「我的」分组包含概览（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
+// 「我的」按 Campus AI 信息架构收敛（技术型仪表盘/旧使用记录/独立充值/兑换已从一级导航隐藏，
+// 路由全部保留兼容）：密钥 → 模型与价格 → 模型消费 → 订阅 → 钱包 → 套餐 → 订单 → 科研 → 资料。
 //
 // 分组本身是 expandOnly 的纯折叠控件，path 只是稳定 key，不可导航；
 // defaultExpanded 让两个门户分组默认展开（同时保证引导步骤能定位到分组内的子项）。
 // 用户端不再展示「渠道状态」入口（/monitor 路由仍保留）。
-function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
+function buildSelfNavGroups(): NavItem[] {
   const llmItems: NavItem[] = [
     // AI 对话 / 绘图 / 语音合成 / 音乐合成：显隐跟随网页聊天总开关 + 后台各入口显示开关
     { path: '/chat', label: t('nav.chat'), icon: ChatBubbleIcon, featureFlag: flagChatEntrance },
@@ -1098,28 +1071,21 @@ function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
     { path: currentBrand.homePath, label: currentBrand.downloadLabel, icon: MucDownloadIcon },
   ]
 
-  // 条目顺序：密钥 → 用量 → 批量生图 → 可用渠道 → 订阅/支付 → 兑换/资料 → 自定义页面。
-  const mineItems: NavItem[] = []
-  if (withDashboard) {
-    mineItems.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
-  }
-  mineItems.push(
+  // 条目顺序：密钥 → 模型与价格 → 模型消费 → 批量生图/可用渠道 → 订阅/支付 → 兑换外的资金入口 → 资料 → 自定义页面。
+  // 「我的」分组不再包含仪表盘/独立充值/兑换/旧使用记录入口（路由保留，仅导航收敛）。
+  const mineItems: NavItem[] = [
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
-    { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
+    // 模型与价格：/model-pricing 为模型广场的用户端别名（embedded 内嵌后台布局），后端开关未启用时不显示。
+    // 注意：不能指向 /models —— 根路径 GET /models 是 OpenAI 兼容网关 API（backend routes/gateway.go）。
+    { path: '/model-pricing?embedded=1', label: t('nav.modelsPricing'), icon: PriceTagIcon, hideInSimpleMode: true, featureFlag: flagModelPlaza },
+    // 模型消费：极简消费视图，取代旧技术型「使用记录」
+    { path: '/spend', label: t('nav.modelSpend'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
     { path: '/wallet', label: t('nav.wallet'), icon: MucWalletIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/pricing', label: t('nav.pricing'), icon: PricingTagIcon, hideInSimpleMode: true, featureFlag: flagPayment },
-    ...(isSubscriptionOnlySite.value ? [] : [{
-      path: '/purchase',
-      label: t('nav.recharge'),
-      icon: RechargeSubscriptionIcon,
-      hideInSimpleMode: true,
-      featureFlag: flagPayment,
-    } as NavItem]),
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
-    { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/research-discount', label: t('nav.researchDiscount'), icon: AcademicCapIcon, hideInSimpleMode: true },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
@@ -1129,7 +1095,7 @@ function buildSelfNavGroups(withDashboard: boolean): NavItem[] {
       icon: null,
       iconSvg: item.icon_svg,
     })),
-  )
+  ]
 
   return [
     {
@@ -1178,16 +1144,16 @@ function finalizeNav(items: NavItem[]): NavItem[] {
 }
 
 // User navigation items (for regular users): the two collapsible portal groups.
-const userNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavGroups(true)))
+const userNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavGroups()))
 
-// Personal navigation items (for admin's "My Account" section, without Dashboard).
+// Personal navigation items (for admin's "My Account" section).
 // The section renders a flat router-link list with no group support, so the same
 // declaration is flattened back to a single level — items and flags stay identical
 // to the regular-user view. Admins access 可用渠道 from this section just like
 // regular users — there is no separate admin entry, since the page is purely a
 // user-facing view.
 // 管理员个人区与用户端共用同一分组声明（大模型服务 + 我的），仅渲染位置不同
-const personalNavGroups = computed((): NavItem[] => finalizeNav(buildSelfNavGroups(false)))
+const personalNavGroups = computed((): NavItem[] => finalizeNav(buildSelfNavGroups()))
 
 // Custom menu items filtered by visibility
 const customMenuItemsForUser = computed(() => {
@@ -1234,6 +1200,7 @@ const adminNavItems = computed((): NavItem[] => {
       children: [
         { path: '/admin/channels', label: t('nav.channelManagement'), icon: ChannelIcon },
         { path: '/admin/channels/pricing', label: t('nav.channelPricing'), icon: PriceTagIcon },
+        { path: '/admin/channels/presentation-pricing', label: t('nav.presentationPricing'), icon: PriceTagIcon },
         { path: '/admin/channels/monitor', label: t('nav.channelMonitor'), icon: SignalIcon, featureFlag: flagChannelMonitor },
         { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
         { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },
@@ -1330,14 +1297,22 @@ function handleMenuItemClick(itemPath: string) {
   }
 }
 
+// navPathKey 去掉导航 path 上允许携带的 query（如「模型与价格」的 /model-plaza?embedded=1），
+// 使激活态匹配只看路由路径本身。
+function navPathKey(path: string): string {
+  const queryIndex = path.indexOf('?')
+  return queryIndex === -1 ? path : path.slice(0, queryIndex)
+}
+
 function isActive(path: string): boolean {
-  return route.path === path || route.path.startsWith(path + '/')
+  const key = navPathKey(path)
+  return route.path === key || route.path.startsWith(key + '/')
 }
 
 function isGroupActive(item: NavItem): boolean {
   if (!item.children) return false
   // startsWith 覆盖详情页（如 /admin/users/:id 仍让「用户与订阅」组保持展开高亮）
-  return item.children.some(child => route.path === child.path || route.path.startsWith(child.path + '/'))
+  return item.children.some(child => isActive(child.path))
 }
 
 function isGroupExpanded(item: NavItem): boolean {

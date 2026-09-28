@@ -651,8 +651,8 @@ export default {
 
   // Model Plaza (public group/model pricing showcase)
   modelPlaza: {
-    title: '模型广场',
-    description: '按分组浏览可用模型与价格',
+    title: '模型与价格',
+    description: '查看当前支持的模型及标准价格',
     loading: '加载中...',
     empty: '暂无可展示的分组',
     loadFailed: '加载模型广场失败',
@@ -676,11 +676,15 @@ export default {
       peakNote: '高峰时段 {window} 计费倍率 ×{multiplier}',
       longContextDisabledNote: '该分组未启用长上下文阶梯计费，超阈值请求仍按基础档计费，官方阶梯仅供参考'
     },
+    // 价格口径说明:标准价 ≠ 实际结算(品牌名由 currentBrand 注入,禁止硬编码)
+    disclaimer: '页面展示{brand}标准模型价格。账户实际额度结算可能根据当前套餐、会员权益及优惠规则有所不同。',
     table: {
       model: '模型',
       input: '输入',
       output: '输出',
       cache: '缓存',
+      standardPrice: '标准价格',
+      priceNotPublished: '价格暂未公布',
       cacheWrite: '写入',
       cacheRead: '读取',
       cacheWriteShort: '写',

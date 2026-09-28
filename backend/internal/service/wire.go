@@ -859,6 +859,7 @@ var ProviderSet = wire.NewSet(
 	NewBillingService,
 	ProvideBillingCacheService,
 	NewAnnouncementService,
+	NewPresentationPricingService, // 展示价（Presentation Pricing）：仅影响用户端展示，不参与计费
 	NewAdminService,
 	NewGatewayService,
 	NewOpenAIGatewayService,

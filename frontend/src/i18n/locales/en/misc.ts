@@ -665,6 +665,7 @@ export default {
   pricing: {
     title: 'Choose your plan',
     subtitle: 'Weekly reset entitlements. Upgrade anytime — unused credit is applied automatically.',
+    viewModelsPricing: 'View model pricing',
     popularBadge: 'Most popular',
     reset: {
       title: 'Quota restored',
@@ -831,6 +832,30 @@ export default {
     },
     loadError: 'Failed to load wallet',
   },
+  modelSpend: {
+    title: 'Model Spend',
+    subtitle: 'See what your model usage costs.',
+    rangeLabel: 'Time range',
+    rangePeriod: 'Current cycle',
+    rangeMonth: 'This month',
+    range30d: 'Last 30 days',
+    rangeAll: 'All time',
+    totalLabel: 'Total model spend this period',
+    totalNote: 'Based on actual settled amounts (subscription and pay-as-you-go combined)',
+    walletLabel: 'Wallet balance',
+    walletHint: 'Funds for pay-as-you-go API calls',
+    subLabel: 'Plan quota remaining',
+    subRemaining: '{percent}% left',
+    subUnmetered: 'Unmetered',
+    byModelTitle: 'By model',
+    byModelDesc: 'Actual spend and share per model.',
+    emptyModels: 'No model spend in this time range',
+    dailyTitle: 'Daily spend',
+    dailyDesc: 'Actual spend aggregated by day.',
+    emptyDaily: 'No spend records in this time range',
+    loadError: 'Failed to load spend data',
+  },
+
   rewardGift: {
     studentTitle: 'Student verification reward',
     usage: 'AI usage credit',

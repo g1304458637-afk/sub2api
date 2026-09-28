@@ -66,6 +66,7 @@ func ProvideAdminHandlers(
 	resetEventHandler *admin.AdminResetEventHandler,
 	resetCardHandler *admin.AdminSubscriptionResetHandler,
 	rewardGrantHandler *admin.RewardGrantHandler,
+	presentationPricingHandler *admin.PresentationPricingHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 ) *AdminHandlers {
@@ -112,6 +113,7 @@ func ProvideAdminHandlers(
 		ResetEvent:             resetEventHandler,
 		ResetCard:              resetCardHandler,
 		RewardGrant:            rewardGrantHandler,
+		PresentationPricing:    presentationPricingHandler,
 	}
 }
 
@@ -311,6 +313,7 @@ var ProviderSet = wire.NewSet(
 	ProvideResearchApplicationService,
 	NewResearchApplicationHandler,
 	admin.NewResearchHandler,
+	admin.NewPresentationPricingHandler,
 	muccode.NewCodeStore,
 
 	// Admin handlers

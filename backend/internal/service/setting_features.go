@@ -1259,3 +1259,48 @@ func (s *SettingService) GetStudentVerificationRewardCampaign(ctx context.Contex
 	}
 	return strings.TrimSpace(value)
 }
+
+// IsStudentVerificationEnabled 学生邮箱认证功能开关。读取失败按未开启处理（fail-closed）。
+func (s *SettingService) IsStudentVerificationEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyStudentVerificationEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// GetStudentBenefitGroupID 学生权益目标分组（<= 0 视为未配置）。
+func (s *SettingService) GetStudentBenefitGroupID(ctx context.Context) int64 {
+	return s.getInt64Setting(ctx, SettingKeyStudentBenefitGroupID, 0)
+}
+
+// GetStudentBenefitPlanID 学生权益展示用套餐身份（0 = 未指定）。
+func (s *SettingService) GetStudentBenefitPlanID(ctx context.Context) int64 {
+	return s.getInt64Setting(ctx, SettingKeyStudentBenefitPlanID, 0)
+}
+
+// GetStudentBenefitValidityDays 学生权益时长（天；<= 0 视为未配置）。
+func (s *SettingService) GetStudentBenefitValidityDays(ctx context.Context) int {
+	return int(s.getInt64Setting(ctx, SettingKeyStudentBenefitValidityDays, 0))
+}
+
+// GetStudentBenefitCode 学生权益身份码（空 = 按品牌派生，如 HUBU_STUDENT_WELCOME）。
+func (s *SettingService) GetStudentBenefitCode(ctx context.Context) string {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyStudentBenefitCode)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
+
+// getInt64Setting 整数设置的通用读取（解析失败回退默认值）。
+func (s *SettingService) getInt64Setting(ctx context.Context, key string, fallback int64) int64 {
+	value, err := s.settingRepo.GetValue(ctx, key)
+	if err != nil {
+		return fallback
+	}
+	if v, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64); err == nil {
+		return v
+	}
+	return fallback
+}

@@ -75,6 +75,7 @@ func RegisterAdminRoutes(
 
 		// 系统设置
 		registerSettingsRoutes(admin, h)
+		registerPresentationPricingRoutes(admin, h)
 
 		// 数据管理
 		registerDataManagementRoutes(admin, h, stepUpAuth)
@@ -596,6 +597,17 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promoCodes.PUT("/:id", h.Admin.Promo.Update)
 		promoCodes.DELETE("/:id", h.Admin.Promo.Delete)
 		promoCodes.GET("/:id/usages", h.Admin.Promo.GetUsages)
+	}
+}
+
+// registerPresentationPricingRoutes 管理员「模型展示价格」路由。
+// 变更类请求由 admin 组的审计中间件自动记录；handler 内另落变更明细日志。
+func registerPresentationPricingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pricing := admin.Group("/model-presentation-pricing")
+	{
+		pricing.GET("", h.Admin.PresentationPricing.List)
+		pricing.PUT("", h.Admin.PresentationPricing.Upsert)
+		pricing.DELETE("", h.Admin.PresentationPricing.Delete)
 	}
 }
 

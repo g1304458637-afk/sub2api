@@ -233,6 +233,14 @@ func (s *SubscriptionService) AssignOrExtendSubscription(ctx context.Context, in
 	return s.assignOrExtendSubscription(ctx, input, false)
 }
 
+// AssignOrExtendSubscriptionDeferredCache 与 AssignOrExtendSubscription 语义一致，
+// 但把缓存失效责任移交给调用方：Grant 服务等在**外层事务提交后**统一调用
+// InvalidateSubCache。在事务内失效会导致其他请求把提交前的旧值重新载入缓存
+// （与支付履约的 deferred 模式同理）。
+func (s *SubscriptionService) AssignOrExtendSubscriptionDeferredCache(ctx context.Context, input *AssignSubscriptionInput) (*UserSubscription, bool, error) {
+	return s.assignOrExtendSubscription(ctx, input, true)
+}
+
 func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, input *AssignSubscriptionInput, deferCacheInvalidation bool) (*UserSubscription, bool, error) {
 	// 检查分组是否存在且为订阅类型
 	group, err := s.groupRepo.GetByID(ctx, input.GroupID)

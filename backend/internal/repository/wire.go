@@ -89,6 +89,7 @@ var ProviderSet = wire.NewSet(
 	NewUsageCleanupRepository,
 	NewDashboardAggregationRepository,
 	NewSettingRepository,
+	NewPresentationPricingRepository, // 展示价（Presentation Pricing）override
 	NewOpsRepository,
 	NewAuditLogRepository,
 	NewPasskeyRepository,

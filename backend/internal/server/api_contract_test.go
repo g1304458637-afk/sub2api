@@ -1067,6 +1067,11 @@ func TestAPIContracts(t *testing.T) {
 					"web_chat_entrance_tts": true,
 					"web_chat_entrance_music": true,
 					"student_verification_reward_enabled": false,
+					"student_benefit_code": "",
+					"student_benefit_group_id": 0,
+					"student_benefit_plan_id": 0,
+					"student_benefit_validity_days": 30,
+					"student_verification_enabled": false,
 					"student_verification_reward_campaign": "",
 					"student_verification_reward_amount": 0
 				}
@@ -1430,6 +1435,11 @@ func TestAPIContracts(t *testing.T) {
 					"web_chat_entrance_tts": true,
 					"web_chat_entrance_music": true,
 					"student_verification_reward_enabled": false,
+					"student_benefit_code": "",
+					"student_benefit_group_id": 0,
+					"student_benefit_plan_id": 0,
+					"student_benefit_validity_days": 30,
+					"student_verification_enabled": false,
 					"student_verification_reward_campaign": "",
 					"student_verification_reward_amount": 0
 				}

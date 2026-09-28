@@ -646,8 +646,8 @@ export default {
 
   // Model Plaza (public group/model pricing showcase)
   modelPlaza: {
-    title: 'Model Plaza',
-    description: 'Browse available models and pricing by group',
+    title: 'Models & Pricing',
+    description: 'Browse supported models and standard prices',
     loading: 'Loading...',
     empty: 'No groups to display',
     loadFailed: 'Failed to load model plaza',
@@ -671,11 +671,14 @@ export default {
       peakNote: 'Peak hours {window}: billing rate ×{multiplier}',
       longContextDisabledNote: 'Long-context tier pricing is disabled for this group: requests above the threshold are billed at the base tier; official tiers are for reference only'
     },
+    disclaimer: 'Prices shown are the {brand} standard model prices. Actual account settlement may vary depending on your current plan, membership benefits and promotional rules.',
     table: {
       model: 'Model',
       input: 'Input',
       output: 'Output',
       cache: 'Cache',
+      standardPrice: 'Standard Price',
+      priceNotPublished: 'Price not published',
       cacheWrite: 'Write',
       cacheRead: 'Read',
       cacheWriteShort: 'W',

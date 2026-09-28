@@ -43,6 +43,11 @@ type SystemSettings struct {
 	StudentVerificationRewardEnabled    bool                     `json:"student_verification_reward_enabled"`
 	StudentVerificationRewardAmount     float64                  `json:"student_verification_reward_amount"`
 	StudentVerificationRewardCampaign   string                   `json:"student_verification_reward_campaign"`
+	StudentVerificationEnabled          bool                     `json:"student_verification_enabled"`
+	StudentBenefitGroupID               int64                    `json:"student_benefit_group_id"`
+	StudentBenefitPlanID                int64                    `json:"student_benefit_plan_id"`
+	StudentBenefitValidityDays          int                      `json:"student_benefit_validity_days"`
+	StudentBenefitCode                  string                   `json:"student_benefit_code"`
 	TotpEncryptionKeyConfigured         bool                     `json:"totp_encryption_key_configured"` // TOTP 加密密钥是否已配置
 	PasskeyEnabled                      bool                     `json:"passkey_enabled"`
 	PasskeyConfigured                   bool                     `json:"passkey_configured"`
@@ -386,6 +391,7 @@ type PublicSettings struct {
 	InvitationCodeEnabled               bool                     `json:"invitation_code_enabled"`
 	TotpEnabled                         bool                     `json:"totp_enabled"` // TOTP 双因素认证
 	EducationEmailVerificationEnabled   bool                     `json:"education_email_verification_enabled"`
+	StudentVerificationEnabled          bool                     `json:"student_verification_enabled"`
 	PasskeyEnabled                      bool                     `json:"passkey_enabled"`
 	LoginAgreementEnabled               bool                     `json:"login_agreement_enabled"`
 	LoginAgreementMode                  string                   `json:"login_agreement_mode"`

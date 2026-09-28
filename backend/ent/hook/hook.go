@@ -285,6 +285,18 @@ func (f PendingAuthSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PendingAuthSessionMutation", m)
 }
 
+// The PresentationModelPricingFunc type is an adapter to allow the use of ordinary
+// function as PresentationModelPricing mutator.
+type PresentationModelPricingFunc func(context.Context, *ent.PresentationModelPricingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PresentationModelPricingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PresentationModelPricingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PresentationModelPricingMutation", m)
+}
+
 // The PromoCodeFunc type is an adapter to allow the use of ordinary
 // function as PromoCode mutator.
 type PromoCodeFunc func(context.Context, *ent.PromoCodeMutation) (ent.Value, error)
