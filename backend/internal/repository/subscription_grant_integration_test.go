@@ -57,7 +57,7 @@ func newGrantTestStack(t *testing.T, name string) *grantTestStack {
 		Email: fmt.Sprintf("grant-%s-%d@example.com", name, time.Now().UnixNano()), PasswordHash: "hash",
 	})
 	group := mustCreateGroup(t, client, &service.Group{
-		Name: fmt.Sprintf("grant-grp-%s-%d", name, time.Now().UnixNano()),
+		Name:             fmt.Sprintf("grant-grp-%s-%d", name, time.Now().UnixNano()),
 		SubscriptionType: service.SubscriptionTypeSubscription,
 	})
 	_ = user
@@ -297,7 +297,7 @@ func TestGrantIntegration_CrossGroupConflictPendingThenActivate(t *testing.T) {
 
 	// 用户在其他组有付费订阅（有 subscription_terms 付费快照）
 	otherGroup := mustCreateGroup(t, s.client, &service.Group{
-		Name: fmt.Sprintf("pending-other-%d", time.Now().UnixNano()),
+		Name:             fmt.Sprintf("pending-other-%d", time.Now().UnixNano()),
 		SubscriptionType: service.SubscriptionTypeSubscription,
 	})
 	paidEnd := time.Now().AddDate(0, 2, 0).Truncate(time.Microsecond)
@@ -385,4 +385,3 @@ func TestGrantIntegration_RevokePreservesPaidFloor(t *testing.T) {
 		"revoke must never cut into paid floor (termEnd=%v, got %v)", termEnd, clamped.ExpiresAt)
 	require.False(t, clamped.ExpiresAt.After(paidEnd.AddDate(0, 0, 30)), "grant days must be reclaimed")
 }
-

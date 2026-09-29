@@ -22,10 +22,10 @@ func stubPresentationServiceForPlaza(rows ...PresentationModelPricing) *Presenta
 
 func plazaManualOverride(name string, input, output float64) PresentationModelPricing {
 	return PresentationModelPricing{
-		ModelName:    name,
-		BillingMode:  BillingModeToken,
-		InputPrice:   testPtrFloat64(input),
-		OutputPrice:  testPtrFloat64(output),
+		ModelName:   name,
+		BillingMode: BillingModeToken,
+		InputPrice:  testPtrFloat64(input),
+		OutputPrice: testPtrFloat64(output),
 	}
 }
 

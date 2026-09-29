@@ -28,36 +28,36 @@ func NewPresentationPricingHandler(service *service.PresentationPricingService) 
 // presentationPricingPayload 展示价保存入参（价格以 USD per token 存储，与渠道
 // 定价同一量纲；「每 1M token」的输入换算由前端复用 mTokToPerToken 完成）。
 type presentationPricingPayload struct {
-	ModelName         string    `json:"model_name" binding:"required"`
-	BillingMode       string    `json:"billing_mode"`
-	Currency          string    `json:"currency"`
-	InputPrice        *float64  `json:"input_price" binding:"omitempty,min=0"`
-	OutputPrice       *float64  `json:"output_price" binding:"omitempty,min=0"`
-	CacheWritePrice   *float64  `json:"cache_write_price" binding:"omitempty,min=0"`
-	CacheWrite1hPrice *float64  `json:"cache_write_1h_price" binding:"omitempty,min=0"`
-	CacheReadPrice    *float64  `json:"cache_read_price" binding:"omitempty,min=0"`
-	PerRequestPrice   *float64  `json:"per_request_price" binding:"omitempty,min=0"`
-	Enabled           *bool     `json:"enabled"`
-	Remark            string    `json:"remark"`
-	UpdatedBy         *int64    `json:"-"` // 从认证上下文取，不接受客户端伪造
+	ModelName         string   `json:"model_name" binding:"required"`
+	BillingMode       string   `json:"billing_mode"`
+	Currency          string   `json:"currency"`
+	InputPrice        *float64 `json:"input_price" binding:"omitempty,min=0"`
+	OutputPrice       *float64 `json:"output_price" binding:"omitempty,min=0"`
+	CacheWritePrice   *float64 `json:"cache_write_price" binding:"omitempty,min=0"`
+	CacheWrite1hPrice *float64 `json:"cache_write_1h_price" binding:"omitempty,min=0"`
+	CacheReadPrice    *float64 `json:"cache_read_price" binding:"omitempty,min=0"`
+	PerRequestPrice   *float64 `json:"per_request_price" binding:"omitempty,min=0"`
+	Enabled           *bool    `json:"enabled"`
+	Remark            string   `json:"remark"`
+	UpdatedBy         *int64   `json:"-"` // 从认证上下文取，不接受客户端伪造
 }
 
 // presentationPricingItem override 行（含操作人）。
 type presentationPricingItem struct {
-	ID                 int64     `json:"id"`
-	ModelName          string    `json:"model_name"`
-	BillingMode        string    `json:"billing_mode"`
-	Currency           string    `json:"currency"`
-	InputPrice         *float64  `json:"input_price"`
-	OutputPrice        *float64  `json:"output_price"`
-	CacheWritePrice    *float64  `json:"cache_write_price"`
-	CacheWrite1hPrice  *float64  `json:"cache_write_1h_price"`
-	CacheReadPrice     *float64  `json:"cache_read_price"`
-	PerRequestPrice    *float64  `json:"per_request_price"`
-	Enabled            bool      `json:"enabled"`
-	Remark             string    `json:"remark"`
-	UpdatedBy          *int64    `json:"updated_by"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                int64     `json:"id"`
+	ModelName         string    `json:"model_name"`
+	BillingMode       string    `json:"billing_mode"`
+	Currency          string    `json:"currency"`
+	InputPrice        *float64  `json:"input_price"`
+	OutputPrice       *float64  `json:"output_price"`
+	CacheWritePrice   *float64  `json:"cache_write_price"`
+	CacheWrite1hPrice *float64  `json:"cache_write_1h_price"`
+	CacheReadPrice    *float64  `json:"cache_read_price"`
+	PerRequestPrice   *float64  `json:"per_request_price"`
+	Enabled           bool      `json:"enabled"`
+	Remark            string    `json:"remark"`
+	UpdatedBy         *int64    `json:"updated_by"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // List 列出全部展示价 override。
@@ -131,20 +131,20 @@ func (h *PresentationPricingHandler) Delete(c *gin.Context) {
 
 func toPresentationPricingItem(row *service.PresentationModelPricing) presentationPricingItem {
 	return presentationPricingItem{
-		ID:                 row.ID,
-		ModelName:          row.ModelName,
-		BillingMode:        string(row.BillingMode),
-		Currency:           row.Currency,
-		InputPrice:         row.InputPrice,
-		OutputPrice:        row.OutputPrice,
-		CacheWritePrice:    row.CacheWritePrice,
-		CacheWrite1hPrice:  row.CacheWrite1hPrice,
-		CacheReadPrice:     row.CacheReadPrice,
-		PerRequestPrice:    row.PerRequestPrice,
-		Enabled:            row.Enabled,
-		Remark:             row.Remark,
-		UpdatedBy:          row.UpdatedBy,
-		UpdatedAt:          row.UpdatedAt,
+		ID:                row.ID,
+		ModelName:         row.ModelName,
+		BillingMode:       string(row.BillingMode),
+		Currency:          row.Currency,
+		InputPrice:        row.InputPrice,
+		OutputPrice:       row.OutputPrice,
+		CacheWritePrice:   row.CacheWritePrice,
+		CacheWrite1hPrice: row.CacheWrite1hPrice,
+		CacheReadPrice:    row.CacheReadPrice,
+		PerRequestPrice:   row.PerRequestPrice,
+		Enabled:           row.Enabled,
+		Remark:            row.Remark,
+		UpdatedBy:         row.UpdatedBy,
+		UpdatedAt:         row.UpdatedAt,
 	}
 }
 
@@ -168,13 +168,13 @@ func logPresentationPricingChange(c *gin.Context, action, modelName string, befo
 
 func presentationPricingSummary(p *service.PresentationModelPricing) gin.H {
 	return gin.H{
-		"billing_mode":        string(p.BillingMode),
-		"input_price":         p.InputPrice,
-		"output_price":        p.OutputPrice,
-		"cache_write_price":   p.CacheWritePrice,
-		"cache_write_1h":      p.CacheWrite1hPrice,
-		"cache_read_price":    p.CacheReadPrice,
-		"per_request_price":   p.PerRequestPrice,
-		"enabled":             p.Enabled,
+		"billing_mode":      string(p.BillingMode),
+		"input_price":       p.InputPrice,
+		"output_price":      p.OutputPrice,
+		"cache_write_price": p.CacheWritePrice,
+		"cache_write_1h":    p.CacheWrite1hPrice,
+		"cache_read_price":  p.CacheReadPrice,
+		"per_request_price": p.PerRequestPrice,
+		"enabled":           p.Enabled,
 	}
 }
