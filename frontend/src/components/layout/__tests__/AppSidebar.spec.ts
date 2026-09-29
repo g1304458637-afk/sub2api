@@ -81,7 +81,7 @@ describe('AppSidebar subscription feature flag', () => {
 describe('AppSidebar Campus AI navigation convergence', () => {
   // 信息架构收敛：技术型仪表盘/旧使用记录/独立充值/兑换不再出现在用户一级导航，
   // 但路由保留兼容（/dashboard 直达、/usage → /spend 重定向、/purchase 由钱包进入）。
-  const mineItemsMatch = componentSource.match(/const mineItems: NavItem\[\] = \[([\s\S]*?)\n  \]\n/)
+  const mineItemsMatch = componentSource.match(/const mineItems: NavItem\[\] = \[([\s\S]*?)\n {2}\]\n/)
 
   it('exposes the mine group declaration to contract tests', () => {
     expect(mineItemsMatch).not.toBeNull()

@@ -300,7 +300,7 @@ func TestGrantIntegration_CrossGroupConflictPendingThenActivate(t *testing.T) {
 		Name: fmt.Sprintf("pending-other-%d", time.Now().UnixNano()),
 		SubscriptionType: service.SubscriptionTypeSubscription,
 	})
-	paidEnd := time.Now().AddDate(0, 2, 0)
+	paidEnd := time.Now().AddDate(0, 2, 0).Truncate(time.Microsecond)
 	require.NoError(t, subRepo.Create(ctx, &service.UserSubscription{
 		UserID: user.ID, GroupID: otherGroup.ID,
 		StartsAt: time.Now(), ExpiresAt: paidEnd,
@@ -350,7 +350,7 @@ func TestGrantIntegration_RevokePreservesPaidFloor(t *testing.T) {
 	subRepo := NewUserSubscriptionRepository(s.client)
 
 	// 付费订阅 + 真实 subscription_terms 付费快照
-	paidEnd := time.Now().AddDate(0, 1, 0)
+	paidEnd := time.Now().AddDate(0, 1, 0).Truncate(time.Microsecond)
 	require.NoError(t, subRepo.Create(ctx, &service.UserSubscription{
 		UserID: user.ID, GroupID: s.group.ID,
 		StartsAt: time.Now(), ExpiresAt: paidEnd,
