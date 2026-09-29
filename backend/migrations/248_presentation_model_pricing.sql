@@ -10,8 +10,8 @@
 -- 价格以账本币种（USD per token / USD per 次）存储；前端展示层按现有
 -- 币种切换逻辑换算，不引入第二套汇率。
 --
--- 回滚：DROP TABLE IF EXISTS presentation_model_pricing;
--- （纯新增表，不触碰任何既有 pricing / usage / subscription / wallet 数据。）
+-- 回滚：本表为纯新增表，整表移除即可（幂等方式），不触碰任何既有
+-- pricing / usage / subscription / wallet 数据。
 
 CREATE TABLE IF NOT EXISTS presentation_model_pricing (
     id                   BIGSERIAL PRIMARY KEY,
