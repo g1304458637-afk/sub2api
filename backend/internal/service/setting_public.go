@@ -168,6 +168,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyInvitationCodeEnabled,
 		SettingKeyTotpEnabled,
 		SettingKeyEducationEmailVerificationEnabled,
+		SettingKeyStudentVerificationEnabled,
 		SettingKeyPasskeyEnabled,
 		SettingKeyLoginAgreementEnabled,
 		SettingKeyLoginAgreementMode,
@@ -315,6 +316,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		InvitationCodeEnabled:               settings[SettingKeyInvitationCodeEnabled] == "true",
 		TotpEnabled:                         settings[SettingKeyTotpEnabled] == "true",
 		EducationEmailVerificationEnabled:   settings[SettingKeyEducationEmailVerificationEnabled] == "true",
+		StudentVerificationEnabled:          settings[SettingKeyStudentVerificationEnabled] == "true",
 		PasskeyEnabled:                      s.passkeyConfigured() && s.passkeySettingEnabled(settings),
 		LoginAgreementEnabled:               settings[SettingKeyLoginAgreementEnabled] == "true" && len(loginAgreementDocuments) > 0,
 		LoginAgreementMode:                  normalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]),
@@ -577,6 +579,7 @@ type PublicSettingsInjectionPayload struct {
 	InvitationCodeEnabled               bool                     `json:"invitation_code_enabled"`
 	TotpEnabled                         bool                     `json:"totp_enabled"`
 	EducationEmailVerificationEnabled   bool                     `json:"education_email_verification_enabled"`
+	StudentVerificationEnabled          bool                     `json:"student_verification_enabled"`
 	PasskeyEnabled                      bool                     `json:"passkey_enabled"`
 	LoginAgreementEnabled               bool                     `json:"login_agreement_enabled"`
 	LoginAgreementMode                  string                   `json:"login_agreement_mode"`
@@ -674,6 +677,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		InvitationCodeEnabled:               settings.InvitationCodeEnabled,
 		TotpEnabled:                         settings.TotpEnabled,
 		EducationEmailVerificationEnabled:   settings.EducationEmailVerificationEnabled,
+		StudentVerificationEnabled:          settings.StudentVerificationEnabled,
 		PasskeyEnabled:                      settings.PasskeyEnabled,
 		LoginAgreementEnabled:               settings.LoginAgreementEnabled,
 		LoginAgreementMode:                  settings.LoginAgreementMode,

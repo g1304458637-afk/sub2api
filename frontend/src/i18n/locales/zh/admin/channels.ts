@@ -671,6 +671,8 @@ export default {
 
     // Subscriptions Management
     subscriptions: {
+      tabSubscriptions: '订阅列表',
+      grantRecords: '赠送记录',
       batchAssign: {
         enable: '批量分配订阅',
         hint: '搜索并添加多个用户，统一分配所选分组和有效期。每次最多 100 人。',
@@ -819,6 +821,90 @@ export default {
           revokeDesc: '立即终止该用户的订阅，可在已撤销列表中恢复'
         },
         tip: '提示：订阅分组下拉列表中只会显示计费类型为「订阅」且状态为「正常」的分组。如果没有可选项，请先到分组管理中创建。'
+      },
+      grant: {
+        action: '赠送订阅',
+        dialogTitle: '赠送订阅',
+        submit: '赠送',
+        submitting: '赠送中...',
+        effectivePolicy: '生效方式',
+        effectivePolicyHint: '立即生效：从当前时间起计算并立即激活；期满衔接：登记为待生效，当前订阅结束后自动衔接。',
+        policyImmediateOption: '立即生效',
+        policyEndOfTermOption: '当前订阅结束后生效',
+        policyImmediate: '立即',
+        policyEndOfTerm: '期满衔接',
+        source: '来源',
+        sourceHint: '赠送的业务来源，用于审计与统计',
+        allSources: '全部来源',
+        sources: {
+          admin_grant: '管理员赠送',
+          compensation: '补偿',
+          campaign: '活动',
+          school_bulk: '学校批量',
+          teacher_verification: '教师认证',
+          invitation: '邀请',
+          internal: '内部',
+          other: '其他'
+        },
+        reason: '原因（可选）',
+        reasonPlaceholder: '例如：客诉补偿 / 活动奖励',
+        notes: '内部备注（可选）',
+        notesPlaceholder: '仅管理员可见的内部说明',
+        previewTitle: '赠送预览',
+        previewCurrent: '当前套餐',
+        previewExpires: '当前到期',
+        previewPredicted: '赠送后到期',
+        previewExtensionBase: '顺延起算',
+        previewWillActivate: '赠送后将开通新订阅，预计到期：',
+        previewWillBePending: '将登记为待生效，当前订阅结束后自动衔接。',
+        previewConflict: '存在冲突，无法提交：该用户在其他分组的有效订阅与本次赠送冲突，可改选「当前订阅结束后生效」。',
+        previewFailed: '预览失败，可重试；不影响提交，以后端校验为准。',
+        actions: {
+          activated_new: '已激活到账',
+          extended: '已顺延至 {time}',
+          extendedNoTime: '已顺延',
+          pending: '已登记待生效',
+          already_granted: '该赠送已生效过（幂等命中）'
+        },
+        grantSuccess: '赠送成功',
+        failedToGrant: '赠送失败',
+        failedToLoadRecords: '加载赠送记录失败',
+        conflictBlocked: '存在分组冲突，已阻止提交。可改选「当前订阅结束后生效」后重试。',
+        conflictRetryEndOfTerm: '赠送冲突（GRANT_CONFLICT）：该用户在其他分组有有效订阅，可改选「当前订阅结束后生效」后重试。',
+        itemFailed: '失败',
+        bulkResult: '赠送完成：成功 {success} 人，失败 {failed} 人',
+        filterUserId: '用户 ID',
+        columns: {
+          time: '时间',
+          user: '用户',
+          group: '分组',
+          source: '来源',
+          status: '状态',
+          duration: '时长',
+          policy: '生效策略',
+          operator: '操作人',
+          reason: '原因'
+        },
+        durationDays: '{days} 天',
+        status: {
+          pending: '待生效',
+          fulfilled: '已到账',
+          expired: '已过期',
+          revoked: '已撤销',
+          failed: '失败'
+        },
+        noRecords: '暂无赠送记录',
+        noRecordsHint: '通过「赠送订阅」发放的记录会显示在这里。',
+        revoke: '撤销',
+        revokeTitle: '撤销赠送',
+        revokeConfirm: "确定要撤销用户 {user} 的这笔赠送吗？撤销后该赠送对应的时长将停止生效。",
+        revokeConfirmOk: '确认撤销',
+        revokeReasonLabel: '撤销原因（必填，不超过 500 字）',
+        revokeReasonPlaceholder: '请填写撤销原因，便于审计追溯',
+        revokeReasonRequired: '请填写撤销原因',
+        revokeReasonMax: '撤销原因不能超过 500 字',
+        revokeSuccess: '赠送已撤销',
+        revokeFailed: '撤销失败'
       }
     },
 

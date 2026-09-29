@@ -360,7 +360,7 @@ const needsChooser = ref(false)
 const invitationCode = ref('')
 const isSubmitting = ref(false)
 const invitationError = ref('')
-const redirectTo = ref('/dashboard')
+const redirectTo = ref('/chat')
 const adoptionRequired = ref(false)
 const suggestedDisplayName = ref('')
 const suggestedAvatarUrl = ref('')
@@ -471,11 +471,11 @@ function readLegacyFragmentLogin(params: URLSearchParams): OAuthTokenResponse | 
 }
 
 function sanitizeRedirectPath(path: string | null | undefined): string {
-  if (!path) return '/dashboard'
-  if (!path.startsWith('/')) return '/dashboard'
-  if (path.startsWith('//')) return '/dashboard'
-  if (path.includes('://')) return '/dashboard'
-  if (path.includes('\n') || path.includes('\r')) return '/dashboard'
+  if (!path) return '/chat'
+  if (!path.startsWith('/')) return '/chat'
+  if (path.startsWith('//')) return '/chat'
+  if (path.includes('://')) return '/chat'
+  if (path.includes('\n') || path.includes('\r')) return '/chat'
   return path
 }
 
@@ -545,7 +545,7 @@ function resolveRequestedWeChatOAuthMode(): 'open' | 'mp' | null {
 
 function resolveRedirectTarget(): string {
   return sanitizeRedirectPath(
-    (route.query.redirect as string | undefined) || redirectTo.value || '/dashboard'
+    (route.query.redirect as string | undefined) || redirectTo.value || '/chat'
   )
 }
 
@@ -1026,7 +1026,7 @@ onMounted(async () => {
   const error = params.get('error')
   const errorDesc = params.get('error_description') || params.get('error_message') || ''
   const redirect = sanitizeRedirectPath(
-    params.get('redirect') || (route.query.redirect as string | undefined) || '/dashboard'
+    params.get('redirect') || (route.query.redirect as string | undefined) || '/chat'
   )
 
   try {
@@ -1055,7 +1055,7 @@ onMounted(async () => {
 
     const completion = await exchangePendingOAuthCompletion() as PendingWeChatCompletion
     const completionRedirect = sanitizeRedirectPath(
-      completion.redirect || (route.query.redirect as string | undefined) || '/dashboard'
+      completion.redirect || (route.query.redirect as string | undefined) || '/chat'
     )
     applyAdoptionSuggestionState(completion)
     redirectTo.value = completionRedirect

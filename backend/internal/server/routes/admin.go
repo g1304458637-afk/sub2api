@@ -75,6 +75,7 @@ func RegisterAdminRoutes(
 
 		// 系统设置
 		registerSettingsRoutes(admin, h)
+		registerPresentationPricingRoutes(admin, h)
 
 		// 数据管理
 		registerDataManagementRoutes(admin, h, stepUpAuth)
@@ -90,6 +91,8 @@ func RegisterAdminRoutes(
 
 		// 订阅管理
 		registerSubscriptionRoutes(admin, h)
+		registerSubscriptionGrantRoutes(admin, h)
+		registerStudentVerificationAdminRoutes(admin, h)
 
 		// 使用记录管理
 		registerUsageRoutes(admin, h)
@@ -468,6 +471,28 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
+// registerSubscriptionGrantRoutes 订阅权益发放路由（继承 admin 组中间件 + 自动审计）
+func registerSubscriptionGrantRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	grants := admin.Group("/subscription-grants")
+	{
+		grants.POST("/preview", h.Admin.SubscriptionGrant.Preview)
+		grants.POST("", h.Admin.SubscriptionGrant.Create)
+		grants.POST("/bulk", h.Admin.SubscriptionGrant.Bulk)
+		grants.GET("", h.Admin.SubscriptionGrant.List)
+		grants.POST("/:id/revoke", h.Admin.SubscriptionGrant.Revoke)
+	}
+}
+
+// registerStudentVerificationAdminRoutes 学生认证记录管理端路由
+func registerStudentVerificationAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	verifications := admin.Group("/student-verifications")
+	{
+		verifications.GET("", h.Admin.StudentVerification.ListVerificationRecords)
+		verifications.GET("/:id", h.Admin.StudentVerification.GetVerification)
+		verifications.POST("/:id/revoke", h.Admin.StudentVerification.Revoke)
+	}
+}
+
 // registerRewardGrantRoutes 奖励发放记录路由（只读台账，继承 admin 组中间件）
 func registerRewardGrantRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	rewardGrants := admin.Group("/reward-grants")
@@ -596,6 +621,17 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promoCodes.PUT("/:id", h.Admin.Promo.Update)
 		promoCodes.DELETE("/:id", h.Admin.Promo.Delete)
 		promoCodes.GET("/:id/usages", h.Admin.Promo.GetUsages)
+	}
+}
+
+// registerPresentationPricingRoutes 管理员「模型展示价格」路由。
+// 变更类请求由 admin 组的审计中间件自动记录；handler 内另落变更明细日志。
+func registerPresentationPricingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pricing := admin.Group("/model-presentation-pricing")
+	{
+		pricing.GET("", h.Admin.PresentationPricing.List)
+		pricing.PUT("", h.Admin.PresentationPricing.Upsert)
+		pricing.DELETE("", h.Admin.PresentationPricing.Delete)
 	}
 }
 

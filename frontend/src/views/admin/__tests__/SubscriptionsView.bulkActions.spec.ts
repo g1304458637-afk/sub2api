@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import SubscriptionsView from '../SubscriptionsView.vue'
 
-const { list, bulkAction, bulkAssign, listUsers, showError } = vi.hoisted(() => ({
-  list: vi.fn(), bulkAction: vi.fn(), bulkAssign: vi.fn(), listUsers: vi.fn(), showError: vi.fn()
+const { list, bulkAction, grantBulk, grantPreview, listUsers, showError } = vi.hoisted(() => ({
+  list: vi.fn(), bulkAction: vi.fn(), grantBulk: vi.fn(), grantPreview: vi.fn(), listUsers: vi.fn(), showError: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
-    subscriptions: { list, bulkAction, bulkAssign },
+    subscriptions: { list, bulkAction },
+    subscriptionGrants: { bulk: grantBulk, preview: grantPreview, create: vi.fn(), list: vi.fn(), revoke: vi.fn() },
     groups: { getAll: vi.fn().mockResolvedValue([]) },
     users: { list: listUsers }
   }
@@ -44,6 +46,7 @@ let wrapper: ReturnType<typeof mountView>
 
 beforeEach(async () => {
   vi.clearAllMocks()
+  setActivePinia(createPinia())
   localStorage.clear()
   sessionStorage.clear()
   localStorage.setItem('auth_user', JSON.stringify({ id: 777 }))
@@ -106,9 +109,9 @@ describe('subscription bulk operations', () => {
     expect(wrapper.getComponent({ name: 'DataTable' }).props('selectedKeys')).toEqual([])
   })
 
-  it('assigns multiple users once and retries only failed users', async () => {
+  it('grants multiple users once and retries only failed users', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    await wrapper.findAll('button').find(button => button.text() === 'admin.subscriptions.assignSubscription')!.trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'admin.subscriptions.grant.action')!.trigger('click')
     const form = wrapper.get('#assign-subscription-form')
     await form.get('input[type="checkbox"]').setValue(true)
     form.getComponent({ name: 'Select' }).vm.$emit('update:modelValue', 7)
@@ -123,21 +126,43 @@ describe('subscription bulk operations', () => {
     }
     expect(form.get('[data-test="assign-users"]').text()).toContain('user11@example.com')
     expect(form.get('[data-test="assign-users"]').text()).toContain('user22@example.com')
-    let resolveAssign!: (result: unknown) => void
-    bulkAssign.mockReturnValueOnce(new Promise(resolve => { resolveAssign = resolve }))
+    let resolveGrant!: (result: unknown) => void
+    grantBulk.mockReturnValueOnce(new Promise(resolve => { resolveGrant = resolve }))
     await form.trigger('submit')
     await form.trigger('submit')
-    expect(bulkAssign).toHaveBeenCalledTimes(1)
-    expect(bulkAssign).toHaveBeenCalledWith({ user_ids: [11, 22], group_id: 7, validity_days: 30 })
-    resolveAssign({ success_count: 1, failed_count: 1, subscriptions: [{ user_id: 11 }], errors: ['User 22: conflict'] })
+    expect(grantBulk).toHaveBeenCalledTimes(1)
+    expect(grantBulk).toHaveBeenCalledWith(
+      { user_ids: [11, 22], group_id: 7, duration_days: 30, effective_policy: 'immediate', source: 'admin_grant', reason: undefined, notes: undefined },
+      expect.any(String)
+    )
+    resolveGrant({
+      items: [
+        { user_id: 11, success: true, action: 'activated_new' },
+        { user_id: 22, success: false, error: 'User 22: conflict' }
+      ],
+      total: 2,
+      success_count: 1,
+      failed_count: 1
+    })
     await flushPromises()
     expect(form.get('[data-test="assign-users"]').text()).not.toContain('user11@example.com')
     expect(form.get('[data-test="assign-users"]').text()).toContain('user22@example.com')
     expect(form.get('[data-test="batch-assign-result"]').text()).toContain('User 22: conflict')
-    bulkAssign.mockResolvedValueOnce({ success_count: 1, failed_count: 0, subscriptions: [{ user_id: 22 }], errors: [] })
+    const firstKey = grantBulk.mock.calls[0]![1] as string
+    grantBulk.mockResolvedValueOnce({
+      items: [{ user_id: 22, success: true, action: 'activated_new' }],
+      total: 1,
+      success_count: 1,
+      failed_count: 0
+    })
     await form.trigger('submit')
     await flushPromises()
-    expect(bulkAssign).toHaveBeenLastCalledWith({ user_ids: [22], group_id: 7, validity_days: 30 })
+    expect(grantBulk).toHaveBeenLastCalledWith(
+      { user_ids: [22], group_id: 7, duration_days: 30, effective_policy: 'immediate', source: 'admin_grant', reason: undefined, notes: undefined },
+      expect.any(String)
+    )
+    // 同一弹窗会话内重试复用同一 Idempotency-Key，保证幂等
+    expect(grantBulk.mock.calls[1]![1]).toBe(firstKey)
     expect(form.find('[data-test="assign-users"]').exists()).toBe(false)
   })
 })

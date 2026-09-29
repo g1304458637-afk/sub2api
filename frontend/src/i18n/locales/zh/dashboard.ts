@@ -651,8 +651,8 @@ export default {
 
   // Model Plaza (public group/model pricing showcase)
   modelPlaza: {
-    title: '模型广场',
-    description: '按分组浏览可用模型与价格',
+    title: '模型与价格',
+    description: '查看当前支持的模型及标准价格',
     loading: '加载中...',
     empty: '暂无可展示的分组',
     loadFailed: '加载模型广场失败',
@@ -676,11 +676,15 @@ export default {
       peakNote: '高峰时段 {window} 计费倍率 ×{multiplier}',
       longContextDisabledNote: '该分组未启用长上下文阶梯计费，超阈值请求仍按基础档计费，官方阶梯仅供参考'
     },
+    // 价格口径说明:标准价 ≠ 实际结算(品牌名由 currentBrand 注入,禁止硬编码)
+    disclaimer: '页面展示{brand}标准模型价格。账户实际额度结算可能根据当前套餐、会员权益及优惠规则有所不同。',
     table: {
       model: '模型',
       input: '输入',
       output: '输出',
       cache: '缓存',
+      standardPrice: '标准价格',
+      priceNotPublished: '价格暂未公布',
       cacheWrite: '写入',
       cacheRead: '读取',
       cacheWriteShort: '写',
@@ -1010,6 +1014,33 @@ export default {
       codeSentTo: '验证码已发送到 {email}',
       verifySuccess: '校园邮箱认证成功',
       invalidDomain: "仅支持 {'@'}muc.edu.cn 校园邮箱",
+    },
+    studentVerification: {
+      title: '{brand}校园身份认证',
+      description: '使用学生邮箱完成认证，认证后自动发放学生专属会员权益（{n} 天）',
+      statusVerified: '已认证',
+      statusUnverified: '未认证',
+      emailLabel: '学生邮箱',
+      codeLabel: '验证码',
+      codePlaceholder: '输入邮箱验证码',
+      sendCodeAction: '获取验证码',
+      resendCountdown: '{n} 秒后可重发',
+      verifyAction: '完成认证',
+      verifySuccess: '认证成功',
+      codeSent: '验证码已发送到 {email}',
+      invalidEmail: '请输入正确的邮箱地址',
+      codeRequired: '请输入验证码',
+      grantActive: '学生会员已到账',
+      grantPending: '学生会员已登记，将在当前订阅结束后自动生效',
+      validityLabel: '有效期',
+      validityRange: '{start} → {end}',
+      verifiedEmailLabel: '认证邮箱',
+      verifiedAtLabel: '认证时间',
+      grantExpiresLabel: '权益到期',
+      errorDisabled: '学生认证功能暂未开放',
+      errorInvalidEmailDomain: '不支持该学生邮箱域名',
+      errorTooFrequent: '操作过于频繁，请稍后再试',
+      errorInvalidCode: '验证码错误或已过期',
     }
   },
 

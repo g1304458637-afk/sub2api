@@ -63,11 +63,19 @@ type modelPlazaTimePricing struct {
 }
 
 // modelPlazaModel 广场模型条目：实收口径展示定价（白名单形态）+ 官方参考价。
+//
+// DisplayPricing 是用户端「模型与价格」页面主展示的「标准价格」（绝对值，
+// 来源 PresentationSource：manual override → official → billing 回退），与
+// 真实计费彻底解耦；Pricing 保留计费口径基础单价（不含分组/用户倍率）。
 type modelPlazaModel struct {
 	Name            string                     `json:"name"`
 	Platform        string                     `json:"platform"`
 	Pricing         *userSupportedModelPricing `json:"pricing"`
 	OfficialPricing *modelPlazaOfficialPricing `json:"official_pricing"`
+	// DisplayPricing 标准展示价（绝对值）；nil 表示无任何可用价格（前端显示「价格暂未公布」）。
+	DisplayPricing *userSupportedModelPricing `json:"display_pricing"`
+	// PresentationSource 展示价来源：manual / official / billing / none。
+	PresentationSource string `json:"presentation_source,omitempty"`
 	// LongContextBasis 多档时的计价基准："whole_request"（整单按档）| "marginal"（仅超出部分）。
 	LongContextBasis string `json:"long_context_basis,omitempty"`
 	// TimePricing 分时倍率时段，落在时段内的请求整单乘倍率；无分时省略。
@@ -189,12 +197,14 @@ func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64) mo
 	for i := range g.Models {
 		m := &g.Models[i]
 		models = append(models, modelPlazaModel{
-			Name:             m.Name,
-			Platform:         m.Platform,
-			Pricing:          toUserPricing(m.Pricing),
-			OfficialPricing:  toModelPlazaOfficialPricing(m.OfficialPricing),
-			LongContextBasis: string(m.LongContextBasis),
-			TimePricing:      toModelPlazaTimePricing(m.TimePricing),
+			Name:               m.Name,
+			Platform:           m.Platform,
+			Pricing:            toUserPricing(m.Pricing),
+			OfficialPricing:    toModelPlazaOfficialPricing(m.OfficialPricing),
+			DisplayPricing:     toUserPricing(m.DisplayPricing),
+			PresentationSource: m.PresentationSource,
+			LongContextBasis:   string(m.LongContextBasis),
+			TimePricing:        toModelPlazaTimePricing(m.TimePricing),
 		})
 	}
 	dto := modelPlazaGroup{

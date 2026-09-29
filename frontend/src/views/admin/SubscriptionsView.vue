@@ -2,8 +2,33 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <!-- Top Toolbar: Left (search + filters) / Right (actions) -->
-        <div class="flex flex-wrap items-start justify-between gap-4">
+        <!-- View tabs: subscriptions list / subscription grant records -->
+        <div
+          class="mb-3 flex w-fit gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800"
+          role="tablist"
+          data-test="subscriptions-view-tabs"
+        >
+          <button
+            v-for="tab in ['subscriptions', 'grants'] as const"
+            :key="tab"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === tab"
+            class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+            :class="activeTab === tab
+              ? 'bg-gray-900 text-white dark:bg-white/10 dark:text-white'
+              : 'text-gray-600 hover:bg-gray-100 dark:text-dark-300 dark:hover:bg-dark-700'"
+            :data-test="`tab-${tab}`"
+            @click="switchTab(tab)"
+          >
+            {{ tab === 'subscriptions'
+              ? t('admin.subscriptions.tabSubscriptions')
+              : t('admin.subscriptions.grantRecords') }}
+          </button>
+        </div>
+
+        <!-- Subscriptions toolbar -->
+        <div v-if="activeTab === 'subscriptions'" class="flex flex-wrap items-start justify-between gap-4">
           <!-- Left: Fuzzy user search + filters (wrap to multiple lines) -->
           <div class="flex flex-1 flex-wrap items-center gap-3">
             <!-- User Search -->
@@ -160,13 +185,58 @@
               <Icon name="questionCircle" size="md" />
             </button>
             <button @click="showAssignModal = true" class="btn btn-primary">
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.subscriptions.assignSubscription') }}
+              <Icon name="gift" size="md" class="mr-2" />
+              {{ t('admin.subscriptions.grant.action') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Grant records toolbar -->
+        <div v-else class="flex flex-wrap items-start justify-between gap-4">
+          <div class="flex flex-1 flex-wrap items-center gap-3">
+            <div class="w-full sm:w-40">
+              <input
+                v-model.number="grantFilters.user_id"
+                type="number"
+                min="1"
+                step="1"
+                class="input"
+                :placeholder="t('admin.subscriptions.grant.filterUserId')"
+                :aria-label="t('admin.subscriptions.grant.filterUserId')"
+                @change="applyGrantFilters"
+                @keyup.enter="applyGrantFilters"
+              />
+            </div>
+            <div class="w-full sm:w-44">
+              <Select
+                v-model="grantFilters.source"
+                :options="grantSourceOptions"
+                :placeholder="t('admin.subscriptions.grant.allSources')"
+                @change="applyGrantFilters"
+              />
+            </div>
+            <div class="w-full sm:w-40">
+              <Select
+                v-model="grantFilters.status"
+                :options="grantStatusOptions"
+                :placeholder="t('admin.subscriptions.allStatus')"
+                @change="applyGrantFilters"
+              />
+            </div>
+          </div>
+          <div class="ml-auto flex flex-wrap items-center justify-end gap-3">
+            <button
+              @click="loadGrants"
+              :disabled="grantsLoading"
+              class="btn btn-secondary"
+              :title="t('common.refresh')"
+            >
+              <Icon name="refresh" size="md" :class="grantsLoading ? 'animate-spin' : ''" />
             </button>
           </div>
         </div>
         <div
-          v-if="selectedCount > 0"
+          v-if="activeTab === 'subscriptions' && selectedCount > 0"
           class="mt-3 space-y-2 rounded-xl border border-primary-200 bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20"
           data-test="subscription-bulk-actions"
         >
@@ -196,6 +266,7 @@
       <!-- Subscriptions Table -->
       <template #table>
         <DataTable
+          v-if="activeTab === 'subscriptions'"
           :columns="columns"
           :data="subscriptions"
           :loading="loading"
@@ -462,8 +533,100 @@
             <EmptyState
               :title="t('admin.subscriptions.noSubscriptionsYet')"
               :description="t('admin.subscriptions.assignFirstSubscription')"
-              :action-text="t('admin.subscriptions.assignSubscription')"
+              :action-text="t('admin.subscriptions.grant.action')"
               @action="showAssignModal = true"
+            />
+          </template>
+        </DataTable>
+
+        <!-- Grant Records Table -->
+        <DataTable
+          v-else
+          :columns="grantColumns"
+          :data="grants"
+          :loading="grantsLoading"
+          row-key="id"
+        >
+          <template #cell-created_at="{ row }">
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              {{ formatDateTimeToMinute(row.created_at) }}
+            </span>
+          </template>
+
+          <template #cell-user="{ row }">
+            <div class="flex flex-col">
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ row.user_email || row.username || t('admin.redeem.userPrefix', { id: row.user_id }) }}
+              </span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">#{{ row.user_id }}</span>
+            </div>
+          </template>
+
+          <template #cell-group_name="{ row }">
+            <span v-if="row.group_name" class="text-sm text-gray-700 dark:text-gray-300">{{ row.group_name }}</span>
+            <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+          </template>
+
+          <template #cell-source="{ row }">
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              {{ t(`admin.subscriptions.grant.sources.${row.source}`) }}
+            </span>
+          </template>
+
+          <template #cell-status="{ value }">
+            <span :class="['badge', grantStatusBadgeClass(value)]">
+              {{ t(`admin.subscriptions.grant.status.${value}`) }}
+            </span>
+          </template>
+
+          <template #cell-duration_days="{ row }">
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              {{ t('admin.subscriptions.grant.durationDays', { days: row.duration_days }) }}
+            </span>
+          </template>
+
+          <template #cell-effective_policy="{ value }">
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              {{ value === 'end_of_term'
+                ? t('admin.subscriptions.grant.policyEndOfTerm')
+                : t('admin.subscriptions.grant.policyImmediate') }}
+            </span>
+          </template>
+
+          <template #cell-operator_email="{ row }">
+            <span v-if="row.operator_email" class="text-sm text-gray-700 dark:text-gray-300">{{ row.operator_email }}</span>
+            <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+          </template>
+
+          <template #cell-reason="{ row }">
+            <span
+              v-if="row.reason"
+              class="block max-w-[220px] truncate text-sm text-gray-700 dark:text-gray-300"
+              :title="row.reason"
+            >
+              {{ row.reason }}
+            </span>
+            <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+          </template>
+
+          <template #cell-actions="{ row }">
+            <button
+              v-if="row.status === 'fulfilled' || row.status === 'pending'"
+              type="button"
+              class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+              :data-test="`grant-revoke-${row.id}`"
+              @click="openGrantRevoke(row)"
+            >
+              <Icon name="ban" size="sm" />
+              <span class="text-xs">{{ t('admin.subscriptions.grant.revoke') }}</span>
+            </button>
+            <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+          </template>
+
+          <template #empty>
+            <EmptyState
+              :title="t('admin.subscriptions.grant.noRecords')"
+              :description="t('admin.subscriptions.grant.noRecordsHint')"
             />
           </template>
         </DataTable>
@@ -472,12 +635,20 @@
       <!-- Pagination -->
       <template #pagination>
       <Pagination
-        v-if="pagination.total > 0"
+        v-if="activeTab === 'subscriptions' && pagination.total > 0"
         :page="pagination.page"
         :total="pagination.total"
         :page-size="pagination.page_size"
         @update:page="handlePageChange"
         @update:pageSize="handlePageSizeChange"
+      />
+      <Pagination
+        v-else-if="grantPagination.total > 0"
+        :page="grantPagination.page"
+        :total="grantPagination.total"
+        :page-size="grantPagination.page_size"
+        @update:page="handleGrantPageChange"
+        @update:pageSize="handleGrantPageSizeChange"
       />
       </template>
     </TablePageLayout>
@@ -491,10 +662,10 @@
       @completed="handleBulkCompleted"
     />
 
-    <!-- Assign Subscription Modal -->
+    <!-- Assign / Grant Subscription Modal -->
     <BaseDialog
       :show="showAssignModal"
-      :title="t('admin.subscriptions.assignSubscription')"
+      :title="t('admin.subscriptions.grant.dialogTitle')"
       width="normal"
       :show-close-button="!submitting"
       :close-on-escape="!submitting"
@@ -611,28 +782,176 @@
           <p class="input-hint">{{ t('admin.subscriptions.groupHint') }}</p>
         </div>
         <div>
+          <label class="input-label">{{ t('admin.subscriptions.grant.source') }}</label>
+          <Select
+            v-model="grantForm.source"
+            :disabled="submitting"
+            :options="grantSourceSelectOptions"
+          />
+          <p class="input-hint">{{ t('admin.subscriptions.grant.sourceHint') }}</p>
+        </div>
+        <div>
           <label class="input-label">{{ t('admin.subscriptions.form.validityDays') }}</label>
           <input v-model.number="assignForm.validity_days" type="number" min="1" max="36500" step="1" :disabled="submitting" class="input" />
           <p class="input-hint">{{ t('admin.subscriptions.validityHint') }}</p>
         </div>
-        <div v-if="batchAssignResult" class="space-y-2 text-sm" role="status" data-test="batch-assign-result">
-          <p>{{ t('admin.subscriptions.batchAssign.result', { success: batchAssignResult.success_count, failed: batchAssignResult.failed_count }) }}</p>
-          <ul v-if="batchAssignResult.errors.length" class="max-h-40 space-y-1 overflow-y-auto text-red-600 dark:text-red-400">
-            <li v-for="(error, index) in batchAssignResult.errors" :key="index">{{ error }}</li>
+        <div>
+          <label class="input-label">{{ t('admin.subscriptions.grant.effectivePolicy') }}</label>
+          <div class="flex flex-wrap gap-4">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="grantForm.effective_policy"
+                type="radio"
+                value="immediate"
+                :disabled="submitting"
+                data-test="grant-policy-immediate"
+              />
+              {{ t('admin.subscriptions.grant.policyImmediateOption') }}
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="grantForm.effective_policy"
+                type="radio"
+                value="end_of_term"
+                :disabled="submitting"
+                data-test="grant-policy-end-of-term"
+              />
+              {{ t('admin.subscriptions.grant.policyEndOfTermOption') }}
+            </label>
+          </div>
+          <p class="input-hint">{{ t('admin.subscriptions.grant.effectivePolicyHint') }}</p>
+        </div>
+        <!-- Grant preview (single user only; bulk outcomes are decided per user server-side) -->
+        <div
+          v-if="!batchAssignEnabled"
+          class="rounded-lg border p-4 text-sm"
+          data-test="grant-preview"
+          :class="grantPreviewConflict
+            ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+            : 'border-gray-200 bg-gray-50 dark:border-dark-600 dark:bg-dark-700'"
+        >
+          <p class="font-medium text-gray-900 dark:text-white">{{ t('admin.subscriptions.grant.previewTitle') }}</p>
+          <p v-if="grantPreviewLoading" class="mt-1 text-xs text-gray-500 dark:text-gray-400" role="status">
+            {{ t('common.loading') }}
+          </p>
+          <template v-else-if="grantPreview">
+            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
+              {{ t('admin.subscriptions.grant.previewCurrent') }}:
+              <span class="font-medium">{{ grantPreview.current_plan_name || '-' }}</span>
+              · {{ t('admin.subscriptions.grant.previewExpires') }}:
+              <span class="font-medium">
+                {{ grantPreview.current_expires ? formatDateTimeToMinute(grantPreview.current_expires) : t('admin.subscriptions.noExpiration') }}
+              </span>
+            </p>
+            <p
+              v-if="grantPreview.outcome === 'will_activate_new' && grantPreview.predicted_expires"
+              class="mt-1 text-xs"
+              data-test="grant-preview-outcome"
+            >
+              {{ t('admin.subscriptions.grant.previewWillActivate') }}
+              <span class="font-medium">{{ formatDateTimeToMinute(grantPreview.predicted_expires) }}</span>
+            </p>
+            <template v-else-if="grantPreview.outcome === 'will_extend'">
+              <p v-if="grantPreview.extension_base" class="mt-1 text-xs">
+                {{ t('admin.subscriptions.grant.previewExtensionBase') }}:
+                <span class="font-medium">{{ formatDateTimeToMinute(grantPreview.extension_base) }}</span>
+              </p>
+              <p v-if="grantPreview.predicted_expires" class="mt-1 text-xs">
+                {{ t('admin.subscriptions.grant.previewPredicted') }}:
+                <span class="font-medium">{{ formatDateTimeToMinute(grantPreview.predicted_expires) }}</span>
+              </p>
+            </template>
+            <p v-else-if="grantPreview.outcome === 'will_be_pending'" class="mt-1 text-xs" data-test="grant-preview-outcome">
+              {{ t('admin.subscriptions.grant.previewWillBePending') }}
+            </p>
+            <p
+              v-else-if="grantPreview.outcome === 'conflict'"
+              class="mt-1 text-xs font-medium text-red-600 dark:text-red-400"
+              data-test="grant-preview-outcome"
+            >
+              {{ t('admin.subscriptions.grant.previewConflict') }}
+            </p>
+            <p v-if="grantPreview.message" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ grantPreview.message }}
+            </p>
+          </template>
+          <p v-else-if="grantPreviewError" class="mt-1 text-xs text-amber-600 dark:text-amber-400" role="alert">
+            {{ t('admin.subscriptions.grant.previewFailed') }}
+          </p>
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.subscriptions.grant.reason') }}</label>
+          <input
+            v-model="grantForm.reason"
+            type="text"
+            maxlength="500"
+            :disabled="submitting"
+            class="input"
+            :placeholder="t('admin.subscriptions.grant.reasonPlaceholder')"
+          />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.subscriptions.grant.notes') }}</label>
+          <textarea
+            v-model="grantForm.notes"
+            rows="2"
+            maxlength="500"
+            :disabled="submitting"
+            class="input"
+            :placeholder="t('admin.subscriptions.grant.notesPlaceholder')"
+          ></textarea>
+        </div>
+        <!-- Single-user grant result -->
+        <div
+          v-if="grantSingleResult"
+          class="space-y-1 rounded-lg border border-green-200 bg-green-50 p-4 text-sm dark:border-green-800 dark:bg-green-900/20"
+          role="status"
+          data-test="grant-result"
+        >
+          <p class="font-medium text-green-700 dark:text-green-300">{{ grantOutcomeText }}</p>
+          <p v-if="grantSingleResult.outcome.message" class="text-xs text-gray-600 dark:text-gray-300">
+            {{ grantSingleResult.outcome.message }}
+          </p>
+          <p v-if="grantSingleResult.outcome.previous_expires" class="text-xs text-gray-600 dark:text-gray-300">
+            {{ t('admin.subscriptions.grant.previewExpires') }}:
+            {{ formatDateTimeToMinute(grantSingleResult.outcome.previous_expires) }}
+            →
+            {{ grantSingleResult.outcome.expires_at ? formatDateTimeToMinute(grantSingleResult.outcome.expires_at) : t('admin.subscriptions.noExpiration') }}
+          </p>
+        </div>
+        <div v-if="grantBulkResult" class="space-y-2 text-sm" role="status" data-test="batch-assign-result">
+          <p>{{ t('admin.subscriptions.grant.bulkResult', { success: grantBulkResult.success_count, failed: grantBulkResult.failed_count }) }}</p>
+          <ul class="max-h-40 space-y-1 overflow-y-auto">
+            <li
+              v-for="item in grantBulkResult.items"
+              :key="item.user_id"
+              class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1 dark:bg-dark-700"
+              :data-test="`grant-bulk-item-${item.user_id}`"
+            >
+              <span class="truncate">#{{ item.user_id }}</span>
+              <span v-if="item.success" class="whitespace-nowrap text-xs text-green-600 dark:text-green-400">
+                {{ grantBulkActionText(item) }}
+                <template v-if="item.expires_at"> · {{ formatDateTimeToMinute(item.expires_at) }}</template>
+              </span>
+              <span v-else class="whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400" data-test="grant-bulk-item-error">
+                {{ item.error || t('admin.subscriptions.grant.itemFailed') }}
+              </span>
+            </li>
           </ul>
-          <p v-if="batchAssignResult.failed_count > 0" class="input-hint">{{ t('admin.subscriptions.batchAssign.retryHint') }}</p>
+          <p v-if="grantBulkResult.failed_count > 0" class="input-hint">{{ t('admin.subscriptions.batchAssign.retryHint') }}</p>
         </div>
       </form>
       <template #footer>
         <div class="flex justify-end gap-3">
           <button @click="closeAssignModal" type="button" :disabled="submitting" class="btn btn-secondary">
-            {{ batchAssignResult ? t('common.close') : t('common.cancel') }}
+            {{ grantBulkResult || grantSingleResult ? t('common.close') : t('common.cancel') }}
           </button>
           <button
             type="submit"
             form="assign-subscription-form"
-            :disabled="submitting || (batchAssignEnabled && assignUsers.length === 0)"
+            :disabled="submitting || (batchAssignEnabled && assignUsers.length === 0) || grantPreviewConflict"
             class="btn btn-primary"
+            data-test="grant-submit"
           >
             <svg
               v-if="submitting"
@@ -654,7 +973,7 @@
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
             </svg>
-            {{ submitting ? t('admin.subscriptions.assigning') : t('admin.subscriptions.assign') }}
+            {{ submitting ? t('admin.subscriptions.grant.submitting') : t('admin.subscriptions.grant.submit') }}
           </button>
         </div>
       </template>
@@ -761,6 +1080,34 @@
       @confirm="confirmResetQuota"
       @cancel="showResetQuotaConfirm = false"
     />
+
+    <!-- Grant Revoke Confirmation Dialog (reason required) -->
+    <ConfirmDialog
+      :show="showGrantRevokeDialog"
+      :title="t('admin.subscriptions.grant.revokeTitle')"
+      :message="t('admin.subscriptions.grant.revokeConfirm', { user: revokingGrant?.user_email || revokingGrant?.user_id })"
+      :confirm-text="t('admin.subscriptions.grant.revokeConfirmOk')"
+      :cancel-text="t('common.cancel')"
+      :danger="true"
+      @confirm="confirmGrantRevoke"
+      @cancel="closeGrantRevokeDialog"
+    >
+      <div>
+        <label class="input-label">{{ t('admin.subscriptions.grant.revokeReasonLabel') }}</label>
+        <textarea
+          v-model="grantRevokeReason"
+          rows="3"
+          maxlength="500"
+          class="input"
+          :placeholder="t('admin.subscriptions.grant.revokeReasonPlaceholder')"
+          data-test="grant-revoke-reason"
+        ></textarea>
+        <p v-if="grantRevokeError" class="mt-1 text-xs font-medium text-red-600 dark:text-red-400" role="alert">
+          {{ grantRevokeError }}
+        </p>
+      </div>
+    </ConfirmDialog>
+
     <!-- Subscription Guide Modal -->
     <teleport to="body">
       <transition name="modal">
@@ -844,14 +1191,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
 import type { SimpleUser } from '@/api/admin/usage'
-import type { SubscriptionBulkAction, SubscriptionBulkActionResult, BulkAssignSubscriptionResult } from '@/api/admin/subscriptions'
+import type { SubscriptionBulkAction, SubscriptionBulkActionResult } from '@/api/admin/subscriptions'
+import {
+  GRANT_SOURCES,
+  newIdempotencyKey,
+  type GrantEffectivePolicy,
+  type GrantSource,
+  type SubscriptionGrantBulkItem,
+  type SubscriptionGrantBulkResult,
+  type SubscriptionGrantCreateResult,
+  type SubscriptionGrantPreview,
+  type SubscriptionGrantRecord
+} from '@/api/admin/subscriptionGrants'
 import { useTableSelection } from '@/composables/useTableSelection'
 import BulkSubscriptionActionDialog from '@/components/admin/subscription/BulkSubscriptionActionDialog.vue'
 import type { Column } from '@/components/common/types'
@@ -879,6 +1238,7 @@ import { GROUP_PLATFORM_OPTIONS } from '@/constants/platforms'
 const { t } = useI18n()
 const appStore = useAppStore()
 const currencyStore = useCurrencyDisplayStore()
+const route = useRoute()
 
 interface GroupOption {
   value: number
@@ -1064,8 +1424,137 @@ const showUserDropdown = ref(false)
 const selectedUser = ref<AdminUser | null>(null)
 const batchAssignEnabled = ref(false)
 const assignUsers = ref<AdminUser[]>([])
-const batchAssignResult = ref<BulkAssignSubscriptionResult | null>(null)
 let userSearchTimeout: ReturnType<typeof setTimeout> | null = null
+
+// ── Subscription grant (赠送订阅) state ──────────────────────────────────────
+const grantForm = reactive({
+  effective_policy: 'immediate' as GrantEffectivePolicy,
+  source: 'admin_grant' as GrantSource,
+  reason: '',
+  notes: ''
+})
+
+// One idempotency key per dialog session: generated when the dialog opens and
+// reused for retries of the same logical grant so the backend deduplicates.
+const grantIdempotencyKey = ref(newIdempotencyKey())
+
+const grantPreview = ref<SubscriptionGrantPreview | null>(null)
+const grantPreviewLoading = ref(false)
+const grantPreviewError = ref(false)
+let grantPreviewTimeout: ReturnType<typeof setTimeout> | null = null
+let grantPreviewSeq = 0
+
+const grantSingleResult = ref<SubscriptionGrantCreateResult | null>(null)
+const grantBulkResult = ref<SubscriptionGrantBulkResult | null>(null)
+
+const grantPreviewConflict = computed(() => grantPreview.value?.outcome === 'conflict')
+
+const grantOutcomeText = computed(() => {
+  const outcome = grantSingleResult.value?.outcome
+  if (!outcome) return ''
+  switch (outcome.action) {
+    case 'activated_new':
+      return t('admin.subscriptions.grant.actions.activated_new')
+    case 'extended':
+      return outcome.expires_at
+        ? t('admin.subscriptions.grant.actions.extended', { time: formatDateTimeToMinute(outcome.expires_at) })
+        : t('admin.subscriptions.grant.actions.extendedNoTime')
+    case 'pending':
+      return t('admin.subscriptions.grant.actions.pending')
+    case 'already_granted':
+      return t('admin.subscriptions.grant.actions.already_granted')
+    default:
+      return t('admin.subscriptions.grant.actions.activated_new')
+  }
+})
+
+const grantBulkActionText = (item: SubscriptionGrantBulkItem): string => {
+  switch (item.action) {
+    case 'extended':
+      return item.expires_at
+        ? t('admin.subscriptions.grant.actions.extended', { time: formatDateTimeToMinute(item.expires_at) })
+        : t('admin.subscriptions.grant.actions.extendedNoTime')
+    case 'pending':
+      return t('admin.subscriptions.grant.actions.pending')
+    case 'already_granted':
+      return t('admin.subscriptions.grant.actions.already_granted')
+    case 'activated_new':
+    default:
+      return t('admin.subscriptions.grant.actions.activated_new')
+  }
+}
+
+const grantSourceSelectOptions = computed(() =>
+  GRANT_SOURCES.map((source) => ({
+    value: source,
+    label: t(`admin.subscriptions.grant.sources.${source}`)
+  }))
+)
+
+const grantSourceOptions = computed(() => [
+  { value: '', label: t('admin.subscriptions.grant.allSources') },
+  ...GRANT_SOURCES.map((source) => ({
+    value: source,
+    label: t(`admin.subscriptions.grant.sources.${source}`)
+  }))
+])
+
+const grantStatusOptions = computed(() => [
+  { value: '', label: t('admin.subscriptions.allStatus') },
+  { value: 'pending', label: t('admin.subscriptions.grant.status.pending') },
+  { value: 'fulfilled', label: t('admin.subscriptions.grant.status.fulfilled') },
+  { value: 'expired', label: t('admin.subscriptions.grant.status.expired') },
+  { value: 'revoked', label: t('admin.subscriptions.grant.status.revoked') },
+  { value: 'failed', label: t('admin.subscriptions.grant.status.failed') }
+])
+
+const grantStatusBadgeClass = (status: string): string => {
+  if (status === 'fulfilled') return 'badge-success'
+  if (status === 'pending') return 'badge-warning'
+  if (status === 'revoked' || status === 'failed') return 'badge-danger'
+  return 'badge-gray'
+}
+
+// ── Grant records tab state ─────────────────────────────────────────────────
+type GrantTab = 'subscriptions' | 'grants'
+const activeTab = ref<GrantTab>('subscriptions')
+
+const grants = ref<SubscriptionGrantRecord[]>([])
+const grantsLoading = ref(false)
+const grantsLoadedOnce = ref(false)
+let grantsAbortController: AbortController | null = null
+
+const grantFilters = reactive({
+  user_id: '' as number | '',
+  source: '',
+  status: ''
+})
+
+const grantPagination = reactive({
+  page: 1,
+  page_size: getPersistedPageSize(),
+  total: 0
+})
+
+const grantColumns = computed<Column[]>(() => [
+  { key: 'created_at', label: t('admin.subscriptions.grant.columns.time'), sortable: false },
+  { key: 'user', label: t('admin.subscriptions.grant.columns.user'), sortable: false },
+  { key: 'group_name', label: t('admin.subscriptions.grant.columns.group'), sortable: false },
+  { key: 'source', label: t('admin.subscriptions.grant.columns.source'), sortable: false },
+  { key: 'status', label: t('admin.subscriptions.grant.columns.status'), sortable: false },
+  { key: 'duration_days', label: t('admin.subscriptions.grant.columns.duration'), sortable: false },
+  { key: 'effective_policy', label: t('admin.subscriptions.grant.columns.policy'), sortable: false },
+  { key: 'operator_email', label: t('admin.subscriptions.grant.columns.operator'), sortable: false },
+  { key: 'reason', label: t('admin.subscriptions.grant.columns.reason'), sortable: false },
+  { key: 'actions', label: t('admin.subscriptions.columns.actions'), sortable: false }
+])
+
+// Revoke dialog state
+const showGrantRevokeDialog = ref(false)
+const revokingGrant = ref<SubscriptionGrantRecord | null>(null)
+const grantRevokeReason = ref('')
+const grantRevokeError = ref('')
+const grantRevoking = ref(false)
 
 const filters = reactive({
   status: 'active',
@@ -1193,6 +1682,185 @@ const loadGroups = async () => {
   }
 }
 
+// ── Subscription grant: preview / records / revoke ──────────────────────────
+const switchTab = (tab: GrantTab) => {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  if (tab === 'grants' && !grantsLoadedOnce.value) {
+    loadGrants()
+  }
+}
+
+const loadGrants = async () => {
+  if (grantsAbortController) {
+    grantsAbortController.abort()
+  }
+  const requestController = new AbortController()
+  grantsAbortController = requestController
+  const { signal } = requestController
+
+  grantsLoading.value = true
+  try {
+    const response = await adminAPI.subscriptionGrants.list(
+      {
+        page: grantPagination.page,
+        page_size: grantPagination.page_size,
+        user_id: typeof grantFilters.user_id === 'number' && Number.isInteger(grantFilters.user_id) && grantFilters.user_id > 0
+          ? grantFilters.user_id
+          : undefined,
+        source: grantFilters.source || undefined,
+        status: grantFilters.status || undefined
+      },
+      { signal }
+    )
+    if (signal.aborted || grantsAbortController !== requestController) return
+    grants.value = response.items
+    grantPagination.total = response.total
+    grantsLoadedOnce.value = true
+  } catch (error: any) {
+    if (signal.aborted || error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
+      return
+    }
+    appStore.showError(t('admin.subscriptions.grant.failedToLoadRecords'))
+    console.error('Error loading subscription grants:', error)
+  } finally {
+    if (grantsAbortController === requestController) {
+      grantsLoading.value = false
+      grantsAbortController = null
+    }
+  }
+}
+
+const applyGrantFilters = () => {
+  grantPagination.page = 1
+  loadGrants()
+}
+
+const handleGrantPageChange = (page: number) => {
+  grantPagination.page = page
+  loadGrants()
+}
+
+const handleGrantPageSizeChange = (pageSize: number) => {
+  grantPagination.page_size = pageSize
+  grantPagination.page = 1
+  loadGrants()
+}
+
+const runGrantPreview = async () => {
+  if (batchAssignEnabled.value || !showAssignModal.value) return
+  const userId = assignForm.user_id
+  const groupId = assignForm.group_id
+  const days = assignForm.validity_days
+  if (!userId || !groupId || !Number.isInteger(days) || days < 1 || days > 36500) {
+    grantPreview.value = null
+    grantPreviewError.value = false
+    return
+  }
+  const seq = ++grantPreviewSeq
+  grantPreviewLoading.value = true
+  grantPreviewError.value = false
+  try {
+    const result = await adminAPI.subscriptionGrants.preview({
+      user_id: userId,
+      group_id: groupId,
+      duration_days: days,
+      effective_policy: grantForm.effective_policy,
+      source: grantForm.source
+    })
+    if (seq !== grantPreviewSeq) return
+    grantPreview.value = result
+  } catch (error) {
+    if (seq !== grantPreviewSeq) return
+    grantPreview.value = null
+    grantPreviewError.value = true
+    console.error('Failed to preview subscription grant:', error)
+  } finally {
+    if (seq === grantPreviewSeq) {
+      grantPreviewLoading.value = false
+    }
+  }
+}
+
+const scheduleGrantPreview = () => {
+  if (grantPreviewTimeout) {
+    clearTimeout(grantPreviewTimeout)
+  }
+  grantPreviewTimeout = setTimeout(runGrantPreview, 300)
+}
+
+// Re-preview whenever any grant input changes while the dialog is open.
+watch(
+  [
+    () => showAssignModal.value,
+    () => assignForm.user_id,
+    () => assignForm.group_id,
+    () => assignForm.validity_days,
+    () => grantForm.effective_policy,
+    () => grantForm.source
+  ],
+  (values, oldValues) => {
+    if (!showAssignModal.value) return
+    // First trigger when the dialog opens: only if a user is already prefilled.
+    if (oldValues && !oldValues[0] && values[0]) {
+      if (!assignForm.user_id) return
+    }
+    scheduleGrantPreview()
+  }
+)
+
+// Fresh idempotency key per dialog session (reused across in-dialog retries).
+watch(showAssignModal, (open) => {
+  if (open) {
+    grantIdempotencyKey.value = newIdempotencyKey()
+  }
+})
+
+const openGrantRevoke = (grant: SubscriptionGrantRecord) => {
+  revokingGrant.value = grant
+  grantRevokeReason.value = ''
+  grantRevokeError.value = ''
+  showGrantRevokeDialog.value = true
+}
+
+const closeGrantRevokeDialog = () => {
+  if (grantRevoking.value) return
+  showGrantRevokeDialog.value = false
+  revokingGrant.value = null
+  grantRevokeError.value = ''
+}
+
+const confirmGrantRevoke = async () => {
+  if (!revokingGrant.value || grantRevoking.value) return
+  const reason = grantRevokeReason.value.trim()
+  if (!reason) {
+    grantRevokeError.value = t('admin.subscriptions.grant.revokeReasonRequired')
+    return
+  }
+  if (reason.length > 500) {
+    grantRevokeError.value = t('admin.subscriptions.grant.revokeReasonMax')
+    return
+  }
+  grantRevoking.value = true
+  try {
+    await adminAPI.subscriptionGrants.revoke(
+      revokingGrant.value.id,
+      { reason },
+      newIdempotencyKey()
+    )
+    appStore.showSuccess(t('admin.subscriptions.grant.revokeSuccess'))
+    showGrantRevokeDialog.value = false
+    revokingGrant.value = null
+    grantRevokeError.value = ''
+    await loadGrants()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.grant.revokeFailed'))
+    console.error('Error revoking subscription grant:', error)
+  } finally {
+    grantRevoking.value = false
+  }
+}
+
 // Toolbar user filter search with debounce
 const debounceSearchFilterUsers = () => {
   if (filterUserSearchTimeout) {
@@ -1306,7 +1974,8 @@ const clearUserSelection = () => {
 const resetAssignUsers = () => {
   clearUserSelection()
   assignUsers.value = []
-  batchAssignResult.value = null
+  grantBulkResult.value = null
+  grantSingleResult.value = null
 }
 
 const handlePageChange = (page: number) => {
@@ -1335,7 +2004,20 @@ const closeAssignModal = () => {
   showAssignModal.value = false
   batchAssignEnabled.value = false
   assignUsers.value = []
-  batchAssignResult.value = null
+  grantBulkResult.value = null
+  grantSingleResult.value = null
+  grantPreview.value = null
+  grantPreviewError.value = false
+  grantPreviewLoading.value = false
+  grantForm.effective_policy = 'immediate'
+  grantForm.source = 'admin_grant'
+  grantForm.reason = ''
+  grantForm.notes = ''
+  if (grantPreviewTimeout) {
+    clearTimeout(grantPreviewTimeout)
+    grantPreviewTimeout = null
+  }
+  grantPreviewSeq++
   assignForm.user_id = null
   assignForm.group_id = null
   assignForm.validity_days = 30
@@ -1360,36 +2042,69 @@ const handleAssignSubscription = async () => {
     appStore.showError(t('admin.subscriptions.validityDaysRequired'))
     return
   }
+  // Cross-group conflicts (preview outcome "conflict") block submission until
+  // the inputs (e.g. effective_policy -> end_of_term) resolve the conflict.
+  if (!batchAssignEnabled.value && grantPreviewConflict.value) {
+    appStore.showError(t('admin.subscriptions.grant.conflictBlocked'))
+    return
+  }
+
+  const reason = grantForm.reason.trim() || undefined
+  const notes = grantForm.notes.trim() || undefined
 
   submitting.value = true
   try {
     if (batchAssignEnabled.value) {
-      batchAssignResult.value = await adminAPI.subscriptions.bulkAssign({
-        user_ids: assignUsers.value.map((user) => user.id),
-        group_id: assignForm.group_id,
-        validity_days: assignForm.validity_days
-      })
-      const result = batchAssignResult.value
-      const successIds = new Set(result.subscriptions.map((subscription) => subscription.user_id))
+      const result = await adminAPI.subscriptionGrants.bulk(
+        {
+          user_ids: assignUsers.value.map((user) => user.id),
+          group_id: assignForm.group_id,
+          duration_days: assignForm.validity_days,
+          effective_policy: grantForm.effective_policy,
+          source: grantForm.source,
+          reason,
+          notes
+        },
+        grantIdempotencyKey.value
+      )
+      grantBulkResult.value = result
+      const successIds = new Set(
+        result.items.filter((item) => item.success).map((item) => item.user_id)
+      )
       assignUsers.value = assignUsers.value.filter((user) => !successIds.has(user.id))
       if (result.success_count > 0) {
-        appStore.showSuccess(t('admin.subscriptions.batchAssign.result', { success: result.success_count, failed: result.failed_count }))
+        appStore.showSuccess(t('admin.subscriptions.grant.bulkResult', { success: result.success_count, failed: result.failed_count }))
         await loadSubscriptions()
       }
       return
     }
-    await adminAPI.subscriptions.assign({
-      user_id: assignForm.user_id!,
-      group_id: assignForm.group_id,
-      validity_days: assignForm.validity_days
-    })
-    appStore.showSuccess(t('admin.subscriptions.subscriptionAssigned'))
-    submitting.value = false
-    closeAssignModal()
+    const result = await adminAPI.subscriptionGrants.create(
+      {
+        user_id: assignForm.user_id!,
+        group_id: assignForm.group_id,
+        duration_days: assignForm.validity_days,
+        effective_policy: grantForm.effective_policy,
+        source: grantForm.source,
+        reason,
+        notes
+      },
+      grantIdempotencyKey.value
+    )
+    // Keep the dialog open so the outcome (activated / extended until X / pending)
+    // stays visible; the footer button turns into "Close".
+    grantSingleResult.value = result
+    appStore.showSuccess(t('admin.subscriptions.grant.grantSuccess'))
     loadSubscriptions()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToAssign'))
-    console.error('Error assigning subscription:', error)
+    const status = error?.response?.status
+    const errorReason = error?.response?.data?.reason
+    if (status === 409 || errorReason === 'GRANT_CONFLICT') {
+      appStore.showError(t('admin.subscriptions.grant.conflictRetryEndOfTerm'))
+      void runGrantPreview()
+    } else {
+      appStore.showError(error.response?.data?.detail || t('admin.subscriptions.grant.failedToGrant'))
+    }
+    console.error('Error granting subscription:', error)
   } finally {
     submitting.value = false
   }
@@ -1612,12 +2327,32 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
+// Open the grant dialog with a preselected user, e.g. when arriving from the
+// User360 drawer via /admin/subscriptions?grant_user_id=<id>.
+const prefillGrantUser = async (userId: number) => {
+  showAssignModal.value = true
+  assignForm.user_id = userId
+  try {
+    const user = await adminAPI.users.getById(userId)
+    selectedUser.value = user
+    userSearchKeyword.value = user.email
+  } catch (error) {
+    // User lookup failed; keep the raw id selected so the grant can proceed.
+    console.error('Failed to load user for grant prefill:', error)
+  }
+}
+
 onMounted(() => {
   loadUserColumnMode()
   loadSavedColumns()
   loadSubscriptions()
   loadGroups()
   document.addEventListener('click', handleClickOutside)
+  const grantUserIdRaw = route?.query?.grant_user_id
+  const grantUserId = Number(grantUserIdRaw)
+  if (Number.isInteger(grantUserId) && grantUserId > 0) {
+    void prefillGrantUser(grantUserId)
+  }
 })
 
 onUnmounted(() => {
@@ -1627,6 +2362,9 @@ onUnmounted(() => {
   }
   if (userSearchTimeout) {
     clearTimeout(userSearchTimeout)
+  }
+  if (grantPreviewTimeout) {
+    clearTimeout(grantPreviewTimeout)
   }
 })
 </script>

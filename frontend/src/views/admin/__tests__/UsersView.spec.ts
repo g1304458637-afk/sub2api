@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 
 import type { AdminUser } from '@/types'
 import UsersView from '../UsersView.vue'
@@ -180,6 +181,7 @@ const getToggleStatusButton = (wrapper: ReturnType<typeof mountBulkDeleteView>, 
 describe('admin UsersView', () => {
   beforeEach(() => {
     vi.useRealTimers()
+    setActivePinia(createPinia())
     localStorage.clear()
 
     listUsers.mockReset()

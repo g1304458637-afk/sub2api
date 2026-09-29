@@ -90,17 +90,17 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 		88,
 		0,
 		88,
-			&payment.InstanceSelection{
-				InstanceID:     strconv.FormatInt(instance.ID, 10),
-				ProviderKey:    payment.TypeAlipay,
-				SupportedTypes: "alipay,alipay_direct",
-				PaymentMode:    "redirect",
-				Config: map[string]string{
-					"secretKey": "do-not-copy",
-				},
+		&payment.InstanceSelection{
+			InstanceID:     strconv.FormatInt(instance.ID, 10),
+			ProviderKey:    payment.TypeAlipay,
+			SupportedTypes: "alipay,alipay_direct",
+			PaymentMode:    "redirect",
+			Config: map[string]string{
+				"secretKey": "do-not-copy",
 			},
-			0,
-		)
+		},
+		0,
+	)
 	require.NoError(t, err)
 	require.Equal(t, strconv.FormatInt(instance.ID, 10), valueOrEmpty(order.ProviderInstanceID))
 	require.Equal(t, payment.TypeAlipay, valueOrEmpty(order.ProviderKey))

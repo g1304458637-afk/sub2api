@@ -13,6 +13,16 @@
       <header class="muc-pricing__header">
         <h1 class="muc-pricing__title">{{ t('pricing.title') }}</h1>
         <p class="muc-pricing__subtitle">{{ t('pricing.subtitle') }}</p>
+        <!-- 模型与价格入口:套餐 → 模型标准价 → 使用记录 的用户闭环(仅模型广场开关开启时显示) -->
+        <RouterLink
+          v-if="modelPlazaEnabled"
+          to="/model-pricing"
+          class="muc-pricing__models-link"
+          data-testid="pricing-view-models-link"
+        >
+          {{ t('pricing.viewModelsPricing') }}
+          <span aria-hidden="true">→</span>
+        </RouterLink>
       </header>
 
       <!-- 账户状态条：钱包 + 生效中订阅（服务端合同：整数百分比 + usage_status） -->
@@ -311,6 +321,9 @@ const router = useRouter()
 const route = useRoute()
 const { t, tm } = useI18n()
 const appStore = useAppStore()
+
+// 「查看模型价格」入口:与管理员 Model Plaza 开关同口径(fail-closed,未知视为开启由页面 404 兜底)
+const modelPlazaEnabled = computed(() => appStore.cachedPublicSettings?.model_plaza_enabled !== false)
 const currencyStore = useCurrencyDisplayStore()
 const paymentStore = usePaymentStore()
 
@@ -1008,6 +1021,23 @@ function statusChipClass(status: UsageStatus): string {
   margin-top: 10px;
   font-size: clamp(13px, 1.4vw, 15px);
   color: var(--muc-text-secondary);
+}
+
+/* 「查看模型价格」入口链接:克制的主色文字链,不做重按钮 */
+.muc-pricing__models-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muc-primary, #c9a86a);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.muc-pricing__models-link:hover {
+  opacity: 0.8;
 }
 
 /* ── 账户状态条 ── */

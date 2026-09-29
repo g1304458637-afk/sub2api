@@ -30,10 +30,11 @@ const createMockRouter = (): Router => {
     { path: '/admin/groups', components: { default: mockImportFn } },
     { path: '/admin/subscriptions', components: { default: mockImportFn } },
     { path: '/admin/redeem', components: { default: mockImportFn } },
-    { path: '/dashboard', components: { default: mockImportFn } },
+    { path: '/chat', components: { default: mockImportFn } },
+    { path: '/spend', components: { default: mockImportFn } },
     { path: '/keys', components: { default: mockImportFn } },
-    { path: '/usage', components: { default: mockImportFn } },
-    { path: '/redeem', components: { default: mockImportFn } },
+    { path: '/wallet', components: { default: mockImportFn } },
+    { path: '/orders', components: { default: mockImportFn } },
     { path: '/profile', components: { default: mockImportFn } }
   ]
 
@@ -94,9 +95,9 @@ describe('useRoutePrefetch', () => {
       expect(config).toHaveLength(2)
     })
 
-    it('普通用户 dashboard 应该返回正确的预加载配置', () => {
+    it('普通用户 chat 主入口应该返回正确的预加载配置', () => {
       const { _getPrefetchConfig } = useRoutePrefetch(mockRouter)
-      const route = createMockRoute('/dashboard')
+      const route = createMockRoute('/chat')
       const config = _getPrefetchConfig(route)
 
       expect(config).toHaveLength(2)
@@ -193,9 +194,14 @@ describe('useRoutePrefetch', () => {
       expect(_adminPrefetchMap['/admin/dashboard']).toHaveLength(2)
     })
 
-    it('用户预加载映射表应该包含正确的路由', () => {
-      expect(_userPrefetchMap).toHaveProperty('/dashboard')
-      expect(_userPrefetchMap['/dashboard']).toHaveLength(2)
+    it('用户预加载映射表应该包含收敛后的路由', () => {
+      expect(_userPrefetchMap).toHaveProperty('/chat')
+      expect(_userPrefetchMap['/chat']).toHaveLength(2)
+      expect(_userPrefetchMap).toHaveProperty('/spend')
+      // 旧入口不再保留预加载边
+      expect(_userPrefetchMap).not.toHaveProperty('/dashboard')
+      expect(_userPrefetchMap).not.toHaveProperty('/usage')
+      expect(_userPrefetchMap).not.toHaveProperty('/redeem')
     })
   })
 
@@ -208,14 +214,14 @@ describe('useRoutePrefetch', () => {
       })
 
       const { triggerPrefetch, prefetchedRoutes } = useRoutePrefetch(mockRouter)
-      const route = createMockRoute('/dashboard')
+      const route = createMockRoute('/chat')
 
       triggerPrefetch(route)
 
       // 等待超时执行
       await new Promise((resolve) => setTimeout(resolve, 2100))
 
-      expect(prefetchedRoutes.value.has('/dashboard')).toBe(true)
+      expect(prefetchedRoutes.value.has('/chat')).toBe(true)
     })
   })
 

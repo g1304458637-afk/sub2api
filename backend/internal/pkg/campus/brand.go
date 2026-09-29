@@ -62,6 +62,9 @@ var MUC = Brand{
 var HUBU = Brand{
 	SiteName: "湖北大学 AI 服务平台", Logo: "/campus-assets/hubu.svg", Favicon: "/campus-assets/hubu.svg", PrimaryColor: "#135440",
 	ManifestPath: "/downloads/latest-hubu-ai.json", DeploymentNamespace: "hubu",
+	// 学生邮箱域名为湖北大学官方学生邮箱域（学生认证唯一允许的邮箱域）；
+	// HUBU_EDUCATION_EMAIL_DOMAIN 环境变量可覆盖。
+	EducationDomain: "stu.hubu.edu.cn",
 
 	ID:             "hubu",
 	PathSegment:    "hubu",
