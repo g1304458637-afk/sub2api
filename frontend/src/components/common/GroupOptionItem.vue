@@ -26,7 +26,7 @@
     <div class="flex shrink-0 items-center gap-2 pt-0.5">
       <div class="flex shrink-0 flex-col items-end gap-1">
         <!-- Rate pill (platform color) -->
-        <span v-if="rateMultiplier !== undefined" :class="['inline-flex items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold', ratePillClass]">
+        <span v-if="showRate && rateMultiplier !== undefined" :class="['inline-flex items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold', ratePillClass]">
           <template v-if="hasCustomRate">
             <span class="mr-1 line-through opacity-50">{{ rateMultiplier }}x</span>
             <span class="font-bold">{{ userRateMultiplier }}x</span>
@@ -81,6 +81,8 @@ interface Props {
   description?: string | null
   selected?: boolean
   showCheckmark?: boolean
+  /** 是否显示右侧"Nx 倍率"胶囊；用户端密钥页传 false 隐藏 */
+  showRate?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -88,7 +90,8 @@ const props = withDefaults(defineProps<Props>(), {
   selected: false,
   showCheckmark: true,
   userRateMultiplier: null,
-  peakRateEnabled: false
+  peakRateEnabled: false,
+  showRate: true
 })
 
 // Whether user has a custom rate different from default
