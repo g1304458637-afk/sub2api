@@ -251,10 +251,10 @@ func (f *fakeClaimRepo) GetByBenefitAndUser(ctx context.Context, benefitCode str
 // UserSubscriptionRepository 的必要子集 + SubscriptionSingleActiveGuard。
 type fakeSubscriptionWorld struct {
 	UserSubscriptionRepository // 嵌入接口：未实现的方法测试不会触达（nil panic 即失败信号）
-	now  func() time.Time
-	mu   sync.Mutex
-	subs map[int64]map[int64]*UserSubscription // userID -> groupID -> sub
-	next int64
+	now                        func() time.Time
+	mu                         sync.Mutex
+	subs                       map[int64]map[int64]*UserSubscription // userID -> groupID -> sub
+	next                       int64
 	// invalidations 记录缓存失效调用（(userID, groupID)）
 	invalidations [][2]int64
 }
@@ -796,8 +796,7 @@ func TestGrantCreate_BenefitClaimDuplicateEmailAcrossAccounts(t *testing.T) {
 	// 账号 B 用同一邮箱领取 → 拒绝（identity_claimed_by_other_user），台账回滚
 	(*mock).ExpectBegin()
 	(*mock).ExpectRollback()
-	cmdB := cmdA
-	cmdB = grantCmd(2, 10, domain.SubscriptionGrantPolicyImmediate, "HUBU_STUDENT_WELCOME:e1@stu.hubu.edu.cn")
+	cmdB := grantCmd(2, 10, domain.SubscriptionGrantPolicyImmediate, "HUBU_STUDENT_WELCOME:e1@stu.hubu.edu.cn")
 	cmdB.Source = domain.SubscriptionGrantSourceStudentVerification
 	cmdB.BenefitCode = "HUBU_STUDENT_WELCOME"
 	cmdB.IdentityType = "hubu_email"

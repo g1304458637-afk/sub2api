@@ -104,16 +104,6 @@ func (h *SubscriptionGrantHandler) Preview(c *gin.Context) {
 	response.Success(c, preview)
 }
 
-// grantOutcomeResponse 单次发放结果
-type grantOutcomeResponse struct {
-	Action          string  `json:"action"`
-	GrantID         int64   `json:"grant_id"`
-	SubscriptionID  int64   `json:"subscription_id"`
-	PreviousExpires *string `json:"previous_expires,omitempty"`
-	ExpiresAt       *string `json:"expires_at,omitempty"`
-	Message         string  `json:"message,omitempty"`
-}
-
 // Create 单用户赠送
 // POST /api/v1/admin/subscription-grants
 func (h *SubscriptionGrantHandler) Create(c *gin.Context) {
@@ -316,18 +306,18 @@ const timeRFC3339 = "2006-01-02T15:04:05Z07:00"
 
 func grantExecutionResponse(execution *service.SubscriptionGrantExecution) gin.H {
 	outcome := execution.Outcome
-	resp := gin.H{
-		"grant":   execution.Grant,
-		"outcome": gin.H{"action": outcome.Action, "grant_id": outcome.GrantID, "message": outcome.Message},
-	}
+	outcomeMap := gin.H{"action": outcome.Action, "grant_id": outcome.GrantID, "message": outcome.Message}
 	if outcome.SubscriptionID > 0 {
-		resp["outcome"].(gin.H)["subscription_id"] = outcome.SubscriptionID
+		outcomeMap["subscription_id"] = outcome.SubscriptionID
 	}
 	if outcome.PreviousExpires != nil {
-		resp["outcome"].(gin.H)["previous_expires"] = outcome.PreviousExpires.UTC().Format(timeRFC3339)
+		outcomeMap["previous_expires"] = outcome.PreviousExpires.UTC().Format(timeRFC3339)
 	}
 	if outcome.ExpiresAt != nil {
-		resp["outcome"].(gin.H)["expires_at"] = outcome.ExpiresAt.UTC().Format(timeRFC3339)
+		outcomeMap["expires_at"] = outcome.ExpiresAt.UTC().Format(timeRFC3339)
 	}
-	return resp
+	return gin.H{
+		"grant":   execution.Grant,
+		"outcome": outcomeMap,
+	}
 }

@@ -37,21 +37,21 @@ const presentationMaxPrice = 100000.0
 
 // PresentationModelPricing 单个模型的手工展示价 override（可选字段为 nil 表示该项不展示）。
 type PresentationModelPricing struct {
-	ID                 int64
-	ModelName          string
-	BillingMode        BillingMode
-	Currency           string
-	InputPrice         *float64
-	OutputPrice        *float64
-	CacheWritePrice    *float64
-	CacheWrite1hPrice  *float64
-	CacheReadPrice     *float64
-	PerRequestPrice    *float64
-	Enabled            bool
-	Remark             string
-	UpdatedBy          *int64
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID                int64
+	ModelName         string
+	BillingMode       BillingMode
+	Currency          string
+	InputPrice        *float64
+	OutputPrice       *float64
+	CacheWritePrice   *float64
+	CacheWrite1hPrice *float64
+	CacheReadPrice    *float64
+	PerRequestPrice   *float64
+	Enabled           bool
+	Remark            string
+	UpdatedBy         *int64
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 // UpsertPresentationPricingInput 管理员保存展示价的入参。

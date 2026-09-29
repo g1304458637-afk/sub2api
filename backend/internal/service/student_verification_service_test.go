@@ -29,7 +29,6 @@ type fakeStudentEmailCache struct {
 	codes    map[string]*VerificationCodeData
 	cooldown map[string]time.Time
 	userRate map[int64]int
-	sendFail bool
 }
 
 func newFakeStudentEmailCache() *fakeStudentEmailCache {
@@ -91,12 +90,12 @@ func (f *fakeStudentEmailCache) ConsumeVerificationCode(ctx context.Context, key
 
 type fakeVerificationRepo struct {
 	StudentVerificationRepository // 嵌入接口
-	mu       sync.Mutex
-	nextID   int64
-	last     *StudentVerification
-	linked   map[int64]int64 // verificationID -> grantID
-	latest   *StudentVerification
-	linkErr  error
+	mu                            sync.Mutex
+	nextID                        int64
+	last                          *StudentVerification
+	linked                        map[int64]int64 // verificationID -> grantID
+	latest                        *StudentVerification
+	linkErr                       error
 }
 
 func newFakeVerificationRepo() *fakeVerificationRepo {
@@ -178,14 +177,28 @@ type fakeStudentSettingReader struct {
 	rewardCpg string
 }
 
-func (f *fakeStudentSettingReader) IsStudentVerificationEnabled(ctx context.Context) bool { return f.enabled }
-func (f *fakeStudentSettingReader) GetStudentBenefitGroupID(ctx context.Context) int64 { return f.groupID }
-func (f *fakeStudentSettingReader) GetStudentBenefitPlanID(ctx context.Context) int64 { return f.planID }
-func (f *fakeStudentSettingReader) GetStudentBenefitValidityDays(ctx context.Context) int { return f.days }
+func (f *fakeStudentSettingReader) IsStudentVerificationEnabled(ctx context.Context) bool {
+	return f.enabled
+}
+func (f *fakeStudentSettingReader) GetStudentBenefitGroupID(ctx context.Context) int64 {
+	return f.groupID
+}
+func (f *fakeStudentSettingReader) GetStudentBenefitPlanID(ctx context.Context) int64 {
+	return f.planID
+}
+func (f *fakeStudentSettingReader) GetStudentBenefitValidityDays(ctx context.Context) int {
+	return f.days
+}
 func (f *fakeStudentSettingReader) GetStudentBenefitCode(ctx context.Context) string { return f.code }
-func (f *fakeStudentSettingReader) IsStudentVerificationRewardEnabled(ctx context.Context) bool { return f.rewardOn }
-func (f *fakeStudentSettingReader) GetStudentVerificationRewardAmount(ctx context.Context) float64 { return f.rewardAmt }
-func (f *fakeStudentSettingReader) GetStudentVerificationRewardCampaign(ctx context.Context) string { return f.rewardCpg }
+func (f *fakeStudentSettingReader) IsStudentVerificationRewardEnabled(ctx context.Context) bool {
+	return f.rewardOn
+}
+func (f *fakeStudentSettingReader) GetStudentVerificationRewardAmount(ctx context.Context) float64 {
+	return f.rewardAmt
+}
+func (f *fakeStudentSettingReader) GetStudentVerificationRewardCampaign(ctx context.Context) string {
+	return f.rewardCpg
+}
 
 // stubRewardGrantService 余额奖励占位（默认 nil 跳过；这里不触达真服务）。
 
@@ -228,7 +241,7 @@ func TestStudentEmailNormalize_DomainRejected(t *testing.T) {
 
 	for _, bad := range []string{
 		"student@gmail.com",
-		"student@hubu.edu.cn",     // 教职工域，非学生域
+		"student@hubu.edu.cn", // 教职工域，非学生域
 		"student@stu.hubu.edu.cn.evil.com",
 		"student@stu.hubu.edu.cn.evil.cn",
 		"@stu.hubu.edu.cn",
