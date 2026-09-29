@@ -21,32 +21,32 @@ import (
 
 // SubscriptionGrant 台账记录（subscription_grants 表的一行）。
 type SubscriptionGrant struct {
-	ID                  int64
-	UserID              int64
-	GroupID             int64
-	PlanID              *int64
-	Source              string
-	SourceKey           *string
-	BenefitCode         *string
-	IdentityType        *string
-	IdentityKey         *string
-	IdempotencyKey      *string
-	Status              string
-	EffectivePolicy     string
-	DurationDays        int
-	Reason              *string
-	Notes               *string
-	OperatorUserID      *int64
+	ID                   int64
+	UserID               int64
+	GroupID              int64
+	PlanID               *int64
+	Source               string
+	SourceKey            *string
+	BenefitCode          *string
+	IdentityType         *string
+	IdentityKey          *string
+	IdempotencyKey       *string
+	Status               string
+	EffectivePolicy      string
+	DurationDays         int
+	Reason               *string
+	Notes                *string
+	OperatorUserID       *int64
 	LinkedSubscriptionID *int64
-	ContributionStart   *time.Time
-	ContributionEnd     *time.Time
-	ActivatedAt         *time.Time
-	RevokedAt           *time.Time
-	RevokedBy           *int64
-	RevokeReason        *string
-	FailureReason       *string
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ContributionStart    *time.Time
+	ContributionEnd      *time.Time
+	ActivatedAt          *time.Time
+	RevokedAt            *time.Time
+	RevokedBy            *int64
+	RevokeReason         *string
+	FailureReason        *string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 
 	// prevExpiresCache 激活前同组订阅的到期时刻（进程内推导 outcome 用，不落库；
 	// 同一事实在台账列 contribution_start 已有承载）。

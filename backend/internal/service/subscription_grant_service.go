@@ -197,17 +197,25 @@ func (s *SubscriptionGrantService) CreateGrantInTx(ctx context.Context, cmd *Cre
 		}
 	}
 
-	// ③ 激活：immediate 策略尝试当场生效；end_of_term 策略登记 pending，
-	//    由 worker 在「目标组无冲突 active 订阅」时激活衔接。
+	// ③ 激活：immediate 尝试当场生效（跨组冲突 → 报错或按 PendingFallback 转
+	//    pending）；end_of_term 无冲突时立即生效、有冲突才登记 pending 由 worker
+	//    衔接（与预览口径一致，避免「无订阅却等到下一分钟」）。
 	outcome := &GrantOutcome{GrantID: grant.ID}
-	switch cmd.EffectivePolicy {
-	case domain.SubscriptionGrantPolicyImmediate:
+	shouldActivate := cmd.EffectivePolicy == domain.SubscriptionGrantPolicyImmediate
+	if !shouldActivate {
+		conflict, findErr := s.findActiveConflict(ctx, cmd.UserID, cmd.GroupID)
+		if findErr != nil {
+			return nil, findErr
+		}
+		shouldActivate = conflict == nil
+	}
+	if shouldActivate {
 		if err := s.activateGrantInTx(ctx, grant); err != nil {
 			if errors.Is(err, ErrGrantConflict) {
 				if cmd.PendingFallback {
 					outcome.Action = GrantOutcomePending
 					outcome.Message = "当前已有其他分组的有效订阅，权益已登记待生效，将在其结束后自动衔接"
-					break
+					return &SubscriptionGrantExecution{Grant: grant, Outcome: outcome}, nil
 				}
 				return nil, ErrGrantConflict
 			}
@@ -217,7 +225,7 @@ func (s *SubscriptionGrantService) CreateGrantInTx(ctx context.Context, cmd *Cre
 		outcome.SubscriptionID = derefInt64(grant.LinkedSubscriptionID)
 		outcome.PreviousExpires = grant.prevExpiresCache
 		outcome.ExpiresAt = grant.ContributionEnd
-	default:
+	} else {
 		outcome.Action = GrantOutcomePending
 		outcome.Message = "权益已登记，将在当前订阅结束后自动生效"
 	}
@@ -461,12 +469,16 @@ func (s *SubscriptionGrantService) clampGrantContributionOnRevoke(ctx context.Co
 		return false, err
 	}
 	now := s.now()
-	target := sub.ExpiresAt
+	// 回收目标 = min(当前到期, max(地板, now))：
+	//   无地板（纯赠送订阅）→ 收到 now（赠送时段全部可回收）；
+	//   付费地板在赠送段内 → 收到地板（付费权益完整保留）；
+	//   地板已覆盖当前到期 → 无可回收时段。
+	target := now
 	if floor != nil && floor.After(target) {
 		target = *floor
 	}
-	if target.Before(now) || target.Equal(now) {
-		target = now
+	if target.After(sub.ExpiresAt) {
+		target = sub.ExpiresAt
 	}
 	if !target.Before(sub.ExpiresAt) {
 		return false, nil // 无可回收时段（地板已覆盖当前到期）
@@ -514,7 +526,12 @@ func (s *SubscriptionGrantService) revokeFloor(ctx context.Context, grant *Subsc
 	}
 	raise(other)
 
-	raise(grant.ContributionStart)
+	// contribution_start 仅在「顺延既有订阅」场景构成地板（激活前已存在的到期时刻）。
+	// 新建场景 contribution_start == activated_at（订阅本身由本 Grant 创建），
+	// 不能作为地板，否则撤销纯赠送订阅会被它自己挡住。
+	if grant.ContributionStart != nil && grant.ActivatedAt != nil && grant.ContributionStart.After(*grant.ActivatedAt) {
+		raise(grant.ContributionStart)
+	}
 	return floor, nil
 }
 
@@ -560,14 +577,14 @@ func (s *SubscriptionGrantService) PreviewGrant(ctx context.Context, cmd *Create
 	if conflict != nil {
 		preview.Outcome = GrantPreviewWillBePending
 		preview.CurrentGroupID = &conflict.GroupID
-		preview.CurrentPlanName = conflict.Group.Name
+		preview.CurrentPlanName = s.groupNameForPreview(ctx, conflict)
 		preview.CurrentExpires = &conflict.ExpiresAt
 		preview.Message = fmt.Sprintf("用户当前持有「%s」有效订阅（至 %s）。为避免覆盖现有权益，赠送将登记为待生效，在该订阅结束后自动激活 %d 天",
-			conflict.Group.Name, conflict.ExpiresAt.Format("2006-01-02 15:04"), cmd.DurationDays)
+			preview.CurrentPlanName, conflict.ExpiresAt.Format("2006-01-02 15:04"), cmd.DurationDays)
 		if cmd.EffectivePolicy == domain.SubscriptionGrantPolicyImmediate && !cmd.PendingFallback {
 			preview.Outcome = GrantPreviewConflict
 			preview.Message = fmt.Sprintf("立即生效会与用户当前的「%s」订阅（至 %s）冲突，且可能覆盖现有付费权益。请改选「当前订阅结束后生效」，或为用户办理升级/降级",
-				conflict.Group.Name, conflict.ExpiresAt.Format("2006-01-02 15:04"))
+				preview.CurrentPlanName, conflict.ExpiresAt.Format("2006-01-02 15:04"))
 		}
 		return preview, nil
 	}
@@ -582,6 +599,19 @@ func (s *SubscriptionGrantService) PreviewGrant(ctx context.Context, cmd *Create
 	predicted := now.AddDate(0, 0, cmd.DurationDays)
 	preview.PredictedExpires = &predicted
 	return preview, nil
+}
+
+// groupNameForPreview 预览文案用分组名（守卫查询不预加载 Group，需回查；失败回退 "#id"）。
+func (s *SubscriptionGrantService) groupNameForPreview(ctx context.Context, sub *UserSubscription) string {
+	if sub.Group != nil && sub.Group.Name != "" {
+		return sub.Group.Name
+	}
+	if s.groupRepo != nil {
+		if group, err := s.groupRepo.GetByID(ctx, sub.GroupID); err == nil && group != nil {
+			return group.Name
+		}
+	}
+	return fmt.Sprintf("#%d", sub.GroupID)
 }
 
 // findActiveConflict 查询用户在目标组之外的 active 主订阅（RULE 1 口径）。

@@ -327,6 +327,41 @@ func (s *StudentVerificationService) GetStatus(ctx context.Context, userID int64
 	return status, nil
 }
 
+// GetVerification 认证记录详情（管理端）。
+func (s *StudentVerificationService) GetVerification(ctx context.Context, id int64) (*StudentVerification, error) {
+	if s == nil || s.verificationRepo == nil {
+		return nil, ErrServiceUnavailable
+	}
+	return s.verificationRepo.GetByID(ctx, id)
+}
+
+// AdminListVerifications 管理端认证记录分页查询。
+func (s *StudentVerificationService) AdminListVerifications(ctx context.Context, filter *StudentVerificationAdminFilter) (*StudentVerificationAdminList, error) {
+	if s == nil || s.verificationRepo == nil {
+		return nil, ErrServiceUnavailable
+	}
+	return s.verificationRepo.AdminList(ctx, filter)
+}
+
+// AdminRevokeVerification 管理员撤销认证记录（回写 verified → revoked）。
+// 不自动撤销权益台账：权益撤销是独立的显式管理动作（见 SubscriptionGrantService.RevokeGrant）。
+func (s *StudentVerificationService) AdminRevokeVerification(ctx context.Context, id, operatorID int64, reason string) (*StudentVerification, error) {
+	if s == nil || s.entClient == nil || s.verificationRepo == nil {
+		return nil, ErrServiceUnavailable
+	}
+	verification, err := s.verificationRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if verification.Status != domain.StudentVerificationStatusVerified {
+		return verification, nil
+	}
+	if _, err := s.verificationRepo.RevokeByUser(ctx, verification.UserID, operatorID, reason); err != nil {
+		return nil, fmt.Errorf("revoke student verification: %w", err)
+	}
+	return s.verificationRepo.GetByID(ctx, id)
+}
+
 // buildBenefitCommand 组装学生权益发放命令。
 func (s *StudentVerificationService) buildBenefitCommand(ctx context.Context, userID int64, normalizedEmail string) (*CreateSubscriptionGrantCommand, error) {
 	groupID := s.settingReader.GetStudentBenefitGroupID(ctx)
@@ -419,13 +454,13 @@ type StudentVerificationResult struct {
 
 // StudentVerificationStatus 用户侧认证状态。
 type StudentVerificationStatus struct {
-	EmailVerified bool       `json:"email_verified"`
-	Email         string     `json:"email,omitempty"`
-	Provider      string     `json:"provider"`
-	EmailDomain   string     `json:"email_domain"`
-	BenefitCode   string     `json:"benefit_code"`
-	BenefitDays   int        `json:"benefit_days"`
-	VerifiedAt    *time.Time `json:"verified_at,omitempty"`
-	GrantStatus   string     `json:"grant_status,omitempty"`
+	EmailVerified  bool       `json:"email_verified"`
+	Email          string     `json:"email,omitempty"`
+	Provider       string     `json:"provider"`
+	EmailDomain    string     `json:"email_domain"`
+	BenefitCode    string     `json:"benefit_code"`
+	BenefitDays    int        `json:"benefit_days"`
+	VerifiedAt     *time.Time `json:"verified_at,omitempty"`
+	GrantStatus    string     `json:"grant_status,omitempty"`
 	GrantExpiresAt *time.Time `json:"grant_expires_at,omitempty"`
 }

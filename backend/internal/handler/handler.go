@@ -48,6 +48,8 @@ type AdminHandlers struct {
 	ResetCard              *admin.AdminSubscriptionResetHandler
 	RewardGrant            *admin.RewardGrantHandler
 	PresentationPricing    *admin.PresentationPricingHandler
+	SubscriptionGrant      *admin.SubscriptionGrantHandler
+	StudentVerification    *admin.StudentVerificationHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -79,6 +81,7 @@ type Handlers struct {
 	Research         *ResearchApplicationHandler
 	PlanChange       *PlanChangeHandler
 	WalletLedger     *WalletLedgerHandler
+	StudentVerification *StudentVerificationHandler
 }
 
 // BuildInfo contains build-time information

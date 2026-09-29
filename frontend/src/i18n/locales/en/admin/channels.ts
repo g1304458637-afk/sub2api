@@ -671,6 +671,8 @@ export default {
 
     // Subscriptions
     subscriptions: {
+      tabSubscriptions: 'Subscriptions',
+      grantRecords: 'Grant Records',
       batchAssign: {
         enable: 'Assign to multiple users',
         hint: 'Search and add up to 100 users to assign the same group and validity period.',
@@ -821,6 +823,90 @@ export default {
           revokeDesc: 'Immediately terminate the subscription (restorable from the revoked list)'
         },
         tip: 'Tip: Only groups with billing type "Subscription" and status "Active" appear in the group dropdown. If no options are available, create one in Group Management first.'
+      },
+      grant: {
+        action: 'Grant Subscription',
+        dialogTitle: 'Grant Subscription',
+        submit: 'Grant',
+        submitting: 'Granting...',
+        effectivePolicy: 'Effective Policy',
+        effectivePolicyHint: 'Immediate: activates now and counts from the current time. End of term: recorded as pending and starts automatically when the current subscription ends.',
+        policyImmediateOption: 'Effective immediately',
+        policyEndOfTermOption: 'Starts after the current subscription ends',
+        policyImmediate: 'Immediate',
+        policyEndOfTerm: 'End of term',
+        source: 'Source',
+        sourceHint: 'Business source of this grant, used for auditing and statistics',
+        allSources: 'All sources',
+        sources: {
+          admin_grant: 'Admin grant',
+          compensation: 'Compensation',
+          campaign: 'Campaign',
+          school_bulk: 'School bulk',
+          teacher_verification: 'Teacher verification',
+          invitation: 'Invitation',
+          internal: 'Internal',
+          other: 'Other'
+        },
+        reason: 'Reason (optional)',
+        reasonPlaceholder: 'e.g. support compensation / campaign reward',
+        notes: 'Internal notes (optional)',
+        notesPlaceholder: 'Internal description visible to admins only',
+        previewTitle: 'Grant Preview',
+        previewCurrent: 'Current plan',
+        previewExpires: 'Current expiry',
+        previewPredicted: 'Expiry after grant',
+        previewExtensionBase: 'Extension starts from',
+        previewWillActivate: 'A new subscription will be activated, predicted expiry:',
+        previewWillBePending: 'Will be recorded as pending and starts automatically when the current subscription ends.',
+        previewConflict: 'Conflict, submission blocked: the user\'s active subscription in another group conflicts with this grant. Choose "Starts after the current subscription ends" instead.',
+        previewFailed: 'Preview failed; you can retry. Submission is still allowed and the backend check is authoritative.',
+        actions: {
+          activated_new: 'Activated',
+          extended: 'Extended until {time}',
+          extendedNoTime: 'Extended',
+          pending: 'Recorded as pending',
+          already_granted: 'This grant was already applied (idempotent hit)'
+        },
+        grantSuccess: 'Grant succeeded',
+        failedToGrant: 'Failed to grant subscription',
+        failedToLoadRecords: 'Failed to load grant records',
+        conflictBlocked: 'A group conflict blocked the submission. Choose "Starts after the current subscription ends" and retry.',
+        conflictRetryEndOfTerm: 'Grant conflict (GRANT_CONFLICT): the user has an active subscription in another group. Choose "Starts after the current subscription ends" and retry.',
+        itemFailed: 'Failed',
+        bulkResult: 'Grant complete: {success} succeeded, {failed} failed',
+        filterUserId: 'User ID',
+        columns: {
+          time: 'Time',
+          user: 'User',
+          group: 'Group',
+          source: 'Source',
+          status: 'Status',
+          duration: 'Duration',
+          policy: 'Policy',
+          operator: 'Operator',
+          reason: 'Reason'
+        },
+        durationDays: '{days} days',
+        status: {
+          pending: 'Pending',
+          fulfilled: 'Fulfilled',
+          expired: 'Expired',
+          revoked: 'Revoked',
+          failed: 'Failed'
+        },
+        noRecords: 'No grant records',
+        noRecordsHint: 'Grants issued via "Grant Subscription" will appear here.',
+        revoke: 'Revoke',
+        revokeTitle: 'Revoke Grant',
+        revokeConfirm: "Revoke this grant for user {user}? The granted duration will stop applying.",
+        revokeConfirmOk: 'Revoke Grant',
+        revokeReasonLabel: 'Revocation reason (required, max 500 characters)',
+        revokeReasonPlaceholder: 'Describe why this grant is revoked, for auditing',
+        revokeReasonRequired: 'Please provide the revocation reason',
+        revokeReasonMax: 'The revocation reason must not exceed 500 characters',
+        revokeSuccess: 'Grant revoked',
+        revokeFailed: 'Failed to revoke grant'
       }
     },
 

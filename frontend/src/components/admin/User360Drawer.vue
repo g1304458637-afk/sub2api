@@ -47,6 +47,13 @@
             <button class="act-btn" :disabled="loading || granting" @click="askGrantCard">
               {{ granting ? t('common.processing') : t('user360.grantCard') }}
             </button>
+            <button
+              class="act-btn"
+              data-testid="u360-grant-subscription"
+              @click="goGrantSubscription"
+            >
+              {{ t('user360.grantSubscription') }}
+            </button>
             <button class="act-btn" @click="showPlanChanges = !showPlanChanges">
               {{ t('user360.viewPlanChanges') }}
             </button>
@@ -153,6 +160,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api/admin'
 import { maskApiKey } from '@/utils/maskApiKey'
@@ -182,6 +190,7 @@ const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
 const currencyStore = useCurrencyDisplayStore()
+const router = useRouter()
 
 interface SubRow extends UserSubscription { _expanded?: boolean }
 const subscriptions = ref<SubRow[]>([])
@@ -265,6 +274,19 @@ watch(
 function askDirectReset() {
   actionMessage.value = ''
   resetConfirming.value = true
+}
+
+/**
+ * 跳转到订阅管理页并自动打开赠送弹窗（预选该用户）。
+ * 赠送弹窗逻辑收敛在 SubscriptionsView，抽屉只负责导航。
+ */
+function goGrantSubscription() {
+  if (!props.user) return
+  emit('close')
+  void router.push({
+    path: '/admin/subscriptions',
+    query: { grant_user_id: props.user.id }
+  })
 }
 
 async function confirmDirectReset() {

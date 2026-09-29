@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -31,24 +30,23 @@ const studentVerificationColumns = `
 func (r *studentVerificationRepository) Insert(ctx context.Context, v *service.StudentVerification) (int64, error) {
 	client := clientFromContext(ctx, r.client)
 	var (
-		id        int64
+		id         int64
 		verifiedAt time.Time
 	)
 	rows, err := client.QueryContext(ctx, `
 INSERT INTO student_verifications (user_id, provider, email, status, benefit_grant_id, ip, user_agent, notes, verified_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
 RETURNING id, verified_at`,
-		v.UserID, v.Provider, v.Email, v.Status, v.BenefitGrantID, v.IP, v.UserAgent, v.Notes,
-	)
+		v.UserID, v.Provider, v.Email, v.Status, v.BenefitGrantID, v.IP, v.UserAgent, v.Notes)
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
-		if rowsErr := rows.Err(); rowsErr != nil {
-			return 0, rowsErr
+		if err := rows.Err(); err != nil {
+			return 0, err
 		}
-		return 0, errors.New("student_verifications insert returned no rows")
+		return 0, fmt.Errorf("insert student verification: empty result")
 	}
 	if err := rows.Scan(&id, &verifiedAt); err != nil {
 		return 0, err

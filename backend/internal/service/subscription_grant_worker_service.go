@@ -14,7 +14,7 @@ const (
 	// subscriptionGrantWorkerInterval 与订阅到期扫描同频：pending Grant 的衔接
 	// 延迟上限为一分钟（当前订阅过期 → BatchUpdateExpiredStatus 落库 → 同周期
 	// 内 ExpireLapsedByUser 收敛 → Grant 激活）。
-	subscriptionGrantWorkerInterval = time.Minute
+	subscriptionGrantWorkerInterval      = time.Minute
 	subscriptionGrantWorkerLeaderLockKey = "subscription:grant:worker:leader"
 	subscriptionGrantWorkerLeaderLockTTL = 5 * time.Minute
 	// subscriptionGrantWorkerBatch 单周期处理的 pending 台账上限。

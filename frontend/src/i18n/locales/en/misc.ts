@@ -919,6 +919,7 @@ export default {
     keysMaskedNote: 'Full secrets are never shown; keys migrate automatically on plan upgrade.',
     directReset: 'Direct reset',
     grantCard: 'Grant reset card',
+    grantSubscription: 'Grant subscription',
     viewPlanChanges: 'Plan changes',
     resetConfirmTitle: 'Confirm direct reset?',
     resetConfirmBody: 'This immediately resets the current period of subscription #{id}. No reset card is granted, wallet untouched, plan not extended.',

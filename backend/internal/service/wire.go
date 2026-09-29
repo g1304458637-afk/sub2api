@@ -431,6 +431,14 @@ func ProvideSubscriptionExpiryService(userSubRepo UserSubscriptionRepository, se
 	return svc
 }
 
+// ProvideSubscriptionGrantWorkerService creates and starts SubscriptionGrantWorkerService.
+func ProvideSubscriptionGrantWorkerService(grantService *SubscriptionGrantService, lockCache LeaderLockCache, db *sql.DB) *SubscriptionGrantWorkerService {
+	svc := NewSubscriptionGrantWorkerService(grantService)
+	svc.SetLeaderLock(lockCache, db)
+	svc.Start()
+	return svc
+}
+
 // ProvideTimingWheelService creates and starts TimingWheelService
 func ProvideTimingWheelService() (*TimingWheelService, error) {
 	svc, err := NewTimingWheelService()
@@ -853,6 +861,11 @@ var ProviderSet = wire.NewSet(
 	NewPromoService,
 	NewRewardGrantService,
 	wire.Bind(new(StudentRewardConfigReader), new(*SettingService)),
+	NewSubscriptionGrantService,
+	wire.Bind(new(GrantSubscriptionAssigner), new(*SubscriptionService)),
+	ProvideSubscriptionGrantWorkerService,
+	NewStudentVerificationService,
+	wire.Bind(new(StudentVerificationConfigReader), new(*SettingService)),
 	NewUsageService,
 	NewDashboardService,
 	ProvidePricingService,

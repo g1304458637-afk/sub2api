@@ -196,17 +196,16 @@ func (r *subscriptionGrantRepository) PaidFloorForSubscription(ctx context.Conte
 	var floor sql.NullTime
 	rows, err := client.QueryContext(ctx, `
 SELECT MAX(term_end) FROM subscription_terms
-WHERE subscription_id = $1 AND source IN ('purchase', 'renewal', 'upgrade')`,
-		subscriptionID)
+WHERE subscription_id = $1 AND source IN ('purchase', 'renewal', 'upgrade')`, subscriptionID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
-		if rowsErr := rows.Err(); rowsErr != nil {
-			return nil, rowsErr
+		if err := rows.Err(); err != nil {
+			return nil, err
 		}
-		return nil, nil
+		return nil, fmt.Errorf("load paid floor: empty result")
 	}
 	if err := rows.Scan(&floor); err != nil {
 		return nil, err
@@ -228,12 +227,12 @@ WHERE linked_subscription_id = $1 AND id <> $2 AND contribution_end IS NOT NULL`
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
-		if rowsErr := rows.Err(); rowsErr != nil {
-			return nil, rowsErr
+		if err := rows.Err(); err != nil {
+			return nil, err
 		}
-		return nil, nil
+		return nil, fmt.Errorf("load other grant floor: empty result")
 	}
 	if err := rows.Scan(&floor); err != nil {
 		return nil, err

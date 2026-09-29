@@ -942,6 +942,7 @@ export default {
     keysMaskedNote: '完整密钥不可见；套餐升级后 Key 自动迁移，无需重新生成。',
     directReset: '直接重置',
     grantCard: '发放重置卡',
+    grantSubscription: '赠送订阅',
     viewPlanChanges: '查看套餐变更',
     resetConfirmTitle: '确认直接重置？',
     resetConfirmBody: '将立即重置订阅 #{id} 的当前周期。不会赠送重置卡、不修改钱包、不延长套餐。',
