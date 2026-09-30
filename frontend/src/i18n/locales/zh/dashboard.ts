@@ -125,6 +125,10 @@ export default {
     nameLabel: '名称',
     namePlaceholder: '我的 API 密钥',
     groupLabel: '分组',
+    usageModeLabel: '使用方式',
+    selectUsageMode: '选择使用方式',
+    searchUsageMode: '搜索...',
+    noServiceAvailable: '暂无可用的服务，请联系管理员',
     providerLabel: '厂商',
     providers: {
       anthropic: 'Anthropic',
@@ -133,10 +137,10 @@ export default {
       other: '其他'
     },
     providerHints: {
-      anthropic: '选择 Anthropic / Claude 的可用分组',
-      openai: '选择 OpenAI / GPT 的可用分组',
+      anthropic: '适用于 Anthropic / Claude 模型',
+      openai: '适用于 OpenAI / GPT 模型',
       domestic: '包含 DeepSeek、Kimi、智谱 GLM、MiniMax',
-      other: '包含 Gemini、Grok、Antigravity、OpenCode 和混合分组'
+      other: '包含 Gemini、Grok、Antigravity、OpenCode 与混合模型'
     },
     selectGroup: '选择分组',
     statusLabel: '状态',
@@ -156,7 +160,7 @@ export default {
     clickToChangeGroup: '点击更换分组',
     groupChangedSuccess: '分组更换成功',
     failedToChangeGroup: '更换分组失败',
-    groupRequired: '请选择分组',
+    groupRequired: '请先选择使用方式',
     usage: '用量',
     today: '今日',
     total: '近30天',

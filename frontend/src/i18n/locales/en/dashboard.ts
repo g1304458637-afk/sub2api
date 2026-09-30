@@ -125,6 +125,10 @@ export default {
     nameLabel: 'Name',
     namePlaceholder: 'My API Key',
     groupLabel: 'Group',
+    usageModeLabel: 'Service type',
+    selectUsageMode: 'Select a service type',
+    searchUsageMode: 'Search...',
+    noServiceAvailable: 'No service available yet. Please contact the administrator.',
     providerLabel: 'Provider',
     providers: {
       anthropic: 'Anthropic',
@@ -133,10 +137,10 @@ export default {
       other: 'Other'
     },
     providerHints: {
-      anthropic: 'Choose an available Anthropic / Claude group',
-      openai: 'Choose an available OpenAI / GPT group',
+      anthropic: 'For Anthropic / Claude models',
+      openai: 'For OpenAI / GPT models',
       domestic: 'Includes DeepSeek, Kimi, Zhipu GLM and MiniMax',
-      other: 'Includes Gemini, Grok, Antigravity, OpenCode and mixed groups'
+      other: 'Includes Gemini, Grok, Antigravity, OpenCode and hybrid models'
     },
     selectGroup: 'Select a group',
     statusLabel: 'Status',
@@ -156,7 +160,7 @@ export default {
     clickToChangeGroup: 'Click to change group',
     groupChangedSuccess: 'Group changed successfully',
     failedToChangeGroup: 'Failed to change group',
-    groupRequired: 'Please select a group',
+    groupRequired: 'Please select a service type first',
     usage: 'Usage',
     today: 'Today',
     total: 'Last 30d',

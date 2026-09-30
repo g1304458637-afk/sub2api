@@ -62,6 +62,13 @@ declare module 'vue-router' {
     requiresSubscription?: boolean
 
     /**
+     * 是否要求「可用渠道」功能开关（available_channels_enabled，opt-in）已启用；
+     * 显式 false 时直达路由重定向（侧栏入口由 featureFlag 单独隐藏）
+     * @default false
+     */
+    requiresAvailableChannels?: boolean
+
+    /**
      * i18n key for the page title
      */
     titleKey?: string

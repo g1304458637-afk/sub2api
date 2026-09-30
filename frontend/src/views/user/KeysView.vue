@@ -155,51 +155,28 @@
           </template>
 
           <template #cell-group="{ row }">
-            <div class="group/dropdown relative">
-              <button
-                :ref="(el) => setGroupButtonRef(row.id, el)"
-                @click="openGroupSelector(row)"
-                class="-mx-2 -my-1 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-dark-700"
-                :title="t('keys.clickToChangeGroup')"
+            <div class="flex items-center gap-1.5">
+              <GroupBadge
+                v-if="row.group"
+                :name="row.group.name"
+                :platform="row.group.platform"
+                :subscription-type="row.group.subscription_type"
+                :rate-multiplier="row.group.rate_multiplier"
+                :user-rate-multiplier="userGroupRates[row.group.id]"
+                :peak-rate-enabled="row.group.peak_rate_enabled"
+                :peak-start="row.group.peak_start"
+                :peak-end="row.group.peak_end"
+                :peak-rate-multiplier="row.group.peak_rate_multiplier"
+                hide-rate
+              />
+              <span v-else class="text-sm text-gray-400 dark:text-dark-500">—</span>
+              <span
+                v-if="keyEntitlement(row.group?.id)"
+                class="ml-1 inline-flex max-w-[140px] min-w-0 items-center rounded-full border border-[rgba(238,56,72,0.45)] bg-[rgba(200,36,51,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#c82433] dark:bg-[rgba(200,36,51,0.18)] dark:text-[#ff8b96] sm:max-w-[240px]"
+                :title="t('keys.entitlementTip')"
               >
-                <GroupBadge
-                  v-if="row.group"
-                  :name="row.group.name"
-                  :platform="row.group.platform"
-                  :subscription-type="row.group.subscription_type"
-                  :rate-multiplier="row.group.rate_multiplier"
-                  :user-rate-multiplier="userGroupRates[row.group.id]"
-                  :peak-rate-enabled="row.group.peak_rate_enabled"
-                  :peak-start="row.group.peak_start"
-                  :peak-end="row.group.peak_end"
-                  :peak-rate-multiplier="row.group.peak_rate_multiplier"
-                  hide-rate
-                />
-                <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
-                  t('keys.noGroup')
-                }}</span>
-                <span
-                  v-if="keyEntitlement(row.group?.id)"
-                  class="ml-1 inline-flex max-w-[140px] min-w-0 items-center rounded-full border border-[rgba(238,56,72,0.45)] bg-[rgba(200,36,51,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#c82433] dark:bg-[rgba(200,36,51,0.18)] dark:text-[#ff8b96] sm:max-w-[240px]"
-                  :title="t('keys.entitlementTip')"
-                >
-                  <span class="truncate">{{ keyEntitlement(row.group?.id) }}</span>
-                </span>
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
-                <svg
-                  class="h-3.5 w-3.5 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"
-                  />
-                </svg>
-              </button>
+                <span class="truncate">{{ keyEntitlement(row.group?.id) }}</span>
+              </span>
             </div>
           </template>
 
@@ -537,22 +514,22 @@
             </label>
           </div>
           <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400" aria-live="polite">
-            {{ groups.length === 0 ? t('common.noGroupsAvailable') : t(`keys.providerHints.${createProvider}`) }}
+            {{ groups.length === 0 ? t('keys.noServiceAvailable') : t(`keys.providerHints.${createProvider}`) }}
           </p>
         </fieldset>
 
-        <div>
-          <label class="input-label" for="key-form-group">{{ t('keys.groupLabel') }}</label>
+        <div v-if="formGroupOptions.length > 1">
+          <label class="input-label" for="key-form-group">{{ t('keys.usageModeLabel') }}</label>
           <Select
             :key="showEditModal ? 'edit' : createProvider"
             id="key-form-group"
-            :aria-label="t('keys.groupLabel')"
+            :aria-label="t('keys.usageModeLabel')"
             v-model="formData.group_id"
             :options="formGroupOptions"
-            :placeholder="t('keys.selectGroup')"
+            :placeholder="t('keys.selectUsageMode')"
             :empty-text="t('common.noGroupsAvailable')"
             :searchable="true"
-            :search-placeholder="t('keys.searchGroup')"
+            :search-placeholder="t('keys.searchUsageMode')"
             data-tour="key-form-group"
           >
             <template #selected="{ option }">
@@ -569,7 +546,7 @@
                 :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
                 hide-rate
               />
-              <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
+              <span v-else class="text-gray-400">{{ t('keys.selectUsageMode') }}</span>
             </template>
             <template #option="{ option, selected }">
               <GroupOptionItem
@@ -1136,81 +1113,12 @@
       </template>
     </BaseDialog>
 
-    <!-- Group Selector Dropdown (Teleported to body to avoid overflow clipping) -->
-    <Teleport to="body">
-      <div
-        v-if="groupSelectorKeyId !== null && dropdownPosition"
-        ref="dropdownRef"
-        class="animate-in fade-in slide-in-from-top-2 fixed z-[100000020] w-max max-w-[calc(100vw-16px)] overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 duration-200 sm:min-w-[380px] dark:bg-dark-800 dark:ring-white/10"
-        style="pointer-events: auto !important;"
-        :style="{
-          top: dropdownPosition.top !== undefined ? dropdownPosition.top + 'px' : undefined,
-          bottom: dropdownPosition.bottom !== undefined ? dropdownPosition.bottom + 'px' : undefined,
-          left: dropdownPosition.left + 'px'
-        }"
-      >
-        <!-- Search box -->
-        <div class="border-b border-gray-100 p-2 dark:border-dark-700">
-          <div class="relative">
-            <svg class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              v-model="groupSearchQuery"
-              type="text"
-              class="w-full rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-8 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-primary-300 focus:ring-1 focus:ring-primary-300 dark:border-dark-600 dark:bg-dark-700 dark:text-white dark:placeholder-gray-500 dark:focus:border-primary-600 dark:focus:ring-primary-600"
-              :placeholder="t('keys.searchGroup')"
-              @click.stop
-            />
-          </div>
-        </div>
-        <!-- Group list -->
-        <div class="max-h-80 overflow-y-auto p-1.5">
-          <button
-            v-for="option in filteredGroupOptions"
-            :key="option.value ?? 'null'"
-            @click="changeGroup(selectedKeyForGroup!, option.value)"
-            :class="[
-              'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
-              'border-b border-gray-100 last:border-0 dark:border-dark-700',
-              selectedKeyForGroup?.group_id === option.value ||
-              (!selectedKeyForGroup?.group_id && option.value === null)
-                ? 'bg-primary-50 dark:bg-primary-900/20'
-                : 'hover:bg-gray-100 dark:hover:bg-dark-700'
-            ]"
-            :title="option.description || undefined"
-          >
-            <GroupOptionItem
-              :name="option.label"
-              :platform="option.platform"
-              :subscription-type="option.subscriptionType"
-              :rate-multiplier="option.rate"
-              :user-rate-multiplier="option.userRate"
-              :peak-rate-enabled="option.peakRateEnabled"
-              :peak-start="option.peakStart"
-              :peak-end="option.peakEnd"
-              :peak-rate-multiplier="option.peakRateMultiplier"
-              :description="option.description"
-              :show-rate="false"
-              :selected="
-                selectedKeyForGroup?.group_id === option.value ||
-                (!selectedKeyForGroup?.group_id && option.value === null)
-              "
-            />
-          </button>
-          <!-- Empty state when search has no results -->
-          <div v-if="filteredGroupOptions.length === 0" class="py-4 text-center text-sm text-gray-400 dark:text-gray-500">
-            {{ t('keys.noGroupFound') }}
-          </div>
-        </div>
-      </div>
-    </Teleport>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { formatRemainingPercent } from '@/utils/quotaDisplay'
-	import { ref, reactive, computed, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+	import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 	import { useI18n } from 'vue-i18n'
 	import { useAppStore } from '@/stores/app'
 	import { useOnboardingStore } from '@/stores/onboarding'
@@ -1279,7 +1187,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'name', label: t('common.name'), sortable: true },
   { key: 'id', label: t('keys.id'), sortable: true },
   { key: 'key', label: t('keys.apiKey'), sortable: false },
-  { key: 'group', label: t('keys.group'), sortable: false },
+  { key: 'group', label: '', sortable: false },
   { key: 'current_concurrency', label: t('keys.currentConcurrency'), sortable: true },
   { key: 'usage', label: t('keys.usage'), sortable: false },
   { key: 'rate_limit', label: t('keys.rateLimitColumn'), sortable: false },
@@ -1420,27 +1328,9 @@ const showColumnDropdown = ref(false)
 const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
-const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
-const dropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
-const dropdownPosition = ref<{ top?: number; bottom?: number; left: number } | null>(null)
-const groupButtonRefs = ref<Map<number, HTMLElement>>(new Map())
 let abortController: AbortController | null = null
-
-// Get the currently selected key for group change
-const selectedKeyForGroup = computed(() => {
-  if (groupSelectorKeyId.value === null) return null
-  return apiKeys.value.find((k) => k.id === groupSelectorKeyId.value) || null
-})
-
-const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance | null) => {
-  if (el instanceof HTMLElement) {
-    groupButtonRefs.value.set(keyId, el)
-  } else {
-    groupButtonRefs.value.delete(keyId)
-  }
-}
 
 const formData = ref({
   name: '',
@@ -1564,20 +1454,12 @@ watch([showCreateModal, createProviderOptions], ([isOpen, providers], [wasOpen])
   if (!wasOpen || !providers.some((provider) => provider.value === createProvider.value && provider.count > 0)) {
     selectCreateProvider(providers.find((provider) => provider.count > 0)?.value ?? 'anthropic')
   }
-  if (!formGroupOptions.value.some((group) => group.value === formData.value.group_id)) {
+  // 单可用分组：自动选中并隐藏字段（对用户隐藏「分组」概念）；多分组才出现「使用方式」选择器。
+  if (formGroupOptions.value.length === 1) {
+    formData.value.group_id = formGroupOptions.value[0].value
+  } else if (!formGroupOptions.value.some((group) => group.value === formData.value.group_id)) {
     formData.value.group_id = null
   }
-})
-
-// Group dropdown search
-const groupSearchQuery = ref('')
-const filteredGroupOptions = computed(() => {
-  const query = groupSearchQuery.value.trim().toLowerCase()
-  if (!query) return groupOptions.value
-  return groupOptions.value.filter((opt) => {
-    return opt.label.toLowerCase().includes(query) ||
-      (opt.description && opt.description.toLowerCase().includes(query))
-  })
 })
 
 const copyToClipboard = async (text: string, keyId: number) => {
@@ -1745,61 +1627,8 @@ const toggleKeyStatus = async (key: ApiKey) => {
   }
 }
 
-const openGroupSelector = (key: ApiKey) => {
-  if (groupSelectorKeyId.value === key.id) {
-    groupSelectorKeyId.value = null
-    dropdownPosition.value = null
-  } else {
-    const buttonEl = groupButtonRefs.value.get(key.id)
-    if (buttonEl) {
-      const rect = buttonEl.getBoundingClientRect()
-      const dropdownEstHeight = 400 // estimated max dropdown height
-      const dropdownEstWidth = Math.min(380, window.innerWidth - 16)
-      const spaceBelow = window.innerHeight - rect.bottom
-      const spaceAbove = rect.top
-      // 夹取 left，避免窄屏下浮层超出视口右缘
-      const left = Math.max(8, Math.min(rect.left, window.innerWidth - dropdownEstWidth - 8))
-
-      if (spaceBelow < dropdownEstHeight && spaceAbove > spaceBelow) {
-        // Not enough space below, pop upward
-        dropdownPosition.value = {
-          bottom: window.innerHeight - rect.top + 4,
-          left
-        }
-      } else {
-        // Default: pop downward
-        dropdownPosition.value = {
-          top: rect.bottom + 4,
-          left
-        }
-      }
-    }
-    groupSelectorKeyId.value = key.id
-    groupSearchQuery.value = ''
-  }
-}
-
-const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
-  groupSelectorKeyId.value = null
-  dropdownPosition.value = null
-  if (key.group_id === newGroupId) return
-
-  try {
-    await keysAPI.update(key.id, { group_id: newGroupId })
-    appStore.showSuccess(t('keys.groupChangedSuccess'))
-    loadApiKeys()
-  } catch (error) {
-    appStore.showError(t('keys.failedToChangeGroup'))
-  }
-}
-
-const closeGroupSelector = (event: MouseEvent) => {
+const closeGlobalDropdowns = (event: MouseEvent) => {
   const target = event.target as HTMLElement
-  // Check if click is inside the dropdown or the trigger button
-  if (!target.closest('.group\\/dropdown') && !dropdownRef.value?.contains(target)) {
-    groupSelectorKeyId.value = null
-    dropdownPosition.value = null
-  }
   if (columnDropdownRef.value && !columnDropdownRef.value.contains(target)) {
     showColumnDropdown.value = false
   }
@@ -2056,7 +1885,7 @@ const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
       };
     }
   })`
-  const providerName = (publicSettings.value?.site_name || 'sub2api').trim() || 'sub2api'
+  const providerName = (publicSettings.value?.site_name || 'campus ai').trim() || 'campus ai'
   const deeplink = buildCcSwitchImportDeeplink({
     baseUrl,
     platform,
@@ -2136,12 +1965,12 @@ onMounted(() => {
   loadUserGroupRates()
   loadPublicSettings()
   void loadEntitlements()
-  document.addEventListener('click', closeGroupSelector)
+  document.addEventListener('click', closeGlobalDropdowns)
   resetTimer = setInterval(() => { now.value = new Date() }, 60000)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', closeGroupSelector)
+  document.removeEventListener('click', closeGlobalDropdowns)
   if (resetTimer) clearInterval(resetTimer)
 })
 </script>

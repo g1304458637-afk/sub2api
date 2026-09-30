@@ -35,7 +35,7 @@
             :start-date="startDate"
             :end-date="endDate"
           />
-          <GroupDistributionChart
+          <GroupDistributionChart v-if="groups.length > 1"
             v-model:metric="groupDistributionMetric"
             :group-stats="groupStats"
             :loading="chartsLoading"
@@ -103,8 +103,8 @@
               <label class="input-label">{{ t('usage.model') }}</label>
               <Select v-model="filters.model" :options="modelOptions" searchable @change="applyFilters" />
             </div>
-            <div class="w-full sm:w-auto sm:min-w-[200px]">
-              <label class="input-label">{{ t('admin.usage.group') }}</label>
+            <div v-if="groups.length > 1" class="w-full sm:w-auto sm:min-w-[200px]">
+              <label class="input-label">{{ t('keys.usageModeLabel') }}</label>
               <Select v-model="filters.group_id" :options="groupOptions" searchable @change="applyFilters" />
             </div>
             <div class="w-full sm:w-auto sm:min-w-[180px]">
@@ -720,7 +720,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false },
   { key: 'endpoint', label: t('usage.endpoint'), sortable: false },
   { key: 'ip_address', label: 'IP', sortable: false },
-  { key: 'group', label: t('admin.usage.group'), sortable: false },
+  ...(groups.value.length > 1 ? [{ key: 'group', label: t('keys.usageModeLabel'), sortable: false }] : []),
   { key: 'stream', label: t('usage.type'), sortable: false },
   { key: 'billing_mode', label: t('admin.usage.billingMode'), sortable: false },
   { key: 'tokens', label: t('usage.tokens'), sortable: false },
@@ -762,7 +762,7 @@ const errAllColumns = computed<Column[]>(() => [
   { key: 'model', label: t('usage.errors.model') },
   { key: 'endpoint', label: t('usage.errors.endpoint') },
   { key: 'client_ip', label: 'IP' },
-  { key: 'group', label: t('admin.usage.group') },
+  ...(groups.value.length > 1 ? [{ key: 'group', label: t('keys.usageModeLabel') }] : []),
   { key: 'type', label: t('usage.type') },
   { key: 'platform', label: t('usage.errors.platform') },
   { key: 'category', label: t('usage.errors.category') },
