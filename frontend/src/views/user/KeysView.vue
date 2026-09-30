@@ -470,58 +470,14 @@
           />
         </div>
 
-        <fieldset v-if="!showEditModal" data-tour="key-form-provider">
-          <legend class="input-label">{{ t('keys.providerLabel') }}</legend>
-          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <label
-              v-for="provider in createProviderOptions"
-              :key="provider.value"
-              class="relative min-w-0"
-              :class="provider.count === 0 ? 'cursor-not-allowed' : 'cursor-pointer'"
-            >
-              <input
-                type="radio"
-                name="key-provider"
-                :value="provider.value"
-                :checked="createProvider === provider.value"
-                :disabled="provider.count === 0"
-                class="peer sr-only"
-                @change="selectCreateProvider(provider.value)"
-              />
-              <span
-                class="flex h-full flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white px-2 py-3 text-center transition-colors peer-checked:border-primary-500 peer-checked:bg-primary-50/60 peer-checked:ring-1 peer-checked:ring-primary-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-500 peer-disabled:opacity-40 dark:border-dark-600 dark:bg-dark-800 dark:peer-checked:border-primary-500 dark:peer-checked:bg-primary-500/10"
-                :class="provider.count > 0 && 'hover:border-primary-300 dark:hover:border-primary-700'"
-              >
-                <span class="flex h-8 items-center justify-center gap-1.5" aria-hidden="true">
-                  <span
-                    v-for="platform in KEY_GROUP_PROVIDER_ICONS[provider.value]"
-                    :key="platform"
-                    class="flex h-8 w-8 items-center justify-center rounded-lg"
-                    :class="platformBadgeLightClass(platform)"
-                  >
-                    <PlatformIcon :platform="platform" size="lg" />
-                  </span>
-                </span>
-                <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ provider.label }}</span>
-              </span>
-              <span
-                v-if="createProvider === provider.value"
-                class="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary-500 text-white"
-                aria-hidden="true"
-              >
-                <Icon name="check" size="xs" :stroke-width="3" />
-              </span>
-            </label>
-          </div>
-          <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400" aria-live="polite">
-            {{ groups.length === 0 ? t('keys.noServiceAvailable') : t(`keys.providerHints.${createProvider}`) }}
-          </p>
-        </fieldset>
+        <p v-if="groups.length === 0" class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400" aria-live="polite">
+          {{ t('keys.noServiceAvailable') }}
+        </p>
 
         <div v-if="formGroupOptions.length > 1">
           <label class="input-label" for="key-form-group">{{ t('keys.usageModeLabel') }}</label>
           <Select
-            :key="showEditModal ? 'edit' : createProvider"
+            :key="showEditModal ? 'edit' : 'create'"
             id="key-form-group"
             :aria-label="t('keys.usageModeLabel')"
             v-model="formData.group_id"
@@ -1149,9 +1105,6 @@ import { getAccountStatus } from '@/api/subscriptions'
 import { formatDateTime } from '@/utils/format'
 import { useCurrencyDisplayStore } from '@/stores/currencyDisplay'
 import { maskApiKey } from '@/utils/maskApiKey'
-import PlatformIcon from '@/components/common/PlatformIcon.vue'
-import { platformBadgeLightClass } from '@/utils/platformColors'
-import { KEY_GROUP_PROVIDERS, KEY_GROUP_PROVIDER_ICONS, getKeyGroupProvider, type KeyGroupProvider } from '@/utils/keyGroupProviders'
 import {
   buildCcSwitchImportDeeplink,
   type CcSwitchClientType
@@ -1430,31 +1383,11 @@ const groupOptions = computed(() =>
   }))
 )
 
-const createProvider = ref<KeyGroupProvider>('anthropic')
-const createProviderOptions = computed(() => KEY_GROUP_PROVIDERS.map((value) => ({
-  value,
-  label: t(`keys.providers.${value}`),
-  count: groups.value.filter((group) => getKeyGroupProvider(group.platform) === value).length
-})))
+const formGroupOptions = computed(() => groupOptions.value)
 
-const formGroupOptions = computed(() => showEditModal.value
-  ? groupOptions.value
-  : groupOptions.value.filter((group) => getKeyGroupProvider(group.platform) === createProvider.value)
-)
-
-const selectCreateProvider = (provider: KeyGroupProvider) => {
-  if (createProvider.value === provider) return
-  createProvider.value = provider
-  formData.value.group_id = null
-}
-
-// Also handles groups arriving after the create dialog has already opened.
-watch([showCreateModal, createProviderOptions], ([isOpen, providers], [wasOpen]) => {
+// 分组迟到也能自动纠正；单分组自动选中并隐藏字段，多分组由用户在「使用方式」中选择。
+watch([showCreateModal, groupOptions], ([isOpen]) => {
   if (!isOpen) return
-  if (!wasOpen || !providers.some((provider) => provider.value === createProvider.value && provider.count > 0)) {
-    selectCreateProvider(providers.find((provider) => provider.count > 0)?.value ?? 'anthropic')
-  }
-  // 单可用分组：自动选中并隐藏字段（对用户隐藏「分组」概念）；多分组才出现「使用方式」选择器。
   if (formGroupOptions.value.length === 1) {
     formData.value.group_id = formGroupOptions.value[0].value
   } else if (!formGroupOptions.value.some((group) => group.value === formData.value.group_id)) {
