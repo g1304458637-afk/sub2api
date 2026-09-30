@@ -346,10 +346,17 @@ interface NavItem {
   /**
    * When true and the user has not toggled the group manually, the group stays
    * expanded instead of following the active-route heuristic. Used by the fixed
-   * portal groups ("大模型服务" / "我的") so their children (and tour targets
-   * like [data-tour="sidebar-my-keys"]) are reachable without an extra click.
+   * portal group "我的" so account entries (and tour targets like
+   * [data-tour="sidebar-my-keys"]) are reachable without an extra click.
    */
   defaultExpanded?: boolean
+  /**
+   * When false, the group does not auto-expand even when the active route is
+   * one of its children — the header only gets active styling and the user
+   * expands it manually. Used by the "大模型服务" portal group so the sidebar
+   * opens with "我的" expanded and this group collapsed.
+   */
+  followActiveRoute?: boolean
   /**
    * 可选的功能开关 getter。返回 false 时菜单项被隐藏；返回 undefined/true 时显示。
    * 宽容策略（undefined → 显示）避免 public settings 未加载完成时菜单闪烁消失。
@@ -1058,7 +1065,8 @@ const showChatHistory = computed(() => flagChatEntrance())
 // 路由全部保留兼容）：密钥 → 模型与价格 → 模型消费 → 订阅 → 钱包 → 套餐 → 订单 → 科研 → 资料。
 //
 // 分组本身是 expandOnly 的纯折叠控件，path 只是稳定 key，不可导航；
-// defaultExpanded 让两个门户分组默认展开（同时保证引导步骤能定位到分组内的子项）。
+// 「我的」defaultExpanded 默认展开，「大模型服务」followActiveRoute=false 默认收起
+// （组头仅高亮、不随路由自动展开；新手引导进行中仍强制展开以定位 tour 目标）。
 // 用户端不再展示「渠道状态」入口（/monitor 路由仍保留）。
 function buildSelfNavGroups(): NavItem[] {
   const llmItems: NavItem[] = [
@@ -1099,20 +1107,23 @@ function buildSelfNavGroups(): NavItem[] {
 
   return [
     {
+      // 默认收起：即使停在 /chat、/hubu 等子路由也不自动展开，仅高亮组头，
+      // 需要时由用户点开（新手引导期间除外）。
       path: 'group-llm-services',
       label: t('nav.groupLlm'),
       icon: SparklesIcon,
       expandOnly: true,
-      defaultExpanded: true,
+      followActiveRoute: false,
       children: llmItems,
     },
     {
-      // 「我的」沉底展示：不默认展开，跟随当前路由（位于其子项时展开），
-      // 让 /chat 上的会话列表拿到最大空间，同时分组标题固定在左下角。
+      // 「我的」沉底展示：默认展开（账户入口打开网站即可见），用户手动收起后
+      // 尊重其选择，此时 /chat 上的会话列表拿到最大空间，分组标题仍固定在左下角。
       path: 'group-my-account',
       label: t('nav.groupMine'),
       icon: UserCircleIcon,
       expandOnly: true,
+      defaultExpanded: true,
       children: mineItems,
     },
   ]
@@ -1322,7 +1333,8 @@ function isGroupExpanded(item: NavItem): boolean {
   if (item.defaultExpanded) return true
   // 新手引导进行中展开全部分类组，保证 tour 目标元素（#sidebar-wallet 等分类子项）在 DOM 中
   if (onboardingStore.isDriverActive()) return true
-  return isGroupActive(item)
+  // followActiveRoute=false 的分组（「大模型服务」）不随路由自动展开，仅靠组头高亮提示
+  return item.followActiveRoute !== false && isGroupActive(item)
 }
 
 function toggleGroup(item: NavItem) {
