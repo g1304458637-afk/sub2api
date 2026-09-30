@@ -173,6 +173,7 @@
                   :peak-start="row.group.peak_start"
                   :peak-end="row.group.peak_end"
                   :peak-rate-multiplier="row.group.peak_rate_multiplier"
+                  hide-rate
                 />
                 <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
@@ -566,6 +567,7 @@
                 :peak-start="(option as unknown as GroupOption).peakStart"
                 :peak-end="(option as unknown as GroupOption).peakEnd"
                 :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
+                hide-rate
               />
               <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
             </template>
@@ -582,6 +584,7 @@
                 :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
                 :description="(option as unknown as GroupOption).description"
                 :selected="selected"
+                :show-rate="false"
               />
             </template>
           </Select>
@@ -1188,6 +1191,7 @@
               :peak-end="option.peakEnd"
               :peak-rate-multiplier="option.peakRateMultiplier"
               :description="option.description"
+              :show-rate="false"
               :selected="
                 selectedKeyForGroup?.group_id === option.value ||
                 (!selectedKeyForGroup?.group_id && option.value === null)

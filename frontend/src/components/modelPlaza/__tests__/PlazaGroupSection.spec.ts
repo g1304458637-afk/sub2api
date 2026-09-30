@@ -18,17 +18,7 @@ vi.mock('@/stores/app', () => ({
   useAppStore: () => ({ cachedPublicSettings: null })
 }))
 
-function ladderModel(tiers: number): PlazaModel {
-  const intervals = Array.from({ length: tiers }, (_, i) => ({
-    min_tokens: i * 272000,
-    max_tokens: i === tiers - 1 ? null : (i + 1) * 272000,
-    tier_label: '',
-    input_price: 5e-6,
-    output_price: 3e-5,
-    cache_write_price: null,
-    cache_read_price: null,
-    per_request_price: null
-  }))
+function tokenModel(overrides: Partial<PlazaModel> = {}): PlazaModel {
   return {
     name: 'gpt-5.6-sol',
     platform: 'openai',
@@ -47,9 +37,22 @@ function ladderModel(tiers: number): PlazaModel {
       input_price: 5e-6,
       output_price: 3e-5,
       cache_write_price: null,
+      cache_read_price: null
+    },
+    display_pricing: {
+      billing_mode: 'token',
+      input_price: 1e-4,
+      output_price: 8e-4,
+      cache_write_price: null,
+      cache_write_1h_price: null,
       cache_read_price: null,
-      intervals
-    }
+      image_input_price: null,
+      image_output_price: null,
+      per_request_price: null,
+      intervals: []
+    },
+    presentation_source: 'manual',
+    ...overrides
   }
 }
 
@@ -69,7 +72,7 @@ function group(overrides: Partial<ModelPlazaGroup> = {}): ModelPlazaGroup {
     image_rate_independent: false,
     image_rate_multiplier: 1,
     long_context_pricing_enabled: true,
-    models: [ladderModel(2)],
+    models: [tokenModel()],
     ...overrides
   }
 }
@@ -87,53 +90,37 @@ function mountSection(g: ModelPlazaGroup) {
   })
 }
 
-const NOTE = 'modelPlaza.detail.longContextDisabledNote'
-
-describe('PlazaGroupSection 长上下文说明', () => {
-  it('分组关闭阶梯且组内有官方阶梯模型时显示说明', () => {
-    const wrapper = mountSection(group({ long_context_pricing_enabled: false }))
-    expect(wrapper.text()).toContain(NOTE)
+describe('PlazaGroupSection（标准价语义）', () => {
+  it('把模型与分组平台传给价格表', () => {
+    const wrapper = mountSection(group())
+    const table = wrapper.findComponent(PlazaModelPricingTable)
+    expect(table.props('models')).toHaveLength(1)
+    expect(table.props('models')[0].name).toBe('gpt-5.6-sol')
+    expect(table.props('platform')).toBe('openai')
+    // 旧计费口径 props 不再传递:价格表只吃标准价语义
+    expect(table.props('rateMultiplier')).toBeUndefined()
+    expect(table.props('peakWindow')).toBeUndefined()
   })
 
-  it('分组开启阶梯时不显示', () => {
-    const wrapper = mountSection(group({ long_context_pricing_enabled: true }))
-    expect(wrapper.text()).not.toContain(NOTE)
-  })
-
-  it('分组关闭但没有官方阶梯模型时不显示', () => {
-    const wrapper = mountSection(
-      group({ long_context_pricing_enabled: false, models: [ladderModel(1)] })
-    )
-    expect(wrapper.text()).not.toContain(NOTE)
-  })
-
-  it('旧后端缺少开关字段时不显示', () => {
-    const g = group()
-    delete (g as Partial<ModelPlazaGroup>).long_context_pricing_enabled
-    const wrapper = mountSection(g)
-    expect(wrapper.text()).not.toContain(NOTE)
-  })
-})
-
-describe('PlazaGroupSection 高峰配置传递', () => {
-  it('分组启用高峰时把窗口描述与倍率传给价格表', () => {
+  it('专属 / 订阅徽章按字段渲染,描述文本透传', () => {
     const wrapper = mountSection(
       group({
-        subscription_type: 'subscription',
-        peak_rate_enabled: true,
-        peak_start: '14:00',
-        peak_end: '18:00',
-        peak_rate_multiplier: 1.5
+        description: 'g-desc',
+        is_exclusive: true,
+        subscription_type: 'subscription'
       })
     )
-    const table = wrapper.findComponent(PlazaModelPricingTable)
-    // appStore mock 无 server_utc_offset,窗口描述不带时区标注
-    expect(table.props('peakWindow')).toBe('14:00-18:00 ×1.5')
-    expect(table.props('peakRateMultiplier')).toBe(1.5)
+    const text = wrapper.text()
+    expect(text).toContain('modelPlaza.badges.exclusive')
+    expect(text).toContain('modelPlaza.badges.subscription')
+    expect(text).toContain('g-desc')
+    // 旧高峰披露文案已随计费语义移除
+    expect(text).not.toContain('modelPlaza.detail.peakNote')
   })
 
-  it('分组未启用高峰时窗口描述为空串', () => {
-    const wrapper = mountSection(group())
-    expect(wrapper.findComponent(PlazaModelPricingTable).props('peakWindow')).toBe('')
+  it('无模型时显示空态而非价格表', () => {
+    const wrapper = mountSection(group({ models: [] }))
+    expect(wrapper.findComponent(PlazaModelPricingTable).exists()).toBe(false)
+    expect(wrapper.text()).toContain('modelPlaza.detail.noModels')
   })
 })

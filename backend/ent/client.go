@@ -38,6 +38,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
+	"github.com/Wei-Shaw/sub2api/ent/presentationmodelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
@@ -116,6 +117,8 @@ type Client struct {
 	PaymentProviderInstance *PaymentProviderInstanceClient
 	// PendingAuthSession is the client for interacting with the PendingAuthSession builders.
 	PendingAuthSession *PendingAuthSessionClient
+	// PresentationModelPricing is the client for interacting with the PresentationModelPricing builders.
+	PresentationModelPricing *PresentationModelPricingClient
 	// PromoCode is the client for interacting with the PromoCode builders.
 	PromoCode *PromoCodeClient
 	// PromoCodeUsage is the client for interacting with the PromoCodeUsage builders.
@@ -196,6 +199,7 @@ func (c *Client) init() {
 	c.PaymentOrder = NewPaymentOrderClient(c.config)
 	c.PaymentProviderInstance = NewPaymentProviderInstanceClient(c.config)
 	c.PendingAuthSession = NewPendingAuthSessionClient(c.config)
+	c.PresentationModelPricing = NewPresentationModelPricingClient(c.config)
 	c.PromoCode = NewPromoCodeClient(c.config)
 	c.PromoCodeUsage = NewPromoCodeUsageClient(c.config)
 	c.Proxy = NewProxyClient(c.config)
@@ -334,6 +338,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
 		PaymentProviderInstance:       NewPaymentProviderInstanceClient(cfg),
 		PendingAuthSession:            NewPendingAuthSessionClient(cfg),
+		PresentationModelPricing:      NewPresentationModelPricingClient(cfg),
 		PromoCode:                     NewPromoCodeClient(cfg),
 		PromoCodeUsage:                NewPromoCodeUsageClient(cfg),
 		Proxy:                         NewProxyClient(cfg),
@@ -399,6 +404,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
 		PaymentProviderInstance:       NewPaymentProviderInstanceClient(cfg),
 		PendingAuthSession:            NewPendingAuthSessionClient(cfg),
+		PresentationModelPricing:      NewPresentationModelPricingClient(cfg),
 		PromoCode:                     NewPromoCodeClient(cfg),
 		PromoCodeUsage:                NewPromoCodeUsageClient(cfg),
 		Proxy:                         NewProxyClient(cfg),
@@ -457,14 +463,14 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.ResearchApplication, c.ResearchAttachmentUpload,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SubscriptionPlanChange,
-		c.SubscriptionResetApplication, c.SubscriptionResetCard,
-		c.SubscriptionResetEvent, c.SubscriptionTerm, c.TLSFingerprintProfile,
-		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
-		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.PaymentProviderInstance, c.PendingAuthSession, c.PresentationModelPricing,
+		c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.ResearchApplication,
+		c.ResearchAttachmentUpload, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
+		c.SubscriptionPlanChange, c.SubscriptionResetApplication,
+		c.SubscriptionResetCard, c.SubscriptionResetEvent, c.SubscriptionTerm,
+		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
+		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -480,14 +486,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.ResearchApplication, c.ResearchAttachmentUpload,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SubscriptionPlanChange,
-		c.SubscriptionResetApplication, c.SubscriptionResetCard,
-		c.SubscriptionResetEvent, c.SubscriptionTerm, c.TLSFingerprintProfile,
-		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
-		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.PaymentProviderInstance, c.PendingAuthSession, c.PresentationModelPricing,
+		c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.ResearchApplication,
+		c.ResearchAttachmentUpload, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
+		c.SubscriptionPlanChange, c.SubscriptionResetApplication,
+		c.SubscriptionResetCard, c.SubscriptionResetEvent, c.SubscriptionTerm,
+		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
+		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -542,6 +548,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.PaymentProviderInstance.mutate(ctx, m)
 	case *PendingAuthSessionMutation:
 		return c.PendingAuthSession.mutate(ctx, m)
+	case *PresentationModelPricingMutation:
+		return c.PresentationModelPricing.mutate(ctx, m)
 	case *PromoCodeMutation:
 		return c.PromoCode.mutate(ctx, m)
 	case *PromoCodeUsageMutation:
@@ -4216,6 +4224,139 @@ func (c *PendingAuthSessionClient) mutate(ctx context.Context, m *PendingAuthSes
 		return (&PendingAuthSessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown PendingAuthSession mutation op: %q", m.Op())
+	}
+}
+
+// PresentationModelPricingClient is a client for the PresentationModelPricing schema.
+type PresentationModelPricingClient struct {
+	config
+}
+
+// NewPresentationModelPricingClient returns a client for the PresentationModelPricing from the given config.
+func NewPresentationModelPricingClient(c config) *PresentationModelPricingClient {
+	return &PresentationModelPricingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `presentationmodelpricing.Hooks(f(g(h())))`.
+func (c *PresentationModelPricingClient) Use(hooks ...Hook) {
+	c.hooks.PresentationModelPricing = append(c.hooks.PresentationModelPricing, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `presentationmodelpricing.Intercept(f(g(h())))`.
+func (c *PresentationModelPricingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PresentationModelPricing = append(c.inters.PresentationModelPricing, interceptors...)
+}
+
+// Create returns a builder for creating a PresentationModelPricing entity.
+func (c *PresentationModelPricingClient) Create() *PresentationModelPricingCreate {
+	mutation := newPresentationModelPricingMutation(c.config, OpCreate)
+	return &PresentationModelPricingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PresentationModelPricing entities.
+func (c *PresentationModelPricingClient) CreateBulk(builders ...*PresentationModelPricingCreate) *PresentationModelPricingCreateBulk {
+	return &PresentationModelPricingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PresentationModelPricingClient) MapCreateBulk(slice any, setFunc func(*PresentationModelPricingCreate, int)) *PresentationModelPricingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PresentationModelPricingCreateBulk{err: fmt.Errorf("calling to PresentationModelPricingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PresentationModelPricingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PresentationModelPricingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PresentationModelPricing.
+func (c *PresentationModelPricingClient) Update() *PresentationModelPricingUpdate {
+	mutation := newPresentationModelPricingMutation(c.config, OpUpdate)
+	return &PresentationModelPricingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PresentationModelPricingClient) UpdateOne(_m *PresentationModelPricing) *PresentationModelPricingUpdateOne {
+	mutation := newPresentationModelPricingMutation(c.config, OpUpdateOne, withPresentationModelPricing(_m))
+	return &PresentationModelPricingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PresentationModelPricingClient) UpdateOneID(id int64) *PresentationModelPricingUpdateOne {
+	mutation := newPresentationModelPricingMutation(c.config, OpUpdateOne, withPresentationModelPricingID(id))
+	return &PresentationModelPricingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PresentationModelPricing.
+func (c *PresentationModelPricingClient) Delete() *PresentationModelPricingDelete {
+	mutation := newPresentationModelPricingMutation(c.config, OpDelete)
+	return &PresentationModelPricingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PresentationModelPricingClient) DeleteOne(_m *PresentationModelPricing) *PresentationModelPricingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PresentationModelPricingClient) DeleteOneID(id int64) *PresentationModelPricingDeleteOne {
+	builder := c.Delete().Where(presentationmodelpricing.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PresentationModelPricingDeleteOne{builder}
+}
+
+// Query returns a query builder for PresentationModelPricing.
+func (c *PresentationModelPricingClient) Query() *PresentationModelPricingQuery {
+	return &PresentationModelPricingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePresentationModelPricing},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PresentationModelPricing entity by its id.
+func (c *PresentationModelPricingClient) Get(ctx context.Context, id int64) (*PresentationModelPricing, error) {
+	return c.Query().Where(presentationmodelpricing.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PresentationModelPricingClient) GetX(ctx context.Context, id int64) *PresentationModelPricing {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PresentationModelPricingClient) Hooks() []Hook {
+	return c.hooks.PresentationModelPricing
+}
+
+// Interceptors returns the client interceptors.
+func (c *PresentationModelPricingClient) Interceptors() []Interceptor {
+	return c.inters.PresentationModelPricing
+}
+
+func (c *PresentationModelPricingClient) mutate(ctx context.Context, m *PresentationModelPricingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PresentationModelPricingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PresentationModelPricingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PresentationModelPricingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PresentationModelPricingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PresentationModelPricing mutation op: %q", m.Op())
 	}
 }
 
@@ -8099,13 +8240,14 @@ type (
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, ResearchApplication,
-		ResearchAttachmentUpload, SecuritySecret, Setting, SubscriptionPlan,
-		SubscriptionPlanChange, SubscriptionResetApplication, SubscriptionResetCard,
-		SubscriptionResetEvent, SubscriptionTerm, TLSFingerprintProfile,
-		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
-		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Hook
+		PaymentOrder, PaymentProviderInstance, PendingAuthSession,
+		PresentationModelPricing, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		ResearchApplication, ResearchAttachmentUpload, SecuritySecret, Setting,
+		SubscriptionPlan, SubscriptionPlanChange, SubscriptionResetApplication,
+		SubscriptionResetCard, SubscriptionResetEvent, SubscriptionTerm,
+		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
+		UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
@@ -8113,13 +8255,14 @@ type (
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, ResearchApplication,
-		ResearchAttachmentUpload, SecuritySecret, Setting, SubscriptionPlan,
-		SubscriptionPlanChange, SubscriptionResetApplication, SubscriptionResetCard,
-		SubscriptionResetEvent, SubscriptionTerm, TLSFingerprintProfile,
-		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
-		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Interceptor
+		PaymentOrder, PaymentProviderInstance, PendingAuthSession,
+		PresentationModelPricing, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		ResearchApplication, ResearchAttachmentUpload, SecuritySecret, Setting,
+		SubscriptionPlan, SubscriptionPlanChange, SubscriptionResetApplication,
+		SubscriptionResetCard, SubscriptionResetEvent, SubscriptionTerm,
+		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
+		UserSubscription []ent.Interceptor
 	}
 )
 

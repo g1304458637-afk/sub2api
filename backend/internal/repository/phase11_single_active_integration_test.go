@@ -229,13 +229,7 @@ func TestPhase11GuardAllowsAssignmentWhenNoActiveElsewhere(t *testing.T) {
 
 // ---- 续期取代 pending 预约降级 ----
 
-
 // ---- 到点执行引擎 ----
-
-
-
-
-
 
 // ---- 履约前置：惰性到期收敛 ----
 
@@ -263,4 +257,3 @@ func TestPhase11ExpireLapsedByUser(t *testing.T) {
 		Scan(&activeCount))
 	require.Equal(t, 0, activeCount, "lapsed 行应被翻为 expired")
 }
-

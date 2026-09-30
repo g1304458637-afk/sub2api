@@ -412,6 +412,12 @@ export interface SystemSettings {
   student_verification_reward_enabled: boolean;
   student_verification_reward_amount: number;
   student_verification_reward_campaign: string;
+  // 学生邮箱认证福利（订阅赠送）
+  student_verification_enabled: boolean;
+  student_benefit_group_id: number; // 0 = 未配置
+  student_benefit_plan_id: number; // 可选，0 = 未配置
+  student_benefit_validity_days: number; // 默认 30 天
+  student_benefit_code: string; // 可选，留空 = 按品牌自动
   totp_encryption_key_configured: boolean; // TOTP 加密密钥是否已配置
   passkey_enabled: boolean;
   passkey_configured: boolean;
@@ -767,6 +773,12 @@ export interface UpdateSettingsRequest {
   student_verification_reward_enabled?: boolean;
   student_verification_reward_amount?: number;
   student_verification_reward_campaign?: string;
+  // 学生邮箱认证福利（订阅赠送）；enable 类字段后端为 *bool 语义，JSON 直接传 bool
+  student_verification_enabled?: boolean;
+  student_benefit_group_id?: number;
+  student_benefit_plan_id?: number;
+  student_benefit_validity_days?: number;
+  student_benefit_code?: string;
   passkey_enabled?: boolean;
   session_binding_enabled?: boolean; // 会话 IP/UA 绑定
   step_up_enabled?: boolean; // 敏感操作 step-up 2FA

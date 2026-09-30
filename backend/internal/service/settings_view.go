@@ -30,6 +30,11 @@ type SystemSettings struct {
 	StudentVerificationRewardEnabled    bool    // 学生认证奖励发放开关（与认证功能开关解耦）
 	StudentVerificationRewardAmount     float64 // 学生认证奖励金额
 	StudentVerificationRewardCampaign   string  // 学生认证奖励活动标识
+	StudentVerificationEnabled          bool    // 学生邮箱认证功能开关（HUBU_EMAIL）
+	StudentBenefitGroupID               int64   // 学生权益目标分组（0 = 未配置）
+	StudentBenefitPlanID                int64   // 学生权益展示用套餐（0 = 未指定）
+	StudentBenefitValidityDays          int     // 学生权益时长（天）
+	StudentBenefitCode                  string  // 学生权益身份码（空 = 按品牌派生）
 	SessionBindingEnabled               bool    // 会话 IP/UA 绑定（变更即失效）
 	StepUpEnabled                       bool    // 敏感操作 step-up 2FA 门控
 	AuditLogRetentionDays               int     // 审计日志保留天数（<=0 永久保留）
@@ -353,6 +358,7 @@ type PublicSettings struct {
 	InvitationCodeEnabled               bool
 	TotpEnabled                         bool // TOTP 双因素认证
 	EducationEmailVerificationEnabled   bool
+	StudentVerificationEnabled          bool
 	PasskeyEnabled                      bool
 	LoginAgreementEnabled               bool
 	LoginAgreementMode                  string

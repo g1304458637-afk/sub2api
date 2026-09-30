@@ -36,6 +36,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/sub2api/ent/presentationmodelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
@@ -94,6 +95,7 @@ const (
 	TypePaymentOrder                  = "PaymentOrder"
 	TypePaymentProviderInstance       = "PaymentProviderInstance"
 	TypePendingAuthSession            = "PendingAuthSession"
+	TypePresentationModelPricing      = "PresentationModelPricing"
 	TypePromoCode                     = "PromoCode"
 	TypePromoCodeUsage                = "PromoCodeUsage"
 	TypeProxy                         = "Proxy"
@@ -36239,6 +36241,1430 @@ func (m *PendingAuthSessionMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown PendingAuthSession edge %s", name)
+}
+
+// PresentationModelPricingMutation represents an operation that mutates the PresentationModelPricing nodes in the graph.
+type PresentationModelPricingMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *int64
+	model_name              *string
+	billing_mode            *string
+	currency                *string
+	input_price             *float64
+	addinput_price          *float64
+	output_price            *float64
+	addoutput_price         *float64
+	cache_write_price       *float64
+	addcache_write_price    *float64
+	cache_write_1h_price    *float64
+	addcache_write_1h_price *float64
+	cache_read_price        *float64
+	addcache_read_price     *float64
+	per_request_price       *float64
+	addper_request_price    *float64
+	enabled                 *bool
+	remark                  *string
+	updated_by              *int64
+	addupdated_by           *int64
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*PresentationModelPricing, error)
+	predicates              []predicate.PresentationModelPricing
+}
+
+var _ ent.Mutation = (*PresentationModelPricingMutation)(nil)
+
+// presentationmodelpricingOption allows management of the mutation configuration using functional options.
+type presentationmodelpricingOption func(*PresentationModelPricingMutation)
+
+// newPresentationModelPricingMutation creates new mutation for the PresentationModelPricing entity.
+func newPresentationModelPricingMutation(c config, op Op, opts ...presentationmodelpricingOption) *PresentationModelPricingMutation {
+	m := &PresentationModelPricingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePresentationModelPricing,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPresentationModelPricingID sets the ID field of the mutation.
+func withPresentationModelPricingID(id int64) presentationmodelpricingOption {
+	return func(m *PresentationModelPricingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *PresentationModelPricing
+		)
+		m.oldValue = func(ctx context.Context) (*PresentationModelPricing, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().PresentationModelPricing.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPresentationModelPricing sets the old PresentationModelPricing of the mutation.
+func withPresentationModelPricing(node *PresentationModelPricing) presentationmodelpricingOption {
+	return func(m *PresentationModelPricingMutation) {
+		m.oldValue = func(context.Context) (*PresentationModelPricing, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PresentationModelPricingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PresentationModelPricingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PresentationModelPricingMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PresentationModelPricingMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().PresentationModelPricing.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetModelName sets the "model_name" field.
+func (m *PresentationModelPricingMutation) SetModelName(s string) {
+	m.model_name = &s
+}
+
+// ModelName returns the value of the "model_name" field in the mutation.
+func (m *PresentationModelPricingMutation) ModelName() (r string, exists bool) {
+	v := m.model_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelName returns the old "model_name" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldModelName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelName: %w", err)
+	}
+	return oldValue.ModelName, nil
+}
+
+// ResetModelName resets all changes to the "model_name" field.
+func (m *PresentationModelPricingMutation) ResetModelName() {
+	m.model_name = nil
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (m *PresentationModelPricingMutation) SetBillingMode(s string) {
+	m.billing_mode = &s
+}
+
+// BillingMode returns the value of the "billing_mode" field in the mutation.
+func (m *PresentationModelPricingMutation) BillingMode() (r string, exists bool) {
+	v := m.billing_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingMode returns the old "billing_mode" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldBillingMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingMode: %w", err)
+	}
+	return oldValue.BillingMode, nil
+}
+
+// ResetBillingMode resets all changes to the "billing_mode" field.
+func (m *PresentationModelPricingMutation) ResetBillingMode() {
+	m.billing_mode = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *PresentationModelPricingMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *PresentationModelPricingMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *PresentationModelPricingMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetInputPrice sets the "input_price" field.
+func (m *PresentationModelPricingMutation) SetInputPrice(f float64) {
+	m.input_price = &f
+	m.addinput_price = nil
+}
+
+// InputPrice returns the value of the "input_price" field in the mutation.
+func (m *PresentationModelPricingMutation) InputPrice() (r float64, exists bool) {
+	v := m.input_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInputPrice returns the old "input_price" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldInputPrice(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInputPrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInputPrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInputPrice: %w", err)
+	}
+	return oldValue.InputPrice, nil
+}
+
+// AddInputPrice adds f to the "input_price" field.
+func (m *PresentationModelPricingMutation) AddInputPrice(f float64) {
+	if m.addinput_price != nil {
+		*m.addinput_price += f
+	} else {
+		m.addinput_price = &f
+	}
+}
+
+// AddedInputPrice returns the value that was added to the "input_price" field in this mutation.
+func (m *PresentationModelPricingMutation) AddedInputPrice() (r float64, exists bool) {
+	v := m.addinput_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearInputPrice clears the value of the "input_price" field.
+func (m *PresentationModelPricingMutation) ClearInputPrice() {
+	m.input_price = nil
+	m.addinput_price = nil
+	m.clearedFields[presentationmodelpricing.FieldInputPrice] = struct{}{}
+}
+
+// InputPriceCleared returns if the "input_price" field was cleared in this mutation.
+func (m *PresentationModelPricingMutation) InputPriceCleared() bool {
+	_, ok := m.clearedFields[presentationmodelpricing.FieldInputPrice]
+	return ok
+}
+
+// ResetInputPrice resets all changes to the "input_price" field.
+func (m *PresentationModelPricingMutation) ResetInputPrice() {
+	m.input_price = nil
+	m.addinput_price = nil
+	delete(m.clearedFields, presentationmodelpricing.FieldInputPrice)
+}
+
+// SetOutputPrice sets the "output_price" field.
+func (m *PresentationModelPricingMutation) SetOutputPrice(f float64) {
+	m.output_price = &f
+	m.addoutput_price = nil
+}
+
+// OutputPrice returns the value of the "output_price" field in the mutation.
+func (m *PresentationModelPricingMutation) OutputPrice() (r float64, exists bool) {
+	v := m.output_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutputPrice returns the old "output_price" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldOutputPrice(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutputPrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutputPrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutputPrice: %w", err)
+	}
+	return oldValue.OutputPrice, nil
+}
+
+// AddOutputPrice adds f to the "output_price" field.
+func (m *PresentationModelPricingMutation) AddOutputPrice(f float64) {
+	if m.addoutput_price != nil {
+		*m.addoutput_price += f
+	} else {
+		m.addoutput_price = &f
+	}
+}
+
+// AddedOutputPrice returns the value that was added to the "output_price" field in this mutation.
+func (m *PresentationModelPricingMutation) AddedOutputPrice() (r float64, exists bool) {
+	v := m.addoutput_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearOutputPrice clears the value of the "output_price" field.
+func (m *PresentationModelPricingMutation) ClearOutputPrice() {
+	m.output_price = nil
+	m.addoutput_price = nil
+	m.clearedFields[presentationmodelpricing.FieldOutputPrice] = struct{}{}
+}
+
+// OutputPriceCleared returns if the "output_price" field was cleared in this mutation.
+func (m *PresentationModelPricingMutation) OutputPriceCleared() bool {
+	_, ok := m.clearedFields[presentationmodelpricing.FieldOutputPrice]
+	return ok
+}
+
+// ResetOutputPrice resets all changes to the "output_price" field.
+func (m *PresentationModelPricingMutation) ResetOutputPrice() {
+	m.output_price = nil
+	m.addoutput_price = nil
+	delete(m.clearedFields, presentationmodelpricing.FieldOutputPrice)
+}
+
+// SetCacheWritePrice sets the "cache_write_price" field.
+func (m *PresentationModelPricingMutation) SetCacheWritePrice(f float64) {
+	m.cache_write_price = &f
+	m.addcache_write_price = nil
+}
+
+// CacheWritePrice returns the value of the "cache_write_price" field in the mutation.
+func (m *PresentationModelPricingMutation) CacheWritePrice() (r float64, exists bool) {
+	v := m.cache_write_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheWritePrice returns the old "cache_write_price" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldCacheWritePrice(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheWritePrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheWritePrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheWritePrice: %w", err)
+	}
+	return oldValue.CacheWritePrice, nil
+}
+
+// AddCacheWritePrice adds f to the "cache_write_price" field.
+func (m *PresentationModelPricingMutation) AddCacheWritePrice(f float64) {
+	if m.addcache_write_price != nil {
+		*m.addcache_write_price += f
+	} else {
+		m.addcache_write_price = &f
+	}
+}
+
+// AddedCacheWritePrice returns the value that was added to the "cache_write_price" field in this mutation.
+func (m *PresentationModelPricingMutation) AddedCacheWritePrice() (r float64, exists bool) {
+	v := m.addcache_write_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCacheWritePrice clears the value of the "cache_write_price" field.
+func (m *PresentationModelPricingMutation) ClearCacheWritePrice() {
+	m.cache_write_price = nil
+	m.addcache_write_price = nil
+	m.clearedFields[presentationmodelpricing.FieldCacheWritePrice] = struct{}{}
+}
+
+// CacheWritePriceCleared returns if the "cache_write_price" field was cleared in this mutation.
+func (m *PresentationModelPricingMutation) CacheWritePriceCleared() bool {
+	_, ok := m.clearedFields[presentationmodelpricing.FieldCacheWritePrice]
+	return ok
+}
+
+// ResetCacheWritePrice resets all changes to the "cache_write_price" field.
+func (m *PresentationModelPricingMutation) ResetCacheWritePrice() {
+	m.cache_write_price = nil
+	m.addcache_write_price = nil
+	delete(m.clearedFields, presentationmodelpricing.FieldCacheWritePrice)
+}
+
+// SetCacheWrite1hPrice sets the "cache_write_1h_price" field.
+func (m *PresentationModelPricingMutation) SetCacheWrite1hPrice(f float64) {
+	m.cache_write_1h_price = &f
+	m.addcache_write_1h_price = nil
+}
+
+// CacheWrite1hPrice returns the value of the "cache_write_1h_price" field in the mutation.
+func (m *PresentationModelPricingMutation) CacheWrite1hPrice() (r float64, exists bool) {
+	v := m.cache_write_1h_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheWrite1hPrice returns the old "cache_write_1h_price" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldCacheWrite1hPrice(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheWrite1hPrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheWrite1hPrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheWrite1hPrice: %w", err)
+	}
+	return oldValue.CacheWrite1hPrice, nil
+}
+
+// AddCacheWrite1hPrice adds f to the "cache_write_1h_price" field.
+func (m *PresentationModelPricingMutation) AddCacheWrite1hPrice(f float64) {
+	if m.addcache_write_1h_price != nil {
+		*m.addcache_write_1h_price += f
+	} else {
+		m.addcache_write_1h_price = &f
+	}
+}
+
+// AddedCacheWrite1hPrice returns the value that was added to the "cache_write_1h_price" field in this mutation.
+func (m *PresentationModelPricingMutation) AddedCacheWrite1hPrice() (r float64, exists bool) {
+	v := m.addcache_write_1h_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCacheWrite1hPrice clears the value of the "cache_write_1h_price" field.
+func (m *PresentationModelPricingMutation) ClearCacheWrite1hPrice() {
+	m.cache_write_1h_price = nil
+	m.addcache_write_1h_price = nil
+	m.clearedFields[presentationmodelpricing.FieldCacheWrite1hPrice] = struct{}{}
+}
+
+// CacheWrite1hPriceCleared returns if the "cache_write_1h_price" field was cleared in this mutation.
+func (m *PresentationModelPricingMutation) CacheWrite1hPriceCleared() bool {
+	_, ok := m.clearedFields[presentationmodelpricing.FieldCacheWrite1hPrice]
+	return ok
+}
+
+// ResetCacheWrite1hPrice resets all changes to the "cache_write_1h_price" field.
+func (m *PresentationModelPricingMutation) ResetCacheWrite1hPrice() {
+	m.cache_write_1h_price = nil
+	m.addcache_write_1h_price = nil
+	delete(m.clearedFields, presentationmodelpricing.FieldCacheWrite1hPrice)
+}
+
+// SetCacheReadPrice sets the "cache_read_price" field.
+func (m *PresentationModelPricingMutation) SetCacheReadPrice(f float64) {
+	m.cache_read_price = &f
+	m.addcache_read_price = nil
+}
+
+// CacheReadPrice returns the value of the "cache_read_price" field in the mutation.
+func (m *PresentationModelPricingMutation) CacheReadPrice() (r float64, exists bool) {
+	v := m.cache_read_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheReadPrice returns the old "cache_read_price" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldCacheReadPrice(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheReadPrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheReadPrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheReadPrice: %w", err)
+	}
+	return oldValue.CacheReadPrice, nil
+}
+
+// AddCacheReadPrice adds f to the "cache_read_price" field.
+func (m *PresentationModelPricingMutation) AddCacheReadPrice(f float64) {
+	if m.addcache_read_price != nil {
+		*m.addcache_read_price += f
+	} else {
+		m.addcache_read_price = &f
+	}
+}
+
+// AddedCacheReadPrice returns the value that was added to the "cache_read_price" field in this mutation.
+func (m *PresentationModelPricingMutation) AddedCacheReadPrice() (r float64, exists bool) {
+	v := m.addcache_read_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCacheReadPrice clears the value of the "cache_read_price" field.
+func (m *PresentationModelPricingMutation) ClearCacheReadPrice() {
+	m.cache_read_price = nil
+	m.addcache_read_price = nil
+	m.clearedFields[presentationmodelpricing.FieldCacheReadPrice] = struct{}{}
+}
+
+// CacheReadPriceCleared returns if the "cache_read_price" field was cleared in this mutation.
+func (m *PresentationModelPricingMutation) CacheReadPriceCleared() bool {
+	_, ok := m.clearedFields[presentationmodelpricing.FieldCacheReadPrice]
+	return ok
+}
+
+// ResetCacheReadPrice resets all changes to the "cache_read_price" field.
+func (m *PresentationModelPricingMutation) ResetCacheReadPrice() {
+	m.cache_read_price = nil
+	m.addcache_read_price = nil
+	delete(m.clearedFields, presentationmodelpricing.FieldCacheReadPrice)
+}
+
+// SetPerRequestPrice sets the "per_request_price" field.
+func (m *PresentationModelPricingMutation) SetPerRequestPrice(f float64) {
+	m.per_request_price = &f
+	m.addper_request_price = nil
+}
+
+// PerRequestPrice returns the value of the "per_request_price" field in the mutation.
+func (m *PresentationModelPricingMutation) PerRequestPrice() (r float64, exists bool) {
+	v := m.per_request_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPerRequestPrice returns the old "per_request_price" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldPerRequestPrice(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPerRequestPrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPerRequestPrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPerRequestPrice: %w", err)
+	}
+	return oldValue.PerRequestPrice, nil
+}
+
+// AddPerRequestPrice adds f to the "per_request_price" field.
+func (m *PresentationModelPricingMutation) AddPerRequestPrice(f float64) {
+	if m.addper_request_price != nil {
+		*m.addper_request_price += f
+	} else {
+		m.addper_request_price = &f
+	}
+}
+
+// AddedPerRequestPrice returns the value that was added to the "per_request_price" field in this mutation.
+func (m *PresentationModelPricingMutation) AddedPerRequestPrice() (r float64, exists bool) {
+	v := m.addper_request_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearPerRequestPrice clears the value of the "per_request_price" field.
+func (m *PresentationModelPricingMutation) ClearPerRequestPrice() {
+	m.per_request_price = nil
+	m.addper_request_price = nil
+	m.clearedFields[presentationmodelpricing.FieldPerRequestPrice] = struct{}{}
+}
+
+// PerRequestPriceCleared returns if the "per_request_price" field was cleared in this mutation.
+func (m *PresentationModelPricingMutation) PerRequestPriceCleared() bool {
+	_, ok := m.clearedFields[presentationmodelpricing.FieldPerRequestPrice]
+	return ok
+}
+
+// ResetPerRequestPrice resets all changes to the "per_request_price" field.
+func (m *PresentationModelPricingMutation) ResetPerRequestPrice() {
+	m.per_request_price = nil
+	m.addper_request_price = nil
+	delete(m.clearedFields, presentationmodelpricing.FieldPerRequestPrice)
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *PresentationModelPricingMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *PresentationModelPricingMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *PresentationModelPricingMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetRemark sets the "remark" field.
+func (m *PresentationModelPricingMutation) SetRemark(s string) {
+	m.remark = &s
+}
+
+// Remark returns the value of the "remark" field in the mutation.
+func (m *PresentationModelPricingMutation) Remark() (r string, exists bool) {
+	v := m.remark
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemark returns the old "remark" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldRemark(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemark is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemark requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemark: %w", err)
+	}
+	return oldValue.Remark, nil
+}
+
+// ClearRemark clears the value of the "remark" field.
+func (m *PresentationModelPricingMutation) ClearRemark() {
+	m.remark = nil
+	m.clearedFields[presentationmodelpricing.FieldRemark] = struct{}{}
+}
+
+// RemarkCleared returns if the "remark" field was cleared in this mutation.
+func (m *PresentationModelPricingMutation) RemarkCleared() bool {
+	_, ok := m.clearedFields[presentationmodelpricing.FieldRemark]
+	return ok
+}
+
+// ResetRemark resets all changes to the "remark" field.
+func (m *PresentationModelPricingMutation) ResetRemark() {
+	m.remark = nil
+	delete(m.clearedFields, presentationmodelpricing.FieldRemark)
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *PresentationModelPricingMutation) SetUpdatedBy(i int64) {
+	m.updated_by = &i
+	m.addupdated_by = nil
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *PresentationModelPricingMutation) UpdatedBy() (r int64, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldUpdatedBy(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// AddUpdatedBy adds i to the "updated_by" field.
+func (m *PresentationModelPricingMutation) AddUpdatedBy(i int64) {
+	if m.addupdated_by != nil {
+		*m.addupdated_by += i
+	} else {
+		m.addupdated_by = &i
+	}
+}
+
+// AddedUpdatedBy returns the value that was added to the "updated_by" field in this mutation.
+func (m *PresentationModelPricingMutation) AddedUpdatedBy() (r int64, exists bool) {
+	v := m.addupdated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUpdatedBy clears the value of the "updated_by" field.
+func (m *PresentationModelPricingMutation) ClearUpdatedBy() {
+	m.updated_by = nil
+	m.addupdated_by = nil
+	m.clearedFields[presentationmodelpricing.FieldUpdatedBy] = struct{}{}
+}
+
+// UpdatedByCleared returns if the "updated_by" field was cleared in this mutation.
+func (m *PresentationModelPricingMutation) UpdatedByCleared() bool {
+	_, ok := m.clearedFields[presentationmodelpricing.FieldUpdatedBy]
+	return ok
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *PresentationModelPricingMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+	m.addupdated_by = nil
+	delete(m.clearedFields, presentationmodelpricing.FieldUpdatedBy)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *PresentationModelPricingMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *PresentationModelPricingMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *PresentationModelPricingMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *PresentationModelPricingMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *PresentationModelPricingMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the PresentationModelPricing entity.
+// If the PresentationModelPricing object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PresentationModelPricingMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *PresentationModelPricingMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the PresentationModelPricingMutation builder.
+func (m *PresentationModelPricingMutation) Where(ps ...predicate.PresentationModelPricing) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PresentationModelPricingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PresentationModelPricingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.PresentationModelPricing, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PresentationModelPricingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PresentationModelPricingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (PresentationModelPricing).
+func (m *PresentationModelPricingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PresentationModelPricingMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.model_name != nil {
+		fields = append(fields, presentationmodelpricing.FieldModelName)
+	}
+	if m.billing_mode != nil {
+		fields = append(fields, presentationmodelpricing.FieldBillingMode)
+	}
+	if m.currency != nil {
+		fields = append(fields, presentationmodelpricing.FieldCurrency)
+	}
+	if m.input_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldInputPrice)
+	}
+	if m.output_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldOutputPrice)
+	}
+	if m.cache_write_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldCacheWritePrice)
+	}
+	if m.cache_write_1h_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldCacheWrite1hPrice)
+	}
+	if m.cache_read_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldCacheReadPrice)
+	}
+	if m.per_request_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldPerRequestPrice)
+	}
+	if m.enabled != nil {
+		fields = append(fields, presentationmodelpricing.FieldEnabled)
+	}
+	if m.remark != nil {
+		fields = append(fields, presentationmodelpricing.FieldRemark)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, presentationmodelpricing.FieldUpdatedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, presentationmodelpricing.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, presentationmodelpricing.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PresentationModelPricingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case presentationmodelpricing.FieldModelName:
+		return m.ModelName()
+	case presentationmodelpricing.FieldBillingMode:
+		return m.BillingMode()
+	case presentationmodelpricing.FieldCurrency:
+		return m.Currency()
+	case presentationmodelpricing.FieldInputPrice:
+		return m.InputPrice()
+	case presentationmodelpricing.FieldOutputPrice:
+		return m.OutputPrice()
+	case presentationmodelpricing.FieldCacheWritePrice:
+		return m.CacheWritePrice()
+	case presentationmodelpricing.FieldCacheWrite1hPrice:
+		return m.CacheWrite1hPrice()
+	case presentationmodelpricing.FieldCacheReadPrice:
+		return m.CacheReadPrice()
+	case presentationmodelpricing.FieldPerRequestPrice:
+		return m.PerRequestPrice()
+	case presentationmodelpricing.FieldEnabled:
+		return m.Enabled()
+	case presentationmodelpricing.FieldRemark:
+		return m.Remark()
+	case presentationmodelpricing.FieldUpdatedBy:
+		return m.UpdatedBy()
+	case presentationmodelpricing.FieldCreatedAt:
+		return m.CreatedAt()
+	case presentationmodelpricing.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PresentationModelPricingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case presentationmodelpricing.FieldModelName:
+		return m.OldModelName(ctx)
+	case presentationmodelpricing.FieldBillingMode:
+		return m.OldBillingMode(ctx)
+	case presentationmodelpricing.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case presentationmodelpricing.FieldInputPrice:
+		return m.OldInputPrice(ctx)
+	case presentationmodelpricing.FieldOutputPrice:
+		return m.OldOutputPrice(ctx)
+	case presentationmodelpricing.FieldCacheWritePrice:
+		return m.OldCacheWritePrice(ctx)
+	case presentationmodelpricing.FieldCacheWrite1hPrice:
+		return m.OldCacheWrite1hPrice(ctx)
+	case presentationmodelpricing.FieldCacheReadPrice:
+		return m.OldCacheReadPrice(ctx)
+	case presentationmodelpricing.FieldPerRequestPrice:
+		return m.OldPerRequestPrice(ctx)
+	case presentationmodelpricing.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case presentationmodelpricing.FieldRemark:
+		return m.OldRemark(ctx)
+	case presentationmodelpricing.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
+	case presentationmodelpricing.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case presentationmodelpricing.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown PresentationModelPricing field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PresentationModelPricingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case presentationmodelpricing.FieldModelName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelName(v)
+		return nil
+	case presentationmodelpricing.FieldBillingMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingMode(v)
+		return nil
+	case presentationmodelpricing.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case presentationmodelpricing.FieldInputPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInputPrice(v)
+		return nil
+	case presentationmodelpricing.FieldOutputPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutputPrice(v)
+		return nil
+	case presentationmodelpricing.FieldCacheWritePrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheWritePrice(v)
+		return nil
+	case presentationmodelpricing.FieldCacheWrite1hPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheWrite1hPrice(v)
+		return nil
+	case presentationmodelpricing.FieldCacheReadPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheReadPrice(v)
+		return nil
+	case presentationmodelpricing.FieldPerRequestPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPerRequestPrice(v)
+		return nil
+	case presentationmodelpricing.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case presentationmodelpricing.FieldRemark:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemark(v)
+		return nil
+	case presentationmodelpricing.FieldUpdatedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
+		return nil
+	case presentationmodelpricing.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case presentationmodelpricing.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PresentationModelPricing field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PresentationModelPricingMutation) AddedFields() []string {
+	var fields []string
+	if m.addinput_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldInputPrice)
+	}
+	if m.addoutput_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldOutputPrice)
+	}
+	if m.addcache_write_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldCacheWritePrice)
+	}
+	if m.addcache_write_1h_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldCacheWrite1hPrice)
+	}
+	if m.addcache_read_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldCacheReadPrice)
+	}
+	if m.addper_request_price != nil {
+		fields = append(fields, presentationmodelpricing.FieldPerRequestPrice)
+	}
+	if m.addupdated_by != nil {
+		fields = append(fields, presentationmodelpricing.FieldUpdatedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PresentationModelPricingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case presentationmodelpricing.FieldInputPrice:
+		return m.AddedInputPrice()
+	case presentationmodelpricing.FieldOutputPrice:
+		return m.AddedOutputPrice()
+	case presentationmodelpricing.FieldCacheWritePrice:
+		return m.AddedCacheWritePrice()
+	case presentationmodelpricing.FieldCacheWrite1hPrice:
+		return m.AddedCacheWrite1hPrice()
+	case presentationmodelpricing.FieldCacheReadPrice:
+		return m.AddedCacheReadPrice()
+	case presentationmodelpricing.FieldPerRequestPrice:
+		return m.AddedPerRequestPrice()
+	case presentationmodelpricing.FieldUpdatedBy:
+		return m.AddedUpdatedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PresentationModelPricingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case presentationmodelpricing.FieldInputPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInputPrice(v)
+		return nil
+	case presentationmodelpricing.FieldOutputPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOutputPrice(v)
+		return nil
+	case presentationmodelpricing.FieldCacheWritePrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheWritePrice(v)
+		return nil
+	case presentationmodelpricing.FieldCacheWrite1hPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheWrite1hPrice(v)
+		return nil
+	case presentationmodelpricing.FieldCacheReadPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheReadPrice(v)
+		return nil
+	case presentationmodelpricing.FieldPerRequestPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPerRequestPrice(v)
+		return nil
+	case presentationmodelpricing.FieldUpdatedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PresentationModelPricing numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PresentationModelPricingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(presentationmodelpricing.FieldInputPrice) {
+		fields = append(fields, presentationmodelpricing.FieldInputPrice)
+	}
+	if m.FieldCleared(presentationmodelpricing.FieldOutputPrice) {
+		fields = append(fields, presentationmodelpricing.FieldOutputPrice)
+	}
+	if m.FieldCleared(presentationmodelpricing.FieldCacheWritePrice) {
+		fields = append(fields, presentationmodelpricing.FieldCacheWritePrice)
+	}
+	if m.FieldCleared(presentationmodelpricing.FieldCacheWrite1hPrice) {
+		fields = append(fields, presentationmodelpricing.FieldCacheWrite1hPrice)
+	}
+	if m.FieldCleared(presentationmodelpricing.FieldCacheReadPrice) {
+		fields = append(fields, presentationmodelpricing.FieldCacheReadPrice)
+	}
+	if m.FieldCleared(presentationmodelpricing.FieldPerRequestPrice) {
+		fields = append(fields, presentationmodelpricing.FieldPerRequestPrice)
+	}
+	if m.FieldCleared(presentationmodelpricing.FieldRemark) {
+		fields = append(fields, presentationmodelpricing.FieldRemark)
+	}
+	if m.FieldCleared(presentationmodelpricing.FieldUpdatedBy) {
+		fields = append(fields, presentationmodelpricing.FieldUpdatedBy)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PresentationModelPricingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PresentationModelPricingMutation) ClearField(name string) error {
+	switch name {
+	case presentationmodelpricing.FieldInputPrice:
+		m.ClearInputPrice()
+		return nil
+	case presentationmodelpricing.FieldOutputPrice:
+		m.ClearOutputPrice()
+		return nil
+	case presentationmodelpricing.FieldCacheWritePrice:
+		m.ClearCacheWritePrice()
+		return nil
+	case presentationmodelpricing.FieldCacheWrite1hPrice:
+		m.ClearCacheWrite1hPrice()
+		return nil
+	case presentationmodelpricing.FieldCacheReadPrice:
+		m.ClearCacheReadPrice()
+		return nil
+	case presentationmodelpricing.FieldPerRequestPrice:
+		m.ClearPerRequestPrice()
+		return nil
+	case presentationmodelpricing.FieldRemark:
+		m.ClearRemark()
+		return nil
+	case presentationmodelpricing.FieldUpdatedBy:
+		m.ClearUpdatedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown PresentationModelPricing nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PresentationModelPricingMutation) ResetField(name string) error {
+	switch name {
+	case presentationmodelpricing.FieldModelName:
+		m.ResetModelName()
+		return nil
+	case presentationmodelpricing.FieldBillingMode:
+		m.ResetBillingMode()
+		return nil
+	case presentationmodelpricing.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case presentationmodelpricing.FieldInputPrice:
+		m.ResetInputPrice()
+		return nil
+	case presentationmodelpricing.FieldOutputPrice:
+		m.ResetOutputPrice()
+		return nil
+	case presentationmodelpricing.FieldCacheWritePrice:
+		m.ResetCacheWritePrice()
+		return nil
+	case presentationmodelpricing.FieldCacheWrite1hPrice:
+		m.ResetCacheWrite1hPrice()
+		return nil
+	case presentationmodelpricing.FieldCacheReadPrice:
+		m.ResetCacheReadPrice()
+		return nil
+	case presentationmodelpricing.FieldPerRequestPrice:
+		m.ResetPerRequestPrice()
+		return nil
+	case presentationmodelpricing.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case presentationmodelpricing.FieldRemark:
+		m.ResetRemark()
+		return nil
+	case presentationmodelpricing.FieldUpdatedBy:
+		m.ResetUpdatedBy()
+		return nil
+	case presentationmodelpricing.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case presentationmodelpricing.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown PresentationModelPricing field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PresentationModelPricingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PresentationModelPricingMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PresentationModelPricingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PresentationModelPricingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PresentationModelPricingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PresentationModelPricingMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PresentationModelPricingMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown PresentationModelPricing unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PresentationModelPricingMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown PresentationModelPricing edge %s", name)
 }
 
 // PromoCodeMutation represents an operation that mutates the PromoCode nodes in the graph.

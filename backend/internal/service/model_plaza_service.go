@@ -20,6 +20,11 @@ type PlazaOfficialPricing struct {
 }
 
 // PlazaModel 模型广场中单个模型条目：按实收口径合成的展示定价 + 官方参考价。
+//
+// Pricing 是计费口径的基础单价（不含分组/用户倍率，前端按生效倍率换算）；
+// DisplayPricing 是「模型与价格」页面展示的标准价格（绝对值，来源见
+// PresentationSource：manual override → official → billing 回退），与真实
+// 计费彻底解耦，二者可能不同。
 type PlazaModel struct {
 	Name            string
 	Platform        string
@@ -28,7 +33,12 @@ type PlazaModel struct {
 	// LongContextBasis 多档时的计价基准（整单 / 仅超出部分），单档为空。
 	LongContextBasis ContextPricingBasis
 	// TimePricing 计费会生效的分时倍率时段；无分时为 nil。
+	// 仅展示价来自 billing 回退时对用户有意义，manual/official 展示价下为 nil。
 	TimePricing *TimePricingSchedule
+	// DisplayPricing 用户端展示的标准价格（绝对值）；nil 表示无任何可用价格。
+	DisplayPricing *ChannelModelPricing
+	// PresentationSource 展示价来源：manual / official / billing / none。
+	PresentationSource string
 }
 
 // PlazaGroup 模型广场中以分组为顶层的条目。
@@ -62,27 +72,33 @@ type PlazaGroup struct {
 // 模型枚举来自渠道配置；token 模型的展示单价与阶梯由 BillingService 的阶梯表
 // 查询给出（与扣费走同一条解析链与计费函数），图片/按次模型沿用渠道/分组档位价。
 type ModelPlazaService struct {
-	channelRepo    ChannelRepository
-	groupRepo      GroupRepository
-	pricingService *PricingService
-	billingService *BillingService
-	resolver       *ModelPricingResolver
+	channelRepo         ChannelRepository
+	groupRepo           GroupRepository
+	pricingService      *PricingService
+	billingService      *BillingService
+	resolver            *ModelPricingResolver
+	presentationService *PresentationPricingService
 }
 
 // NewModelPlazaService 创建模型广场服务。
+//
+// presentationService 提供展示价 override（仅影响用户端展示，不影响计费）；
+// 依赖方向：展示价服务可读取 Billing 作回退，Billing 永不依赖展示价服务。
 func NewModelPlazaService(
 	channelRepo ChannelRepository,
 	groupRepo GroupRepository,
 	pricingService *PricingService,
 	billingService *BillingService,
 	resolver *ModelPricingResolver,
+	presentationService *PresentationPricingService,
 ) *ModelPlazaService {
 	return &ModelPlazaService{
-		channelRepo:    channelRepo,
-		groupRepo:      groupRepo,
-		pricingService: pricingService,
-		billingService: billingService,
-		resolver:       resolver,
+		channelRepo:         channelRepo,
+		groupRepo:           groupRepo,
+		pricingService:      pricingService,
+		billingService:      billingService,
+		resolver:            resolver,
+		presentationService: presentationService,
 	}
 }
 
@@ -191,6 +207,17 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 	}
 
 	officialMemo := make(map[string]*PlazaOfficialPricing)
+	// 展示价 override 全量一次读取（表极小）：无缓存 ⇒ 管理员保存后用户页面立即生效。
+	var overrides map[string]*PresentationModelPricing
+	if s.presentationService != nil {
+		overrides, err = s.presentationService.MapByModelName(ctx)
+		if err != nil {
+			// override 读取失败不能阻断广场页：降级为无 override（manual 项走回退链）。
+			overrides = nil
+		}
+	} else {
+		overrides = map[string]*PresentationModelPricing{}
+	}
 	out := make([]PlazaGroup, 0, len(order))
 	for _, gid := range order {
 		pg := byGroup[gid]
@@ -207,6 +234,7 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 		for j := range pg.Models {
 			s.fillDisplayPricing(ctx, &pg.Models[j], g)
 			pg.Models[j].OfficialPricing = s.lookupOfficialPricing(ctx, pg.Models[j].Name, officialMemo)
+			s.fillPresentationPricing(&pg.Models[j], g, overrides)
 		}
 		out = append(out, *pg)
 	}
@@ -328,6 +356,121 @@ func plazaImageDisplayPricing(p *ChannelModelPricing, g *Group) *ChannelModelPri
 			PerRequestPrice: &v,
 			SortOrder:       i,
 		})
+	}
+	return &clone
+}
+
+// fillPresentationPricing 解析用户端展示的标准价格（Presentation Pricing）。
+//
+// 回退链按计价形态分流（不给多模态模型强塞 token 参考价）：
+//   - token 模型：manual override → official（官方目录价）→ billing（计费口径标准价）；
+//   - 按次/按图/视频模型：manual override → billing（按次价与实付同量纲）；
+//     official 的 token 参考价与按次实付不同量纲，不作展示回退。
+//
+// 全部落空时 source=none，页面显示「价格暂未公布」，绝不猜测数字。
+//
+// 隔离约束：本函数只写 DisplayPricing / PresentationSource，绝不回写 Pricing，
+// 更不触碰 BillingService —— 管理员修改展示价不可能影响真实扣费。
+func (s *ModelPlazaService) fillPresentationPricing(m *PlazaModel, g *Group, overrides map[string]*PresentationModelPricing) {
+	if s.presentationService == nil {
+		return
+	}
+	if o := overrides[m.Name]; o != nil {
+		m.DisplayPricing = presentationPricingFromOverride(o)
+		m.PresentationSource = PresentationSourceManual
+		// 手工展示价是绝对标准价，计费侧的分时倍率时段不参与展示语义。
+		m.TimePricing = nil
+		return
+	}
+	perUnitBilled := m.Pricing != nil && m.Pricing.BillingMode != BillingModeToken
+	if !perUnitBilled && m.OfficialPricing != nil {
+		m.DisplayPricing = presentationPricingFromOfficial(m.OfficialPricing)
+		m.PresentationSource = PresentationSourceOfficial
+		return
+	}
+	if m.Pricing != nil {
+		m.DisplayPricing = presentationPricingFromBilling(m.Pricing, g)
+		m.PresentationSource = PresentationSourceBilling
+		return
+	}
+	if m.OfficialPricing != nil {
+		m.DisplayPricing = presentationPricingFromOfficial(m.OfficialPricing)
+		m.PresentationSource = PresentationSourceOfficial
+		return
+	}
+	m.PresentationSource = PresentationSourceNone
+}
+
+// presentationPricingFromOverride 手工 override → 展示定价（绝对值，原样透传）。
+func presentationPricingFromOverride(o *PresentationModelPricing) *ChannelModelPricing {
+	out := &ChannelModelPricing{BillingMode: o.BillingMode}
+	if o.BillingMode == BillingModeToken {
+		out.InputPrice = o.InputPrice
+		out.OutputPrice = o.OutputPrice
+		out.CacheWritePrice = o.CacheWritePrice
+		out.CacheWrite1hPrice = o.CacheWrite1hPrice
+		out.CacheReadPrice = o.CacheReadPrice
+		return out
+	}
+	out.PerRequestPrice = o.PerRequestPrice
+	return out
+}
+
+// presentationPricingFromOfficial 官方参考价 → 展示定价（绝对值；官方阶梯原样保留）。
+func presentationPricingFromOfficial(o *PlazaOfficialPricing) *ChannelModelPricing {
+	out := &ChannelModelPricing{BillingMode: BillingModeToken}
+	out.InputPrice = o.InputPrice
+	out.OutputPrice = o.OutputPrice
+	out.CacheWritePrice = o.CacheWritePrice
+	out.CacheWrite1hPrice = o.CacheWrite1hPrice
+	out.CacheReadPrice = o.CacheReadPrice
+	if len(o.Intervals) > 0 {
+		out.Intervals = append([]PricingInterval(nil), o.Intervals...)
+	}
+	return out
+}
+
+// presentationPricingFromBilling 计费口径 → 展示定价（billing 回退）。
+//
+// 与前端旧「实付价」口径一致：基础单价 × 分组默认倍率 = 该分组的标准实付价
+// （用户专属倍率、高峰倍率等因人而异的因子由页面说明兜底）。返回克隆，不修改
+// 入参（渠道定价指针指向缓存共享数据）。
+func presentationPricingFromBilling(p *ChannelModelPricing, g *Group) *ChannelModelPricing {
+	clone := *p
+	if g == nil {
+		return &clone
+	}
+	rate := g.RateMultiplier
+	if clone.BillingMode != BillingModeToken && g.ImageRateIndependent {
+		rate = g.ImageRateMultiplier
+	}
+	if rate == 1 {
+		return &clone
+	}
+	scaled := func(v *float64) *float64 {
+		if v == nil {
+			return nil
+		}
+		s := *v * rate
+		return &s
+	}
+	clone.InputPrice = scaled(p.InputPrice)
+	clone.OutputPrice = scaled(p.OutputPrice)
+	clone.CacheWritePrice = scaled(p.CacheWritePrice)
+	clone.CacheWrite1hPrice = scaled(p.CacheWrite1hPrice)
+	clone.CacheReadPrice = scaled(p.CacheReadPrice)
+	clone.PerRequestPrice = scaled(p.PerRequestPrice)
+	if len(p.Intervals) > 0 {
+		clone.Intervals = make([]PricingInterval, len(p.Intervals))
+		for i, iv := range p.Intervals {
+			iv.InputPrice = scaled(iv.InputPrice)
+			iv.OutputPrice = scaled(iv.OutputPrice)
+			iv.CacheWritePrice = scaled(iv.CacheWritePrice)
+			iv.CacheWrite1hPrice = scaled(iv.CacheWrite1hPrice)
+			iv.CacheReadPrice = scaled(iv.CacheReadPrice)
+			iv.PerRequestPrice = scaled(iv.PerRequestPrice)
+			clone.Intervals[i] = iv
+		}
 	}
 	return &clone
 }

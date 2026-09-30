@@ -47,37 +47,41 @@ type AdminHandlers struct {
 	ResetEvent             *admin.AdminResetEventHandler
 	ResetCard              *admin.AdminSubscriptionResetHandler
 	RewardGrant            *admin.RewardGrantHandler
+	PresentationPricing    *admin.PresentationPricingHandler
+	SubscriptionGrant      *admin.SubscriptionGrantHandler
+	StudentVerification    *admin.StudentVerificationHandler
 }
 
 // Handlers contains all HTTP handlers
 type Handlers struct {
-	Auth             *AuthHandler
-	User             *UserHandler
-	APIKey           *APIKeyHandler
-	Usage            *UsageHandler
-	Redeem           *RedeemHandler
-	Subscription     *SubscriptionHandler
-	Announcement     *AnnouncementHandler
-	ChannelMonitor   *ChannelMonitorUserHandler
-	ChannelMonitorV2 *ChannelMonitorV2Handler
-	Admin            *AdminHandlers
-	Gateway          *GatewayHandler
-	OpenAIGateway    *OpenAIGatewayHandler
-	Setting          *SettingHandler
-	Totp             *TotpHandler
-	Passkey          *PasskeyHandler
-	Payment          *PaymentHandler
-	PaymentWebhook   *PaymentWebhookHandler
-	AvailableChannel *AvailableChannelHandler
-	ModelPlaza       *ModelPlazaHandler
-	WebChat          *WebChatHandler
-	AsyncImage       *AsyncImageHandler
-	MusicTask        *AsyncMusicHandler
-	BatchImage       *BatchImageHandler
-	MucConnect       *MucConnectHandler
-	Research         *ResearchApplicationHandler
-	PlanChange       *PlanChangeHandler
-	WalletLedger     *WalletLedgerHandler
+	Auth                *AuthHandler
+	User                *UserHandler
+	APIKey              *APIKeyHandler
+	Usage               *UsageHandler
+	Redeem              *RedeemHandler
+	Subscription        *SubscriptionHandler
+	Announcement        *AnnouncementHandler
+	ChannelMonitor      *ChannelMonitorUserHandler
+	ChannelMonitorV2    *ChannelMonitorV2Handler
+	Admin               *AdminHandlers
+	Gateway             *GatewayHandler
+	OpenAIGateway       *OpenAIGatewayHandler
+	Setting             *SettingHandler
+	Totp                *TotpHandler
+	Passkey             *PasskeyHandler
+	Payment             *PaymentHandler
+	PaymentWebhook      *PaymentWebhookHandler
+	AvailableChannel    *AvailableChannelHandler
+	ModelPlaza          *ModelPlazaHandler
+	WebChat             *WebChatHandler
+	AsyncImage          *AsyncImageHandler
+	MusicTask           *AsyncMusicHandler
+	BatchImage          *BatchImageHandler
+	MucConnect          *MucConnectHandler
+	Research            *ResearchApplicationHandler
+	PlanChange          *PlanChangeHandler
+	WalletLedger        *WalletLedgerHandler
+	StudentVerification *StudentVerificationHandler
 }
 
 // BuildInfo contains build-time information

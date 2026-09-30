@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { defineComponent } from 'vue'
 
 import SubscriptionsView from '../SubscriptionsView.vue'
 
-const { listSubscriptions, assignSubscription, getAllGroups, listUsers, searchUsageUsers, showError } = vi.hoisted(() => ({
+const { listSubscriptions, grantCreate, grantPreview, getAllGroups, listUsers, searchUsageUsers, showError } = vi.hoisted(() => ({
   listSubscriptions: vi.fn(),
-  assignSubscription: vi.fn(),
+  grantCreate: vi.fn(),
+  grantPreview: vi.fn(),
   showError: vi.fn(),
   getAllGroups: vi.fn(),
   listUsers: vi.fn(),
@@ -15,7 +17,14 @@ const { listSubscriptions, assignSubscription, getAllGroups, listUsers, searchUs
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
-    subscriptions: { list: listSubscriptions, assign: assignSubscription },
+    subscriptions: { list: listSubscriptions },
+    subscriptionGrants: {
+      preview: grantPreview,
+      create: grantCreate,
+      bulk: vi.fn(),
+      list: vi.fn(),
+      revoke: vi.fn()
+    },
     groups: { getAll: getAllGroups },
     users: { list: listUsers },
     usage: { searchUsers: searchUsageUsers }
@@ -60,6 +69,7 @@ const RouterLinkStub = defineComponent({
 describe('admin subscription users', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setActivePinia(createPinia())
     localStorage.clear()
     listSubscriptions.mockResolvedValue({
       items: [{
@@ -82,7 +92,17 @@ describe('admin subscription users', () => {
       total: 1,
       pages: 1
     })
-    assignSubscription.mockResolvedValue({})
+    grantCreate.mockResolvedValue({
+      grant: { id: 1 },
+      outcome: { action: 'activated_new', grant_id: 1, message: '' }
+    })
+    grantPreview.mockResolvedValue({
+      outcome: 'will_activate_new',
+      current_plan_name: null,
+      current_expires: null,
+      predicted_expires: '2026-02-01T00:00:00Z',
+      message: ''
+    })
     getAllGroups.mockResolvedValue([])
     listUsers.mockResolvedValue({
       items: [{ id: 42, email: 'reader@example.com' }],
@@ -117,13 +137,13 @@ describe('admin subscription users', () => {
     }
   })
 
-  it('searches current users when assigning a subscription', async () => {
+  it('searches current users when granting a subscription', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const wrapper = mountView()
     try {
       await flushPromises()
       await wrapper.findAll('button')
-        .find((button) => button.text() === 'admin.subscriptions.assignSubscription')!
+        .find((button) => button.text() === 'admin.subscriptions.grant.action')!
         .trigger('click')
       const search = wrapper.get('[data-assign-user-search] input')
       await search.trigger('focus')
@@ -146,13 +166,13 @@ describe('admin subscription users', () => {
     }
   })
 
-  it.each(['another', ''])('clears the assignment user immediately when input changes to %j', async (keyword) => {
+  it.each(['another', ''])('clears the grant user immediately when input changes to %j', async (keyword) => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const wrapper = mountView()
     try {
       await flushPromises()
       await wrapper.findAll('button')
-        .find((button) => button.text() === 'admin.subscriptions.assignSubscription')!
+        .find((button) => button.text() === 'admin.subscriptions.grant.action')!
         .trigger('click')
       const form = wrapper.get('#assign-subscription-form')
       form.getComponent({ name: 'Select' }).vm.$emit('update:modelValue', 3)
@@ -167,7 +187,7 @@ describe('admin subscription users', () => {
       await form.trigger('submit')
       await flushPromises()
 
-      expect(assignSubscription).not.toHaveBeenCalled()
+      expect(grantCreate).not.toHaveBeenCalled()
       expect(showError).toHaveBeenCalledWith('admin.subscriptions.pleaseSelectUser')
       expect(listUsers).toHaveBeenCalledTimes(1)
 
@@ -180,10 +200,15 @@ describe('admin subscription users', () => {
       await form.trigger('submit')
       await flushPromises()
 
-      expect(assignSubscription).toHaveBeenCalledTimes(1)
-      expect(assignSubscription).toHaveBeenCalledWith({
-        user_id: 84, group_id: 3, validity_days: 30
-      })
+      expect(grantCreate).toHaveBeenCalledTimes(1)
+      expect(grantCreate).toHaveBeenCalledWith(
+        {
+          user_id: 84, group_id: 3, duration_days: 30,
+          effective_policy: 'immediate', source: 'admin_grant',
+          reason: undefined, notes: undefined
+        },
+        expect.any(String)
+      )
     } finally {
       wrapper.unmount()
       vi.useRealTimers()

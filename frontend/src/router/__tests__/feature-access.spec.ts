@@ -157,14 +157,14 @@ describe('feature route guard', () => {
   })
 
   it.each([
-    ['payment', { requiresPayment: true }, { payment_enabled: false }, '/dashboard'],
+    ['payment', { requiresPayment: true }, { payment_enabled: false }, '/chat'],
     [
       'risk control',
       { requiresRiskControl: true },
       { risk_control_enabled: false },
       '/admin/settings',
     ],
-    ['subscription', { requiresSubscription: true }, { subscription_enabled: false }, '/dashboard'],
+    ['subscription', { requiresSubscription: true }, { subscription_enabled: false }, '/chat'],
   ])('redirects when loaded settings explicitly disable %s', async (_name, meta, settings, target) => {
     authStore.isAdmin = meta.requiresRiskControl === true
     appStore.cachedPublicSettings = settings

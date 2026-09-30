@@ -73,11 +73,68 @@ describe('AppSidebar subscription feature flag', () => {
     expect(componentSource).toMatch(/path: '\/admin\/subscriptions'[^\n]*featureFlag: flagSubscription/)
   })
 
-  it('keeps /purchase as a recharge-only entry and points subscription-only sites at /pricing', () => {
-    expect(componentSource).toContain("import { resolveSiteBillingMode } from '@/utils/siteBillingMode'")
-    // 套餐购买统一收敛到 /pricing 后，/purchase 仅保留充值入口
-    expect(componentSource).toMatch(/path: '\/purchase',\s*\n\s*label: t\('nav\.recharge'\)/)
-    expect(componentSource).toMatch(/isSubscriptionOnlySite\.value \? \[\] : \[\{\s*\n\s*path: '\/purchase'/)
+  it('keeps /pricing as the plan entry behind the payment flag', () => {
     expect(componentSource).toMatch(/path: '\/pricing', label: t\('nav\.pricing'\)/)
+  })
+})
+
+describe('AppSidebar Campus AI navigation convergence', () => {
+  // 信息架构收敛：技术型仪表盘/旧使用记录/独立充值/兑换不再出现在用户一级导航，
+  // 但路由保留兼容（/dashboard 直达、/usage → /spend 重定向、/purchase 由钱包进入）。
+  const mineItemsMatch = componentSource.match(/const mineItems: NavItem\[\] = \[([\s\S]*?)\n {2}\]\n/)
+
+  it('exposes the mine group declaration to contract tests', () => {
+    expect(mineItemsMatch).not.toBeNull()
+  })
+
+  it('hides Dashboard, Recharge, Redeem and the old technical Usage entries from user nav', () => {
+    const mineItems = mineItemsMatch?.[1] ?? ''
+    expect(mineItems).not.toContain("path: '/dashboard'")
+    expect(mineItems).not.toContain("path: '/purchase'")
+    expect(mineItems).not.toContain("path: '/redeem'")
+    expect(mineItems).not.toContain("path: '/usage'")
+  })
+
+  it('shows the new Model Spend entry at /spend', () => {
+    const mineItems = mineItemsMatch?.[1] ?? ''
+    expect(mineItems).toContain("path: '/spend'")
+    expect(componentSource).toMatch(/path: '\/spend', label: t\('nav\.modelSpend'\)/)
+  })
+
+  it('links 模型与价格 to the embedded /models plaza alias behind its opt-in flag', () => {
+    const mineItems = mineItemsMatch?.[1] ?? ''
+    expect(componentSource).toContain('const flagModelPlaza = makeSidebarFlag(FeatureFlags.modelPlaza)')
+    expect(mineItems).toContain("path: '/model-pricing?embedded=1'")
+    expect(componentSource).toMatch(/path: '\/model-pricing\?embedded=1', label: t\('nav\.modelsPricing'\)/)
+  })
+
+  it('keeps the converged ordering: keys → models pricing → spend → subscriptions → wallet → pricing → orders → research → profile', () => {
+    const mineItems = mineItemsMatch?.[1] ?? ''
+    const order = [
+      "path: '/keys'",
+      "path: '/model-pricing?embedded=1'",
+      "path: '/spend'",
+      "path: '/subscriptions'",
+      "path: '/wallet'",
+      "path: '/pricing'",
+      "path: '/orders'",
+      "path: '/research-discount'",
+      "path: '/profile'",
+    ]
+    let last = -1
+    for (const marker of order) {
+      const at = mineItems.indexOf(marker)
+      expect(at).toBeGreaterThan(last)
+      last = at
+    }
+  })
+
+  it('sends the regular-user logo/home target to the chat portal instead of the hidden dashboard', () => {
+    expect(componentSource).toContain("const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/chat'))")
+  })
+
+  it('matches active state by path key so query-bearing nav items (e.g. /model-pricing?embedded=1) highlight', () => {
+    expect(componentSource).toContain('function navPathKey(path: string): string')
+    expect(componentSource).toContain('return item.children.some(child => isActive(child.path))')
   })
 })

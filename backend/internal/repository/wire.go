@@ -80,6 +80,9 @@ var ProviderSet = wire.NewSet(
 	NewResearchAttachmentUploadRepository, // 科研附件上传记录
 	NewPromoCodeRepository,
 	NewRewardGrantRepository,
+	NewSubscriptionGrantRepository,
+	NewBenefitClaimRepository,
+	NewStudentVerificationRepository,
 	NewAnnouncementRepository,
 	NewAnnouncementReadRepository,
 	NewUsageLogRepository,
@@ -89,6 +92,7 @@ var ProviderSet = wire.NewSet(
 	NewUsageCleanupRepository,
 	NewDashboardAggregationRepository,
 	NewSettingRepository,
+	NewPresentationPricingRepository, // 展示价（Presentation Pricing）override
 	NewOpsRepository,
 	NewAuditLogRepository,
 	NewPasskeyRepository,

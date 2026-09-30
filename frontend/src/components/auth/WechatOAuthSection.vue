@@ -88,7 +88,7 @@ function startLogin(): void {
   if (buttonDisabled.value || !resolvedStart.value.mode) {
     return
   }
-  const redirectTo = (route.query.redirect as string) || '/dashboard'
+  const redirectTo = (route.query.redirect as string) || '/chat'
   storeOAuthAffiliateCode(resolveAffiliateReferralCode(props.affCode, route.query.aff, route.query.aff_code))
   const mode = resolvedStart.value.mode
   emit('start', {

@@ -26,12 +26,13 @@ const PREFETCH_ADJACENCY: Record<string, string[]> = {
   '/admin/users': ['/admin/groups', '/admin/dashboard'],
   '/admin/groups': ['/admin/subscriptions', '/admin/users'],
   '/admin/subscriptions': ['/admin/groups', '/admin/redeem'],
-  // User routes
-  '/dashboard': ['/keys', '/usage'],
-  '/keys': ['/dashboard', '/usage'],
-  '/usage': ['/keys', '/redeem'],
-  '/redeem': ['/usage', '/profile'],
-  '/profile': ['/dashboard', '/keys']
+  // User routes —— 与收敛后的「我的」导航一致（仪表盘/兑换不再是一级入口，/usage 重定向至 /spend）
+  '/chat': ['/spend', '/keys'],
+  '/spend': ['/keys', '/wallet'],
+  '/keys': ['/spend', '/wallet'],
+  '/wallet': ['/spend', '/orders'],
+  '/orders': ['/wallet', '/profile'],
+  '/profile': ['/spend', '/keys']
 }
 
 /**

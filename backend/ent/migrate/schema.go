@@ -1326,6 +1326,30 @@ var (
 			},
 		},
 	}
+	// PresentationModelPricingColumns holds the columns for the "presentation_model_pricing" table.
+	PresentationModelPricingColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "model_name", Type: field.TypeString, Unique: true, Size: 255},
+		{Name: "billing_mode", Type: field.TypeString, Size: 20, Default: "token"},
+		{Name: "currency", Type: field.TypeString, Size: 10, Default: "USD"},
+		{Name: "input_price", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "double precision"}},
+		{Name: "output_price", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "double precision"}},
+		{Name: "cache_write_price", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "double precision"}},
+		{Name: "cache_write_1h_price", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "double precision"}},
+		{Name: "cache_read_price", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "double precision"}},
+		{Name: "per_request_price", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "double precision"}},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "remark", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "updated_by", Type: field.TypeInt64, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// PresentationModelPricingTable holds the schema information for the "presentation_model_pricing" table.
+	PresentationModelPricingTable = &schema.Table{
+		Name:       "presentation_model_pricing",
+		Columns:    PresentationModelPricingColumns,
+		PrimaryKey: []*schema.Column{PresentationModelPricingColumns[0]},
+	}
 	// PromoCodesColumns holds the columns for the "promo_codes" table.
 	PromoCodesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2460,6 +2484,7 @@ var (
 		PaymentOrdersTable,
 		PaymentProviderInstancesTable,
 		PendingAuthSessionsTable,
+		PresentationModelPricingTable,
 		PromoCodesTable,
 		PromoCodeUsagesTable,
 		ProxiesTable,
@@ -2573,6 +2598,9 @@ func init() {
 	PendingAuthSessionsTable.ForeignKeys[0].RefTable = UsersTable
 	PendingAuthSessionsTable.Annotation = &entsql.Annotation{
 		Table: "pending_auth_sessions",
+	}
+	PresentationModelPricingTable.Annotation = &entsql.Annotation{
+		Table: "presentation_model_pricing",
 	}
 	PromoCodesTable.Annotation = &entsql.Annotation{
 		Table: "promo_codes",

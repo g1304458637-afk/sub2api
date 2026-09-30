@@ -43,12 +43,24 @@ export interface PlazaTimePricing {
   periods: PlazaTimePricingPeriod[]
 }
 
+/**
+ * 展示价来源：
+ * - manual：管理员手工设置的标准价（最高优先级）；
+ * - official：无 override 时回退官方目录价；
+ * - billing：官方目录未覆盖时回退计费口径标准价；
+ * - none：三者皆无，页面显示「价格暂未公布」。
+ */
+export type PlazaPresentationSource = 'manual' | 'official' | 'billing' | 'none'
+
 export interface PlazaModel {
   name: string
   platform: string
   /** 实收口径的展示定价：档位可提供绝对单价或相对基础价倍率；均为标准时段价。 */
   pricing: UserSupportedModelPricing | null
   official_pricing: PlazaOfficialPricing | null
+  /** 标准展示价（绝对值，来源见 presentation_source）；null = 价格暂未公布。 */
+  display_pricing: UserSupportedModelPricing | null
+  presentation_source?: PlazaPresentationSource
   /** 仅多档模型返回。 */
   long_context_basis?: PlazaLongContextBasis
   /** 仅配置了分时倍率的模型返回。 */

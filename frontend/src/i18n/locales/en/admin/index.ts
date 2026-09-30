@@ -10,6 +10,7 @@ import plugins from './plugins'
 import research from './research'
 import rewardGrants from './rewardGrants'
 import mediaQuota from './mediaQuota'
+import presentationPricing from './presentationPricing'
 
 export default {
   ...overview,
@@ -24,4 +25,5 @@ export default {
   ...research,
   ...rewardGrants,
   ...mediaQuota,
+  ...presentationPricing,
 }
