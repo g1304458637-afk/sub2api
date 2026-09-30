@@ -426,6 +426,13 @@ func (f *fakeUserRepoGrant) GetByID(ctx context.Context, id int64) (*User, error
 
 // ---- 构造被测服务 ----
 
+// grantTestFixedNow 是 newTestGrantService 冻结的服务时钟。测试数据必须
+// 相对它构造，而不是相对真实 time.Now()：否则真实时间越过冻结点后，
+// 与时钟相关的断言会随墙上时钟漂移失效（time-bomb）。
+func grantTestFixedNow() time.Time {
+	return time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+}
+
 func newTestGrantService(t *testing.T) (*SubscriptionGrantService, *fakeGrantRepo, *fakeClaimRepo, *fakeSubscriptionWorld, *sqlmock.Sqlmock, *dbent.Client) {
 	t.Helper()
 	db, mock, err := sqlmock.New()
@@ -442,7 +449,7 @@ func newTestGrantService(t *testing.T) (*SubscriptionGrantService, *fakeGrantRep
 		&fakeGroupRepoGrant{group: &Group{SubscriptionType: SubscriptionTypeSubscription}},
 		world, world, nil,
 	)
-	fixed := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+	fixed := grantTestFixedNow()
 	svc.SetNowFunc(func() time.Time { return fixed })
 	world.now = func() time.Time { return fixed }
 	return svc, grantRepo, claimRepo, world, &mock, client
@@ -524,7 +531,7 @@ func TestGrantCreate_SameGroupActiveExtendsFromExpires(t *testing.T) {
 // 场景 18.4 + 19：expired subscription → 再赠送 → 真正重新激活（不是 stale success）
 func TestGrantCreate_ExpiredSubscriptionReactivated(t *testing.T) {
 	svc, grantRepo, _, world, mock, _ := newTestGrantService(t)
-	expired := time.Now().Add(-48 * time.Hour)
+	expired := grantTestFixedNow().Add(-48 * time.Hour)
 	stale := world.seedSub(1, 10, SubscriptionStatusActive, expired) // 模拟惰性到期前的行
 
 	(*mock).ExpectBegin()
@@ -731,7 +738,7 @@ func TestRevokeGrant_NeverExtends(t *testing.T) {
 func TestExpireFulfilledGrants_ArchivesPassedContributions(t *testing.T) {
 	svc, grantRepo, _, _, _, _ := newTestGrantService(t)
 	// 手工构造已过贡献期的 fulfilled 台账
-	past := time.Now().Add(-time.Hour)
+	past := grantTestFixedNow().Add(-time.Hour)
 	grantRepo.nextID++
 	grantRepo.grants[grantRepo.nextID] = &SubscriptionGrant{
 		ID: grantRepo.nextID, UserID: 1, GroupID: 10, Source: domain.SubscriptionGrantSourceAdminGrant,
