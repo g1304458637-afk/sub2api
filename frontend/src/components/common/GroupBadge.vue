@@ -11,7 +11,7 @@
     <span class="truncate">{{ name }}</span>
     <!-- Right side label -->
     <span v-if="showLabel" :class="labelClass">
-      <template v-if="hasCustomRate">
+      <template v-if="hasCustomRate && !hideRate">
         <!-- 原倍率删除线 + 专属倍率高亮 -->
         <span class="line-through opacity-50 mr-0.5">{{ rateMultiplier }}x</span>
         <span class="font-bold">{{ userRateMultiplier }}x</span>
@@ -45,6 +45,8 @@ interface Props {
   peakEnd?: string
   peakRateMultiplier?: number
   showRate?: boolean
+  /** 隐藏倍率数字：标准分组不再显示 Nx，订阅分组保留"订阅/剩余天数"标签 */
+  hideRate?: boolean
   daysRemaining?: number | null // 剩余天数（订阅类型时使用）
   /**
    * 订阅分组默认在右侧 label 展示"订阅"或剩余天数；
@@ -57,6 +59,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   subscriptionType: 'standard',
   showRate: true,
+  hideRate: false,
   daysRemaining: null,
   userRateMultiplier: null,
   peakRateEnabled: false,
@@ -102,6 +105,8 @@ const peakRateTitle = computed(() => {
 // 是否显示右侧标签
 const showLabel = computed(() => {
   if (!props.showRate) return false
+  // 隐藏倍率模式：仅订阅分组保留"订阅/剩余天数"标签
+  if (props.hideRate) return isSubscription.value && !props.alwaysShowRate
   // 订阅类型：显示天数或"订阅"
   if (isSubscription.value) return true
   // 标准类型：显示倍率（包括专属倍率）
