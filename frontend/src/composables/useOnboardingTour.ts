@@ -95,7 +95,9 @@ export function useOnboardingTour(options: OnboardingOptions) {
     // 动态获取当前用户角色和步骤
     const isAdmin = userStore.user?.role === 'admin'
     const isSimpleMode = userStore.isSimpleMode
-    const steps = isAdmin ? getAdminSteps(t, isSimpleMode) : getUserSteps(t)
+    const steps = (isAdmin ? getAdminSteps(t, isSimpleMode) : getUserSteps(t))
+      // 「使用方式」选择器仅多分组时渲染；隐藏时同步跳过对应引导步骤。
+      .filter((step) => step.element !== '[data-tour="key-form-group"]' || Boolean(document.querySelector('[data-tour="key-form-group"]')))
 
     // 确保 DOM 就绪
     await nextTick()
